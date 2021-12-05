@@ -1,2 +1,1 @@
-# async-art-flow-contracts
-Async Art Flow Contracts
+# Async Art Flow Contracts
