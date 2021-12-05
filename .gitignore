@@ -4,3 +4,5 @@ test/__pycache__/**
 emulator.log
 built.rlp
 signed.rlp
+cadence/.DS_Store
+.DS_Store
