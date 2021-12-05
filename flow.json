@@ -1,21 +1,33 @@
 {
-	"emulators": {
-		"default": {
-			"port": 3569,
-			"serviceAccount": "emulator-account"
-		}
-	},
-	"contracts": {},
-	"networks": {
-		"emulator": "127.0.0.1:3569",
-		"mainnet": "access.mainnet.nodes.onflow.org:9000",
-		"testnet": "access.devnet.nodes.onflow.org:9000"
-	},
-	"accounts": {
-		"emulator-account": {
-			"address": "f8d6e0586b0a20c7",
-			"key": "7a8792223b3f6725a654cdae7dc1da201cbaf5edcc44c7cfe93bc706873ff1d6"
-		}
-	},
-	"deployments": {}
+    "emulators": {
+        "default": {
+            "port": 3569,
+            "serviceAccount": "emulator-account"
+        }
+    },
+    "contracts": {
+        "AsyncArtworkV2": "./cadence/contracts/AsyncArtworkV2.cdc"
+    },
+    "networks": {
+        "emulator": "127.0.0.1:3569",
+        "mainnet": "access.mainnet.nodes.onflow.org:9000",
+        "testnet": "access.devnet.nodes.onflow.org:9000"
+    },
+    "accounts": {
+        "emulator-account": {
+            "address": "f8d6e0586b0a20c7",
+            "key": "bbfcbcb5e13deec50b1bcf88d05465c6f7d67a3a676f03e8cd3d05a8de27789b"
+        },
+        "AsyncArtAccount": {
+            "address": "0x01cf0e2f2f715450",
+            "key": "5e21da0aa90a2178205bb16c3ada145dfe1562f2949b4b376afae2a933e55b06"
+        }
+    },
+    "deployments": {
+        "emulator": {
+            "AsyncArtAccount": [
+                "AsyncArtworkV2"
+            ]
+        }
+    }
 }
