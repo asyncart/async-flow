@@ -1,0 +1,6 @@
+__pycache__/**
+test/__pycache__/**
+*.fixed.cdc
+emulator.log
+built.rlp
+signed.rlp
