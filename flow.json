@@ -17,11 +17,11 @@
     "accounts": {
         "emulator-account": {
             "address": "f8d6e0586b0a20c7",
-            "key": "214279c3125651a4cc78496db1fd8814d1808543322d9f674b567e0e71c491a4"
+            "key": "0a58925c10938aba8d20e17a0326e08c73b6fb2d385593c7b9e708f8f1ace150"
         },
         "AsyncArtAccount": {
             "address": "0x01cf0e2f2f715450",
-            "key": "554d093b0fe475d83d5932a7c579054cac4a6123ec3c59a20ff4ed81b14254df"
+            "key": "44ca9e8300d7881cc9b9a314945e8bc64d288b47f602353b3919eaf2945242f3"
         }
     },
     "deployments": {
