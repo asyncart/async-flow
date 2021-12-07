@@ -1,7 +1,7 @@
 import json
 from subprocess import check_output
 
-def encode_args(args):
+def construct_arg_list(args):
     deet = []
     for arg in args:
         cur = {}
@@ -13,11 +13,19 @@ def encode_args(args):
                 cur['value'] = {}
                 cur['value']['type'] = arg[0][:-1]
                 cur['value']['value'] = arg[1]
+        elif arg[0] == 'Array':
+            cur['type'] = arg[0]
+            cur['value'] = construct_arg_list(arg[1])
         else:
             cur['type'] = arg[0]
             cur['value'] = arg[1]
         deet.append(cur)
-    return json.dumps(deet)
+    return deet
+
+def encode_args(args):
+    deet = construct_arg_list(args)
+    res = json.dumps(deet)
+    return res
 
 def send_transaction(txname, args=None, signer='emulator-account', show=False):
     txfile = f"cadence/transactions/{txname}.cdc"
