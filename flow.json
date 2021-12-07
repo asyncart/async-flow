@@ -6,7 +6,8 @@
         }
     },
     "contracts": {
-        "AsyncArtworkV2": "./cadence/contracts/AsyncArtworkV2.cdc"
+        "NonFungibleToken": "./cadence/contracts/NonFungibleToken.cdc",
+        "AsyncArtwork": "./cadence/contracts/AsyncArtwork.cdc"
     },
     "networks": {
         "emulator": "127.0.0.1:3569",
@@ -16,17 +17,18 @@
     "accounts": {
         "emulator-account": {
             "address": "f8d6e0586b0a20c7",
-            "key": "bbfcbcb5e13deec50b1bcf88d05465c6f7d67a3a676f03e8cd3d05a8de27789b"
+            "key": "214279c3125651a4cc78496db1fd8814d1808543322d9f674b567e0e71c491a4"
         },
         "AsyncArtAccount": {
             "address": "0x01cf0e2f2f715450",
-            "key": "5e21da0aa90a2178205bb16c3ada145dfe1562f2949b4b376afae2a933e55b06"
+            "key": "554d093b0fe475d83d5932a7c579054cac4a6123ec3c59a20ff4ed81b14254df"
         }
     },
     "deployments": {
         "emulator": {
             "AsyncArtAccount": [
-                "AsyncArtworkV2"
+                "NonFungibleToken",
+                "AsyncArtwork"
             ]
         }
     }
