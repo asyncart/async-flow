@@ -1,13 +1,44 @@
 import NonFungibleToken from "./NonFungibleToken.cdc"
 
 pub contract AsyncArtwork: NonFungibleToken {
-    pub var totalSupply: UInt64
-    pub var collectionStoragePath: StoragePath 
-    pub var collectionPublicPath: PublicPath
-
     pub event ContractInitialized()
     pub event Withdraw(id: UInt64, from: Address?)
     pub event Deposit(id: UInt64, to: Address?)
+
+    pub var totalSupply: UInt64
+    pub var collectionStoragePath: StoragePath 
+    pub var collectionPublicPath: PublicPath
+    pub var stateStoragePath: StoragePath
+    pub var asyncUserStoragePath: StoragePath 
+    pub var asyncUserPrivatePath: PrivatePath 
+    pub var asyncUserPublicPath: PublicPath
+
+    pub resource AsyncUser {
+        pub let id: UInt64
+
+        init(id: UInt64) {
+            self.id = id
+        }
+    }
+
+    pub fun createAsyncUser(): @AsyncUser {
+        let state = self.account.borrow<&AsyncState>(from: self.stateStoragePath) ?? panic("Could not borrow reference to state")
+
+        return <- state.createAsyncUser()
+    }
+
+    pub resource AsyncState {
+        pub var totalUsers: UInt64 
+
+        pub fun createAsyncUser(): @AsyncUser {
+            self.totalUsers = self.totalUsers + (1 as UInt64)
+            return <- create AsyncUser(id: self.totalUsers)
+        }
+
+        init() {
+            self.totalUsers = 0
+        }
+    }
 
     pub struct ControlLever {
         pub var minValue: Int64
@@ -147,6 +178,11 @@ pub contract AsyncArtwork: NonFungibleToken {
         // Initialize the total supply
         self.totalSupply = 0
 
+        self.stateStoragePath = /storage/AsyncState
+        self.asyncUserStoragePath = /storage/AsyncUser 
+        self.asyncUserPrivatePath = /private/AsyncUser
+        self.asyncUserPublicPath = /public/AsyncUser
+
         // Create a Collection resource and save it to storage
         let collection <- create Collection()
         self.account.save(<-collection, to: self.collectionStoragePath)
@@ -156,6 +192,9 @@ pub contract AsyncArtwork: NonFungibleToken {
             self.collectionPublicPath,
             target: self.collectionStoragePath
         )
+
+        let state <- create AsyncState()
+        self.account.save(<- state, to: self.stateStoragePath)
 
         emit ContractInitialized()
 	}
