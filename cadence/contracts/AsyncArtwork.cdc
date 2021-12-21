@@ -1,4 +1,5 @@
 import NonFungibleToken from "./NonFungibleToken.cdc"
+import FungibleToken from "./FungibleToken.cdc"
 
 pub contract AsyncArtwork: NonFungibleToken {
     pub var totalSupply: UInt64
@@ -6,6 +7,10 @@ pub contract AsyncArtwork: NonFungibleToken {
     pub var collectionPublicPath: PublicPath
     pub var asyncIdStoragePath: StoragePath
     pub var asyncIdPrivateCapabilityPath: PrivatePath
+    pub var asyncStateStoragePath: StoragePath
+    pub var asyncStateAdminCapabilityPath: PrivatePath
+    pub var asyncStateUserCapabilityPath: PrivatePath
+    pub var asyncStatePublicCapabilityPath: PublicPath
 
     pub event ContractInitialized()
     pub event Withdraw(id: UInt64, from: Address?)
@@ -110,30 +115,191 @@ pub contract AsyncArtwork: NonFungibleToken {
         return <- create Collection()
     }
 
-
-    pub struct NFTMetadata {
+    // used to return data to the public, hiding the update functions
+    pub resource NFTMetadataPublic {
 
     }
 
+
+    pub resource NFTMetadata: NFTMetadataPublic {
+        pub let id: UInt64
+
+        // whether or not this NFT represents a master token or a control token
+        pub let isMaster: Bool
+
+        // The number of layers associated with a given master token
+        pub let layerCount: UInt64?
+
+        // Metadata URI
+        pub var uri: String
+
+        // The percentage of the sale value of the NFT that should be given to the AsyncArt platform when this NFT is sold for the first time
+        pub var platformFirstSalePercentage: UFix64
+
+        // The percentage of the sale value of the NFT that should be given to the AsyncArt platform when this NFT is sold subsequently to the first time
+        pub var platformSecondSalePercentage: UFix64
+
+        // Not sure who is going to take care of whether or not the NFT has been sold before, putting this on-contract for now...
+        pub var tokenSoldOnce: Bool
+
+        // These fields only apply for control tokens
+        // For master NFTs they will be nil or empty
+
+        // The number of control levers that this control token has
+        pub var numControlLevers: Int?
+        
+        // The number of allowed updates that users can enact on the control levers
+        pub var numRemainingUpdates: Int64?
+
+        // Control levers that can be used to tweak NFT metadata
+        pub var levers: {Int: ControlLever}
+
+        // An array of addresses who receive a cut of the profits when this NFT is sold
+        pub var uniqueTokenCreators: [Address]
+
+        // An array of addresses who are allowed to "control" (update the control levers on a control token, do nothing with a master token)
+        pub var permissionedControllers: [Address]
+
+        // Enables Owner/Permissioned Controller to update the control levers that are part of this token
+        // We need a wrapper around this at the contract level (and also probably at the collection level) to ensure that we can handle the "renderingTip" -> funds that the user
+        // can specify to increase Async's rendering update of their NFT
+        pub fun useControlToken(leverIds: [Int], newValues: [Int], updaterUserIdCapability: Capability<&AsyncUser>) {
+            pre {
+                !isMaster : "Master Tokens are not Control Tokens"
+            }
+        }
+
+        init (
+            id: UInt64,
+            platformFirstSalePercentage: UFix64,
+            platformSecondSalePercentage: UFix64,
+            isMaster: Bool,
+            layerCount: UInt64?,
+            tokenUri: String?, 
+            leverMinValues: [Int64]?,
+            leverMaxValues: [Int64]?,
+            leverStartValues: [Int64]?, 
+            numAllowedUpdates: Int64?
+        ) {
+            self.id = initID
+            self.numControlLevers = leverStartValues.length
+            self.numRemainingUpdates = numAllowedUpdates
+            self.levers = {}
+            var i: Int = 0;
+            while i < leverStartValues.length {
+                self.levers[i] = ControlLever(minValue: leverMinValues[i], maxValue: leverMaxValues[i], startValue: leverStartValues[i])
+                i = i + 1
+            }
+            self.uri = tokenUri
+        }
+    }
+
+    pub resource interface AsyncStateAdmin {
+        pub var expectedTokenSupply
+        pub var defaultPlatformFirstSalePercentage: UFix64
+        pub var defaultPlatformSecondSalePercentage: UFix64
+
+        pub fun whitelistTokenForCreator(
+            creatorAddress: Address,
+            masterTokenId: UInt64,
+            layerCount: UInt64,
+            platformFirstSalePercentage: UFix64?,
+            platformSecondSalePercentage: UFix64?
+        )
+
+        pub fun updatePlatformSalePercentageForToken(
+            tokenId: UInt64,
+            platformFirstSalePercentage: UFix64,
+            platformSecondSalePercentage: UFix64
+        )
+
+        pub fun setTokenDidHaveFirstSaleForToken(
+            tokenId: UInt64
+        )
+
+        pub fun setExpectedTokenSupply (
+            newExpectedTokenSupply: UInt64
+        )
+
+        pub fun updateDefaultPlatformSalesPercentage (
+            platformFirstSalePercentage: UFix64?,
+            platformSecondSalePercentage: UFix64?
+        )
+
+        pub fun updateTokenURI(
+            tokenId: UInt64,
+            uri: String
+        )
+
+        pub fun lockTokenURI(
+            tokenId: UInt64
+        )
+    }
+
+    pub resource interface AsyncStateUser {
+        pub fun setupControlToken(
+            controlTokenRecipient: &{NonFungibleToken.CollectionPublic}, 
+            tokenUri: String, 
+            leverMinValues: [Int64], 
+            leverMaxValues: [Int64], 
+            leverStartValues: [Int64],
+            numAllowedUpdates: Int64,
+            additionalCollaborators: [Address]
+        )
+
+        pub fun mintArtwork(
+            masterTokenId: UInt64,
+            uri: String,
+            controlTokenArtists: [Address],
+            uniqueArtists: [Address]
+        )
+
+        pub fun getNFTMetadata(
+            tokenId: UInt64
+        ): NFTMetadataPublic
+
+        pub fun grantControlPermission(
+            tokenId: UInt64,
+            permissionedUser: Address
+        )
+
+        pub fun useControlToken(
+            controlTokenId: UInt64,
+            leverIds: [Int64],
+            newLeverValues: [Int64],
+            renderingTip: @FungibleToken.Vault?
+        )
+    }
+
+    // TODO: create public interface, probably only exposes getNFTMetadata
+
     // The resource which manages all business logic related to AsyncArtwork
-    pub resource AsyncState {
+    pub resource AsyncState: AsyncStateAdmin, AsyncStateUser {
         // The number of tokens which have been allocated an id for minting
         pub var expectedTokenSupply: UInt64
 
         // A mapping of ids (from minted NFTs) to the metadata associated with them
-        pub let nftIdsToMetadata: {UInt64 : NFTMetadata}
+        access(self) let nftIdsToMetadata: {UInt64 : NFTMetadata}
 
         // a default value for the first sales percentage assigned to an NFT when whitelisted
-        // set to 0.05 if Async wanted a 5% cut
+        // set to 5.0 if Async wanted a 5% cut
         pub var defaultPlatformFirstSalePercentage: UFix64
 
         // a default value for the second sales percentage assigned to an NFT when whitelisted
-        // set to 0.05 if Async wanted a 5% cut
+        // set to 5.0 if Async wanted a 5% cut
         pub var defaultPlatformSecondSalePercentage: UFix64
+
+        access(self) let asyncIdPrivateCapability: Capability<&AsyncId>
+
+        // returns whether or not a given sales percentage is a legal value
+        access(self) fun isSalesPercentageValid(_ percentage: UFix64): Bool {
+            return percentage < 100.0 && percentage >= 0.0
+        }
 
         // Whitelist a master token for minting by an individual artist along with a certain
         // number of component layers
         // ADMIN ONLY
+        // TODO: remove masterTokenId an just work directly with expected token supply? i don't see why it needs to be passed in?
         pub fun whitelistTokenForCreator(
             creatorAddress: Address,
             masterTokenId: UInt64,
@@ -141,7 +307,31 @@ pub contract AsyncArtwork: NonFungibleToken {
             platformFirstSalePercentage: UFix64?,
             platformSecondSalePercentage: UFix64?
         ) {
+            pre {
+                nftIdsToMetadata[masterTokenId] == nil : "NFT Metadata already exists at supplied masterTokenId"
+                platformFirstSalePercentage == nil || self.isSalesPercentageValid(platformFirstSalePercentage!) : "Invalid platformFirstSalePercentage value"
+                platformSecondSalePercentage == nil || self.isSalesPercentageValid(platformSecondSalePercentage!) : "Invalid platformSecondSalePercentage value"
+            }
+            let creatorPublicAccount = getAccount(creatorAddress)
+            let creatorAsyncCollectionPublic = creatorPublicAccount.getCapability(self.collectionPublicPath).borrow() ?? panic("Address specified does not have public capability to AsyncCollection")
 
+            // add master token id to the appropriate array via call to collection using async id priv cap etc.
+            // TBD collection interface
+
+            self.nftIdsToMetadata[masterTokenId] = NFTMetadata(
+                id: masterTokenId,
+                platformFirstSalePercentage: platformFirstSalePercentage == nil ? self.defaultPlatformFirstSalePercentage : platformFirstSalePercentage!,
+                platformSecondSalePercentage: platformSecondSalePercentage == nil ? self.defaultPlatformFirstSecondPercentage : platformSecondSalePercentage!,
+                isMaster: true,
+                layerCount: layerCount,
+                tokenUri: nil, 
+                leverMinValues: nil,
+                leverMaxValues: nil,
+                leverStartValues: nil, 
+                numAllowedUpdates: nil
+            )
+
+            var 
         }
 
         // update the platform sales percentages for a given token
@@ -164,7 +354,7 @@ pub contract AsyncArtwork: NonFungibleToken {
 
         // change var on state
         // ADMIN only
-        pub fun setExpectedTokenSupply(
+        pub fun setExpectedTokenSupply (
             newExpectedTokenSupply: UInt64
         ) {
 
@@ -244,7 +434,7 @@ pub contract AsyncArtwork: NonFungibleToken {
         // callable by anyone
         pub fun getNFTMetadata(
             tokenId: UInt64
-        ) {
+        ): NFTMetadataPublic {
 
         }
 
@@ -258,12 +448,25 @@ pub contract AsyncArtwork: NonFungibleToken {
         }
 
         // basically update NFT Metadata
+        // callable by anyone
         pub fun useControlToken(
             controlTokenId: UInt64,
             leverIds: [Int64],
-            newLeverValues: [Int64]
+            newLeverValues: [Int64],
+            renderingTip: @FungibleToken.Vault?
         ) {
 
+        }
+
+        init() {
+            pre {
+                self.account.getCapability(self.asyncIdPrivateCapabilityPath).check() : "Async Id Capability not linked!"
+            }
+            self.asyncIdPrivateCapability = self.account.getCapability(self.asyncIdPrivateCapabilityPath)
+            self.expectedTokenSupply = 0
+            self.nftIdsToMetadata = {}
+            self.defaultPlatformFirstSalePercentage = 5.0
+            self.defaultPlatformSecondSalePercentage = 1.0
         }
     }
 
@@ -301,6 +504,21 @@ pub contract AsyncArtwork: NonFungibleToken {
         self.account.link<&AsyncArtworkId>(
             self.asyncIdPrivateCapabilityPath,
             target: self.asyncIdStoragePath
+        )
+
+        let asyncState <- create AsyncState()
+        self.account.save(<- asyncState, to: self.asyncStateStoragePath)
+
+        // link capability to admin resource to deployment account
+        self.account.link<&AsyncState{AsyncStateAdmin}>(
+            self.asyncStateAdminCapabilityPath,
+            target: self.asyncStateStoragePath
+        )
+
+        // link capability to user resource to deployment account
+        self.account.link<&AsyncState{AsyncStateUser}>(
+            self.asyncStateUserCapabilityPath,
+            target: self.asyncStateStoragePath
         )
 
         emit ContractInitialized()
