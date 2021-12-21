@@ -4,6 +4,8 @@ pub contract AsyncArtwork: NonFungibleToken {
     pub var totalSupply: UInt64
     pub var collectionStoragePath: StoragePath 
     pub var collectionPublicPath: PublicPath
+    pub var asyncIdStoragePath: StoragePath
+    pub var asyncIdPrivateCapabilityPath: PrivatePath
 
     pub event ContractInitialized()
     pub event Withdraw(id: UInt64, from: Address?)
@@ -108,41 +110,177 @@ pub contract AsyncArtwork: NonFungibleToken {
         return <- create Collection()
     }
 
-    // mintNFT mints a new NFT with a new ID
-    // and deposit it in the recipients collection using their collection reference
-    pub fun setupControlToken(
-        recipient: &{NonFungibleToken.CollectionPublic}, 
-        tokenUri: String, 
-        leverMinValues: [Int64], 
-        leverMaxValues: [Int64], 
-        leverStartValues: [Int64], 
-        numAllowedUpdates: Int64
-    ) {
-        pre {
-            leverMaxValues.length <= 500 : "Too many control levers."
-            leverMaxValues.length == leverMinValues.length && leverStartValues.length == leverMaxValues.length : "Values array mismatch"
-            numAllowedUpdates == -1 || numAllowedUpdates > 0 : "Invalid allowed updates"
+
+    pub struct NFTMetadata {
+
+    }
+
+    // The resource which manages all business logic related to AsyncArtwork
+    pub resource AsyncState {
+        // The number of tokens which have been allocated an id for minting
+        pub var expectedTokenSupply: UInt64
+
+        // A mapping of ids (from minted NFTs) to the metadata associated with them
+        pub let nftIdsToMetadata: {UInt64 : NFTMetadata}
+
+        // a default value for the first sales percentage assigned to an NFT when whitelisted
+        // set to 0.05 if Async wanted a 5% cut
+        pub var defaultPlatformFirstSalePercentage: UFix64
+
+        // a default value for the second sales percentage assigned to an NFT when whitelisted
+        // set to 0.05 if Async wanted a 5% cut
+        pub var defaultPlatformSecondSalePercentage: UFix64
+
+        // Whitelist a master token for minting by an individual artist along with a certain
+        // number of component layers
+        // ADMIN ONLY
+        pub fun whitelistTokenForCreator(
+            creatorAddress: Address,
+            masterTokenId: UInt64,
+            layerCount: UInt64,
+            platformFirstSalePercentage: UFix64?,
+            platformSecondSalePercentage: UFix64?
+        ) {
+
         }
 
-        // create a new NFT
-        var newControlToken <- create NFT(
-            initID: AsyncArtwork.totalSupply, 
-            tokenUri: tokenUri,
-            leverMinValues: leverMinValues,
-            leverMaxValues: leverMaxValues,
-            leverStartValues: leverStartValues,
-            numAllowedUpdates: numAllowedUpdates
-        )
+        // update the platform sales percentages for a given token
+        // ADMIN ONLY
+        pub fun updatePlatformSalePercentageForToken(
+            tokenId: UInt64,
+            platformFirstSalePercentage: UFix64,
+            platformSecondSalePercentage: UFix64
+        ) {
 
-        // deposit it in the recipient's account using their reference
-        recipient.deposit(token: <- newControlToken)
+        }
 
-        AsyncArtwork.totalSupply = AsyncArtwork.totalSupply + (1 as UInt64)
+        // set a flag on the NFT metadata
+        // ADMIN only
+        pub fun setTokenDidHaveFirstSaleForToken(
+            tokenId: UInt64
+        ) {
+
+        }
+
+        // change var on state
+        // ADMIN only
+        pub fun setExpectedTokenSupply(
+            newExpectedTokenSupply: UInt64
+        ) {
+
+        }
+
+        // change var on statre
+        // ADMIN only
+        pub fun updateDefaultPlatformSalesPercentage (
+            platformFirstSalePercentage: UFix64?,
+            platformSecondSalePercentage: UFix64?
+        ) {
+
+        }
+
+        // update the metadata in a specific way for an nft
+        // ADMIN only
+        pub fun updateTokenURI(
+            tokenId: UInt64,
+            uri: String
+        ) {
+
+        }
+
+        // update the metadata in a specific way for an nft
+        // ADMIN only
+        pub fun lockTokenURI(
+            tokenId: UInt64
+        ) {
+
+        }
+
+        // Mint control token when permitted to do so via mintArtwork
+        // callable by anyone
+        pub fun setupControlToken(
+            controlTokenRecipient: &{NonFungibleToken.CollectionPublic}, 
+            tokenUri: String, 
+            leverMinValues: [Int64], 
+            leverMaxValues: [Int64], 
+            leverStartValues: [Int64],
+            numAllowedUpdates: Int64,
+            additionalCollaborators: [Address]
+        ) {
+            pre {
+                leverMaxValues.length <= 500 : "Too many control levers."
+                leverMaxValues.length == leverMinValues.length && leverStartValues.length == leverMaxValues.length : "Length of lever arrays do not match"
+                numAllowedUpdates == -1 || numAllowedUpdates > 0 : "Invalid num allowed updates"
+                additionalCollaborators.length <= 50 : "Too many collaborators"
+            }
+
+            // create a new NFT
+            var newControlToken <- create NFT(
+                initID: AsyncArtwork.totalSupply, 
+                tokenUri: tokenUri,
+                leverMinValues: leverMinValues,
+                leverMaxValues: leverMaxValues,
+                leverStartValues: leverStartValues,
+                numAllowedUpdates: numAllowedUpdates
+            )
+
+            // deposit it in the recipient's account using their reference
+            recipient.deposit(token: <- newControlToken)
+
+            AsyncArtwork.totalSupply = AsyncArtwork.totalSupply + (1 as UInt64)
+        }
+
+        // aka mint master token NFT
+        // callable by anyone
+        pub fun mintArtwork(
+            masterTokenId: UInt64,
+            uri: String,
+            controlTokenArtists: [Address],
+            uniqueArtists: [Address]
+        ) {
+
+        }
+
+        // callable by anyone
+        pub fun getNFTMetadata(
+            tokenId: UInt64
+        ) {
+
+        }
+
+        // grant control permission
+        // callable by anyone
+        pub fun grantControlPermission(
+            tokenId: UInt64,
+            permissionedUser: Address
+        ) {
+
+        }
+
+        // basically update NFT Metadata
+        pub fun useControlToken(
+            controlTokenId: UInt64,
+            leverIds: [Int64],
+            newLeverValues: [Int64]
+        ) {
+
+        }
+    }
+
+    // Resource used to control access to public functions
+    pub resource AsyncId {
+        pub let id: UInt64
+
+        init() {
+            self.id = 42
+        }
     }
 
 	init() {
         self.collectionStoragePath = /storage/AsyncArtworkNFTCollection
         self.collectionPublicPath = /public/AsyncArtworkCollection
+        self.asyncIdStoragePath = /storage/AsyncArtworkId
+        self.asyncIdPrivateCapabilityPath = /private/AsyncArtworkId
 
         // Initialize the total supply
         self.totalSupply = 0
@@ -155,6 +293,14 @@ pub contract AsyncArtwork: NonFungibleToken {
         self.account.link<&{NonFungibleToken.CollectionPublic}>(
             self.collectionPublicPath,
             target: self.collectionStoragePath
+        )
+
+        // Create AsyncId resource and have store it in deployer account storage with a private capability
+        let asyncId <- create AsyncId()
+        self.account.save(<-asyncId, to: self.asyncIdStoragePath)
+        self.account.link<&AsyncArtworkId>(
+            self.asyncIdPrivateCapabilityPath,
+            target: self.asyncIdStoragePath
         )
 
         emit ContractInitialized()
