@@ -50,14 +50,190 @@ pub contract AsyncArtwork: NonFungibleToken {
         }
     }
 
-    pub resource Collection: NonFungibleToken.Provider, NonFungibleToken.Receiver, NonFungibleToken.CollectionPublic {
+    pub resource interface CollectionOwnerGateway {
+        // dictionary of NFT conforming tokens
+        // NFT is a resource type with an `UInt64` ID field
+        var ownedNFTs: @{UInt64: NonFungibleToken.NFT}
+
+        // used to track what master tokens a user can mint, and the layer count for each one
+        access(self) let masterMintReservation: {UInt64: UInt64}
+
+        // used to track what control tokens a user can mint
+        access(self) let controlMintReservation: [UInt64]
+
+        // used to track what control tokens a user can update
+        access(self) let controlUpdate: [UInt64]
+
+        pub fun mintMasterToken(
+            id: UInt64, 
+            artworkUri: String, 
+            controlTokenArtists: [Address], 
+            uniqueArtists: [Address]) 
+        {
+            pre {
+                self.masterMintReservation[id] : "Not authorized to mint"
+                id > 0 : "Can't mint a token with id 0 anymore"
+            }
+
+            post {
+                !self.masterMintReservation[id] : "Reservation not removed after mint"
+                ownedNFTs[id] : "Did not receive minted token"
+            }
+        }
+
+        pub fun mintControlToken(
+            id: UInt64,
+            tokenUri: String, 
+            leverMinValues: [Int64], 
+            leverMaxValues: [Int64], 
+            leverStartValues: [Int64],
+            numAllowedUpdates: Int64,
+            additionalCollaborators: [Address]
+        ) {
+            pre {
+                self.controlMintReservation.contains(id) : "Not authorized to mint"
+                leverMinValues.length <= 500 : "Too many control levers"
+                additionalCollaborators.length <= 50 : "Too many collaborators"
+                numAllowedUpdates == -1 || numAllowedUpdates > 0 : "Invalid allowed updates"
+                leverMinValues.length == leverMaxValues.length && leverMaxValues.length == leverStartValues.length : "Values array mismatch"
+            }
+
+            post {
+                !self.controlMintReservation.contains(id) : "Reservation not removed after mint"
+                ownedNFTs[id] : "Did not receive minted token"
+            }
+        }
+
+        pub fun updateControlToken(
+            id: UInt64, 
+            leverIds: [Int64], 
+            newLeverValues: [Int64], 
+            renderingTip: @FungibleToken.Vault?
+        ) {
+            pre {
+                ownedNFTs[id] || self.controlUpdate.contains(id) : "Not authorized to mint"
+            }
+        }
+
+        pub fun grantPermission(id: UInt64, permissionedUser: Address, grant: Bool)
+    }
+
+    pub resource interface CollectionAsyncGateway {
+        // used to authenticate communication between Collection and AsyncState
+        access(self) let asyncIdCap: Capability<&AsyncId>
+
+        // used to track what master tokens a user can mint
+        access(self) let masterMintReservation: {UInt64: UInt64}
+
+        // used to track what control tokens a user can mint
+        access(self) let controlMintReservation: [UInt64]
+
+        // used to track what control tokens a user can update
+        access(self) let controlUpdate: [UInt64]
+
+        pub fun reserveMasterMint(id: UInt64, asyncIdCap: Capability<&AsyncId>) {
+            pre {
+                asyncIdCap.borrow() == self.asyncIdCap.borrow() : "Only AsyncArt can invoke"
+            }
+
+            post {
+                self.masterMintReservation[id] : "Reservation not added"
+            }
+        }
+
+        pub fun reserveControlMint(id: UInt64, asyncIdCap: Capability<&AsyncId>) {
+            pre {
+                asyncIdCap.borrow() == self.asyncIdCap.borrow() : "Only AsyncArt can invoke"
+            }
+
+            post {
+                self.controlMintReservation[id] : "Reservation not added"
+            }
+        }
+
+        pub fun grantPermission(id: UInt64, grant: Bool, asyncIdCap: Capability<&AsyncId>) {
+            pre {
+                asyncIdCap.borrow() == self.asyncIdCap.borrow() : "Only AsyncArt can invoke"
+            }  
+
+            post {
+                self.controlUpdate[id] == grant : "Permission not granted"
+            }
+        }
+    }
+
+    pub resource Collection: NonFungibleToken.Provider, NonFungibleToken.Receiver, NonFungibleToken.CollectionPublic, CollectionOwnerGateway, CollectionAsyncGateway {
         // dictionary of NFT conforming tokens
         // NFT is a resource type with an `UInt64` ID field
         pub var ownedNFTs: @{UInt64: NonFungibleToken.NFT}
 
-        init () {
+        // used to authenticate communication between Collection and AsyncState
+        access(self) let asyncIdCap: Capability<&AsyncId>
+
+        // used to communicate with AsyncState
+        access(self) let asyncStateCap: Capability<&{AsyncStateUser}>
+
+        // used to track what master tokens a user can mint
+        access(self) let masterMintReservation: [UInt64]
+
+        // used to track what control tokens a user can mint
+        access(self) let controlMintReservation: [UInt64]
+
+        // used to track what control tokens a user can update
+        access(self) let controlUpdate: [UInt64]
+
+        init (asyncIdCap: Capability<&AsyncId>, asyncStateCap: Capability<&{AsyncStateUser}>) {
             self.ownedNFTs <- {}
+            self.asyncIdCap = asyncIdCap
+            self.asyncStateCap = asyncStateCap
+            self.masterMintReservation = []
+            self.controlMintReservation = []
+            self.controlUpdate = []
         }
+
+        // =============================
+        // CollectionOwnerGateway interface
+        // =============================
+
+        pub fun mintMasterToken(
+            id: UInt64, 
+            artworkUri: String, 
+            controlTokenArtists: [Address], 
+            uniqueArtists: [Address]
+        )
+
+        pub fun mintControlToken(
+            id: UInt64,
+            tokenUri: String, 
+            leverMinValues: [Int64], 
+            leverMaxValues: [Int64], 
+            leverStartValues: [Int64],
+            numAllowedUpdates: Int64,
+            additionalCollaborators: [Address]
+        )
+
+        pub fun updateControlToken(
+            id: UInt64, 
+            leverIds: [Int64], 
+            newLeverValues: [Int64], 
+            renderingTip: @FungibleToken.Vault?
+        )
+
+        pub fun grantPermission(id: UInt64, permissionedUser: Address, grant: Bool)
+
+        // =============================
+        // CollectionAsyncGateway interface
+        // =============================
+
+        pub fun reserveMasterMint(id: UInt64, asyncIdCap: Capability<&AsyncId>)
+
+        pub fun reserveControlMint(id: UInt64, asyncIdCap: Capability<&AsyncId>)
+
+        pub fun grantPermission(id: UInt64, grant: Bool, asyncIdCap: Capability<&AsyncId>)
+
+        // =============================
+        // NonFungibleToken.Provider, NonFungibleToken.Receiver, NonFungibleToken.CollectionPublic interfaces
+        // =============================
 
         // withdraw removes an NFT from the collection and moves it to the caller
         pub fun withdraw(withdrawID: UInt64): @NonFungibleToken.NFT {
@@ -77,6 +253,9 @@ pub contract AsyncArtwork: NonFungibleToken {
 
             // add the new token to the dictionary which removes the old one
             let oldToken <- self.ownedNFTs[id] <- token
+
+            let asyncState = self.asyncStateCap.borrow() ?? panic("Could not borrow reference to AsyncState")
+            asyncState.updateOwner(tokenId: id, newOwner: self.account.address)
 
             emit Deposit(id: id, to: self.owner?.address)
 
@@ -101,7 +280,9 @@ pub contract AsyncArtwork: NonFungibleToken {
 
     // public function that anyone can call to create a new empty collection
     pub fun createEmptyCollection(): @NonFungibleToken.Collection {
-        return <- create Collection()
+        let idCap = self.account.getCapability<&AsyncId>(asyncIdPrivateCapabilityPath)
+        let stateCap = self.account.getCapability<&{AsyncStateUser}>(asyncStateUserCapabilityPath)
+        return <- create Collection(asyncIdCap: idCap, asyncStateCap: stateCap)
     }
 
     // used to return data to the public, hiding the update functions
@@ -331,7 +512,8 @@ pub contract AsyncArtwork: NonFungibleToken {
 
         pub fun grantControlPermission(
             tokenId: UInt64,
-            permissionedUser: Address
+            permissionedUser: Address,
+            grant: Bool
         )
 
         pub fun useControlToken(
@@ -339,6 +521,11 @@ pub contract AsyncArtwork: NonFungibleToken {
             leverIds: [Int64],
             newLeverValues: [Int64],
             renderingTip: @FlowToken.Vault?
+        )
+
+        pub fun updateOwner(
+            tokenId: UInt64,
+            newOwner: Address
         )
     }
 
@@ -600,6 +787,13 @@ pub contract AsyncArtwork: NonFungibleToken {
             }
 
             self.nftIdsToMetadata[controlTokenId]!.updateControlTokenLevers(leverIds: leverIds, newLeverValues: newLeverValues)
+        }
+
+        pub fun updateOwner(
+            tokenId: UInt64,
+            newOwner: Address
+        ) {
+            
         }
 
         init(_ rendingTipVaultCapability: Capability<&FlowToken.Vault{FungibleToken.Receiver}>, _ asyncIdPrivateCapability: Capability<&AsyncId>) {
