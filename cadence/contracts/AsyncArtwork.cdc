@@ -1,5 +1,6 @@
 import NonFungibleToken from "./NonFungibleToken.cdc"
 import FungibleToken from "./FungibleToken.cdc"
+import FlowToken from 0x3
 
 pub contract AsyncArtwork: NonFungibleToken {
     pub var totalSupply: UInt64
@@ -21,6 +22,14 @@ pub contract AsyncArtwork: NonFungibleToken {
         pub var maxValue: Int64 
         pub var currentValue: Int64
 
+        pub fun updateValue(_ newVal: Int64) {
+            pre {
+                newVal >= self.minValue
+                newVal <= self.maxValue
+            }
+            self.currentValue = newVal
+        }
+
         init(minValue: Int64, maxValue: Int64, startValue: Int64) {
             pre {
                 maxValue > minValue : "Max value must >= min"
@@ -32,32 +41,12 @@ pub contract AsyncArtwork: NonFungibleToken {
         }
     }
 
-    // this is ControlToken
+    // The id in the NFT is also a pointer to it's metadata stored in AsyncState
     pub resource NFT: NonFungibleToken.INFT {
         pub let id: UInt64
-        pub var numControlLevers: Int
-        pub var numRemainingUpdates: Int64
-        pub var levers: {Int: ControlLever}
-        pub var uri: String
 
-        init (
-            initID: UInt64,
-            tokenUri: String, 
-            leverMinValues: [Int64],
-            leverMaxValues: [Int64],
-            leverStartValues: [Int64], 
-            numAllowedUpdates: Int64
-        ) {
-            self.id = initID
-            self.numControlLevers = leverStartValues.length
-            self.numRemainingUpdates = numAllowedUpdates
-            self.levers = {}
-            var i: Int = 0;
-            while i < leverStartValues.length {
-                self.levers[i] = ControlLever(minValue: leverMinValues[i], maxValue: leverMaxValues[i], startValue: leverStartValues[i])
-                i = i + 1
-            }
-            self.uri = tokenUri
+        init (id: UInt64) {
+            self.id = id
         }
     }
 
@@ -116,7 +105,7 @@ pub contract AsyncArtwork: NonFungibleToken {
     }
 
     // used to return data to the public, hiding the update functions
-    pub resource NFTMetadataPublic {
+    pub resource interface NFTMetadataPublic {
 
     }
 
@@ -131,7 +120,10 @@ pub contract AsyncArtwork: NonFungibleToken {
         pub let layerCount: UInt64?
 
         // Metadata URI
-        pub var uri: String
+        pub var uri: String?
+
+        // Whether or not the uri can still be updated
+        pub var isUriLocked: Bool
 
         // The percentage of the sale value of the NFT that should be given to the AsyncArt platform when this NFT is sold for the first time
         pub var platformFirstSalePercentage: UFix64
@@ -152,20 +144,88 @@ pub contract AsyncArtwork: NonFungibleToken {
         pub var numRemainingUpdates: Int64?
 
         // Control levers that can be used to tweak NFT metadata
-        pub var levers: {Int: ControlLever}
+        // needs to be private so that people can't change the metadata in the ControlTokens by calling updateValue
+        access(self) let levers: {Int: ControlLever}
 
         // An array of addresses who receive a cut of the profits when this NFT is sold
-        pub var uniqueTokenCreators: [Address]
+        pub var uniqueTokenCreators: [Address]?
 
         // An array of addresses who are allowed to "control" (update the control levers on a control token, do nothing with a master token)
-        pub var permissionedControllers: [Address]
+        pub var permissionedControllers: [Address]?
 
-        // Enables Owner/Permissioned Controller to update the control levers that are part of this token
-        // We need a wrapper around this at the contract level (and also probably at the collection level) to ensure that we can handle the "renderingTip" -> funds that the user
-        // can specify to increase Async's rendering update of their NFT
-        pub fun useControlToken(leverIds: [Int], newValues: [Int], updaterUserIdCapability: Capability<&AsyncUser>) {
+
+        pub fun updatePlatformSalesPercentages(_ platformFirstSalePercentage: UFix64,_ platformSecondSalePercentage: UFix64) {
+            self.platformFirstSalePercentage = platformFirstSalePercentage
+            self.platformSecondSalePercentage = platformSecondSalePercentage
+        }
+
+        pub fun setTokenSoldOnce() {
             pre {
-                !isMaster : "Master Tokens are not Control Tokens"
+                self.tokenSoldOnce == false : "tokenSoldOnce is already true"
+            }
+            self.tokenSoldOnce = true
+        }
+
+        pub fun updateUri(_ uri: String) {
+            pre {
+                !self.isUriLocked : "Cannot update uri -- locked"
+            }
+            self.uri = uri
+        }
+
+        pub fun lockUri() {
+            pre {
+                !self.isUriLocked : "Uri is already locked"
+            }
+            self.isUriLocked = true
+        }
+
+        pub fun initializeControlToken(
+            uri: String,
+            leverMinValues: [Int64],
+            leverMaxValues: [Int64],
+            leverStartValues: [Int64],
+            numAllowedUpdates: Int64,
+            uniqueTokenCreators: [Address]
+        ) {
+            pre {
+                !self.isMaster : "Unexpectedly tried to initialize master token as control token"
+                self.uri == nil : "Token uri non-nil on unitialized control token"
+                self.levers == {} : "Levers are non-empty on unitialized control token"
+                self.numAllowedUpdates == nil : "Num allowed updates non-nil on unitialized control token"
+                self.uniqueTokenCreators == nil : "Unqiue token creators non-nill on unitialized control token"
+            }
+            self.uri = uri
+            self.uniqueTokenCreators = uniqueTokenCreators
+
+            var i: Int = 0
+            while i < leverStartValues.length {
+                self.levers[i] = ControlLever(minValue: leverMinValues[i], maxValue: leverMaxValues[i], startValue: leverStartValues[i])
+                i = i + 1
+            }
+        }
+
+        pub fun initializeMasterToken(uri: String, controlTokenArtists: [Address], uniqueTokenCreators: [Address]) {
+            pre {
+                self.isMaster : "Tried to intialize control token as master token"
+                self.uri == nil : "Token uri is initialized on non-initialized master token"
+                self.controlTokenArtists == nil : "Control token artists initialized on non-intialized master token"
+                self.uniqueTokenCreators == nil : "uniqueTokenCreators initialized on non-intialized master token"
+            }
+            self.uri = uri
+            self.controlTokenArtists = controlTokenArtists
+            self.uniqueTokenCreators = uniqueTokenCreators
+        }
+
+        pub fun updateControlTokenLevers(leverIds: [Int64], newLeverValues: [Int64]) {
+            var i: Int = 0
+            while i < leverIds.length {
+                if levers[i] == nil {
+                    panic("Attempted to update invalid lever id")
+                } else {
+                    levers[i]!.updateValue(newLeverValues[i])
+                }
+                i = i + 1
             }
         }
 
@@ -179,18 +239,28 @@ pub contract AsyncArtwork: NonFungibleToken {
             leverMinValues: [Int64]?,
             leverMaxValues: [Int64]?,
             leverStartValues: [Int64]?, 
-            numAllowedUpdates: Int64?
+            numAllowedUpdates: Int64?,
+            uniqueTokenCreators: [Address]?,
+            permissionedControllers: [Address]?
         ) {
-            self.id = initID
+            self.id = id
+            self.platformSecondSalePercentage = platformSecondSalePercentage
+            self.platformSecondSalePercentage = platformSecondSalePercentage
+            self.isMaster = isMaster
+            self.layerCount = layerCount
+            self.uri = tokenUri
+            self.isUriLocked = false
             self.numControlLevers = leverStartValues.length
             self.numRemainingUpdates = numAllowedUpdates
+            self.tokenSoldOnce = false
+            self.uniqueTokenCreators = uniqueTokenCreators
+            self.permissionedControllers = permissionedControllers
             self.levers = {}
-            var i: Int = 0;
+            var i: Int = 0
             while i < leverStartValues.length {
                 self.levers[i] = ControlLever(minValue: leverMinValues[i], maxValue: leverMaxValues[i], startValue: leverStartValues[i])
                 i = i + 1
             }
-            self.uri = tokenUri
         }
     }
 
@@ -256,7 +326,7 @@ pub contract AsyncArtwork: NonFungibleToken {
 
         pub fun getNFTMetadata(
             tokenId: UInt64
-        ): NFTMetadataPublic
+        ): &NFTMetadata{NFTMetadataPublic}
 
         pub fun grantControlPermission(
             tokenId: UInt64,
@@ -289,7 +359,10 @@ pub contract AsyncArtwork: NonFungibleToken {
         // set to 5.0 if Async wanted a 5% cut
         pub var defaultPlatformSecondSalePercentage: UFix64
 
+        // private capability to async id resource used to validate calls from this resource to user's AsyncCollections
         access(self) let asyncIdPrivateCapability: Capability<&AsyncId>
+
+        pub var rendingTipVaultCapability: Capability<&FlowToken.Vault{FungibleToken.Receiver}
 
         // returns whether or not a given sales percentage is a legal value
         access(self) fun isSalesPercentageValid(_ percentage: UFix64): Bool {
@@ -318,6 +391,7 @@ pub contract AsyncArtwork: NonFungibleToken {
             // add master token id to the appropriate array via call to collection using async id priv cap etc.
             // TBD collection interface
 
+            // establish basic metadata for master token
             self.nftIdsToMetadata[masterTokenId] = NFTMetadata(
                 id: masterTokenId,
                 platformFirstSalePercentage: platformFirstSalePercentage == nil ? self.defaultPlatformFirstSalePercentage : platformFirstSalePercentage!,
@@ -331,7 +405,24 @@ pub contract AsyncArtwork: NonFungibleToken {
                 numAllowedUpdates: nil
             )
 
-            var 
+            // establish basic metadata for control tokens
+            var layerIndex = masterTokenId + 1
+            while layerIndex <= masterTokenId + layerCount {
+                self.nftIdsToMetadata[layerIndex] = NFTMetadata(
+                    id: masterTokenId,
+                    platformFirstSalePercentage: platformFirstSalePercentage == nil ? self.defaultPlatformFirstSalePercentage : platformFirstSalePercentage!,
+                    platformSecondSalePercentage: platformSecondSalePercentage == nil ? self.defaultPlatformFirstSecondPercentage : platformSecondSalePercentage!,
+                    isMaster: false,
+                    layerCount: nil,
+                    tokenUri: nil, 
+                    leverMinValues: nil,
+                    leverMaxValues: nil,
+                    leverStartValues: nil, 
+                    numAllowedUpdates: nil
+                )
+
+                layerIndex = layerIndex + 1
+            }
         }
 
         // update the platform sales percentages for a given token
@@ -341,23 +432,33 @@ pub contract AsyncArtwork: NonFungibleToken {
             platformFirstSalePercentage: UFix64,
             platformSecondSalePercentage: UFix64
         ) {
+            pre {
+                self.isSalesPercentageValid(platformFirstSalePercentage) : "Cannot update. Invalid platformFirstSalePercentage value"
+                self.isSalesPercentageValid(platformSecondSalePercentage) : "Cannot update. Invalid platformSecondSalePercentage value"
+                self.nftIdsToMetadata[tokenId] != nil : "Token doesn't exist"
+            }
 
+            self.nftIdsToMetadata[tokenId]!.updatePlatformSalesPercentages(platformFirstSalePercentage, platformSecondSalePercentage)
         }
 
         // set a flag on the NFT metadata
         // ADMIN only
-        pub fun setTokenDidHaveFirstSaleForToken(
-            tokenId: UInt64
-        ) {
-
+        pub fun setTokenDidHaveFirstSaleForToken(tokenId: UInt64) {
+            pre {
+                self.nftIdsToMetadata[tokenId] != nil : "TokenId does not exist"
+            }
+            self.nftIdsToMetadata[tokenId]!.setTokenSoldOnce()
         }
 
         // change var on state
         // ADMIN only
-        pub fun setExpectedTokenSupply (
-            newExpectedTokenSupply: UInt64
-        ) {
-
+        // We may not need this if this is only used to increment the expected token supply for whitelistTokenForCreator
+        // if there are other reasons why we would want this value to change (in a more custom way) then we can leave this
+        pub fun setExpectedTokenSupply (newExpectedTokenSupply: UInt64) {
+            pre {
+                newExpectedTokenSupply >= 0 : "Unexpectedly found negative value for expected token supply"
+            }
+            self.expectedTokenSupply = newExpectedTokenSupply
         }
 
         // change var on statre
@@ -366,7 +467,12 @@ pub contract AsyncArtwork: NonFungibleToken {
             platformFirstSalePercentage: UFix64?,
             platformSecondSalePercentage: UFix64?
         ) {
-
+            pre {
+                self.isSalesPercentageValid(platformFirstSalePercentage) : "Invalid new default platformFirstSalePercentage"
+                self.isSalesPercentageValid(platformSecondSalePercentage) : "Invalid new default platformSecondSalePercentage"
+            }
+            self.platformFirstSalePercentage = platformFirstSalePercentage
+            self.platformSecondSalePercentage = platformSecondSalePercentage
         }
 
         // update the metadata in a specific way for an nft
@@ -375,7 +481,11 @@ pub contract AsyncArtwork: NonFungibleToken {
             tokenId: UInt64,
             uri: String
         ) {
+            pre {
+                self.nftIdsToMetadata[tokenId] != nil : "Token with tokenId does not exist in metadata mapping"
+            }
 
+            self.nftIdsToMetadata[tokenId]!.updateUri(uri)
         }
 
         // update the metadata in a specific way for an nft
@@ -383,14 +493,18 @@ pub contract AsyncArtwork: NonFungibleToken {
         pub fun lockTokenURI(
             tokenId: UInt64
         ) {
-
+            pre {
+                self.nftIdsToMetadata[tokenId] != nil : "Token with tokenId does not exist in metadata mapping"
+            }
+            self.nftIdsToMetadata[tokenId]!.lockUri()
         }
 
         // Mint control token when permitted to do so via mintArtwork
-        // callable by anyone
+        // callable by async user
         pub fun setupControlToken(
+            controlTokenId: UInt64,
             controlTokenRecipient: &{NonFungibleToken.CollectionPublic}, 
-            tokenUri: String, 
+            tokenUri: String,
             leverMinValues: [Int64], 
             leverMaxValues: [Int64], 
             leverStartValues: [Int64],
@@ -402,49 +516,72 @@ pub contract AsyncArtwork: NonFungibleToken {
                 leverMaxValues.length == leverMinValues.length && leverStartValues.length == leverMaxValues.length : "Length of lever arrays do not match"
                 numAllowedUpdates == -1 || numAllowedUpdates > 0 : "Invalid num allowed updates"
                 additionalCollaborators.length <= 50 : "Too many collaborators"
+                self.nftIdsToMetadata[controlTokenId] != nil : "controlTokenId does not exist in metadata mapping"
             }
 
-            // create a new NFT
-            var newControlToken <- create NFT(
-                initID: AsyncArtwork.totalSupply, 
-                tokenUri: tokenUri,
+            self.nftIdsToMetadata[controlTokenId]!.initializeControlToken(
+                uri: tokenUri,
                 leverMinValues: leverMinValues,
                 leverMaxValues: leverMaxValues,
                 leverStartValues: leverStartValues,
-                numAllowedUpdates: numAllowedUpdates
+                numAllowedUpdates: numAllowedUpdates,
+                uniqueTokenCreators: additionalCollaborators
             )
 
-            // deposit it in the recipient's account using their reference
-            recipient.deposit(token: <- newControlToken)
+            // Mint NFT (with id: controlTokenId)
+            
 
-            AsyncArtwork.totalSupply = AsyncArtwork.totalSupply + (1 as UInt64)
+
+            // deposit it in the recipient's account using their reference
+            //recipient.deposit(token: <- newControlToken)
+
+            //AsyncArtwork.totalSupply = AsyncArtwork.totalSupply + (1 as UInt64)
         }
 
         // aka mint master token NFT
-        // callable by anyone
+        // callable by user interface
         pub fun mintArtwork(
             masterTokenId: UInt64,
+            masterTokenRecipient: &{NonFungibleToken.CollectionPublic}, 
             uri: String,
             controlTokenArtists: [Address],
             uniqueArtists: [Address]
         ) {
+            pre {
+                self.nftIdsToMetadata[masterTokenId] != nil : "masterTokenId not associated with an allocated tokenId"
+            }
 
+            self.nftIdsToMetadata[masterTokenId]!.initializeMasterToken(uri: uri, controlTokenArtists: controlTokenArtists, uniqueTokenCreators: uniqueTokenCreators)
+
+            // Mint NFT and send it back to the masterTokenRecipient
         }
 
-        // callable by anyone
+        // public interface
         pub fun getNFTMetadata(
             tokenId: UInt64
-        ): NFTMetadataPublic {
-
+        ): &NFTMetadata{NFTMetadataPublic} {
+            pre {
+                self.nftIdsToMetadata[tokenId] != nil : "token id does not exist in metadata mapping"
+            }
+            let publicMetadata: &NFTMetadata{NFTMetadataPublic} = self.nftIdsToMetadata[tokenId]
+            return publicMetadata
         }
 
         // grant control permission
-        // callable by anyone
+        // callable by async user
         pub fun grantControlPermission(
             tokenId: UInt64,
             permissionedUser: Address
         ) {
+            pre {
+                self.nftIdsToMetadata[tokenId] != nil : "Token id not allocated"
+            }
 
+            let creatorPublicAccount = getAccount(creatorAddress)
+            let creatorAsyncCollectionPublic = creatorPublicAccount.getCapability(self.collectionPublicPath).borrow() ?? panic("Address specified does not have public capability to AsyncCollection")
+
+            // add token id to array on collection of permissioned user
+            // TBD collection interface
         }
 
         // basically update NFT Metadata
@@ -453,16 +590,30 @@ pub contract AsyncArtwork: NonFungibleToken {
             controlTokenId: UInt64,
             leverIds: [Int64],
             newLeverValues: [Int64],
-            renderingTip: @FungibleToken.Vault?
+            renderingTip: @FlowToken.Vault?
         ) {
+            pre {
+                self.nftIdsToMetadata[controlTokenId] != nil : "Control token id not allocated"
+                !self.nftIdsToMetadata[controlTokenId]!.isMaster : "NFT metadata shows token is a master token, not a control token"
+                leverIds.length == newLeverValues.length : "Lengths of lever arrays are different"
+                self.rendingTipVaultCapability.check() : "Cannot borrow reference to tip vault"
+            }
 
+            if renderingTip != nil {
+                let tip <- renderingTip.withdraw(amount: renderingTip.balance)
+                let renderingTipVault = self.rendingTipVaultCapability.borrow()
+                renderingTipVault.deposit(from: <- tip)
+            }
+
+            self.nftIdsToMetadata[controlTokenId]!.updateControlTokenLevers(leverIds: leverIds, newLeverValues: newLeverValues)
         }
 
-        init() {
+        init(_ rendingTipVaultCapability: Capability<&FlowToken.Vault{FungibleToken.Receiver}>) {
             pre {
                 self.account.getCapability(self.asyncIdPrivateCapabilityPath).check() : "Async Id Capability not linked!"
             }
             self.asyncIdPrivateCapability = self.account.getCapability(self.asyncIdPrivateCapabilityPath)
+            self.rendingTipVaultCapability = rendingTipVaultCapability
             self.expectedTokenSupply = 0
             self.nftIdsToMetadata = {}
             self.defaultPlatformFirstSalePercentage = 5.0
@@ -506,7 +657,12 @@ pub contract AsyncArtwork: NonFungibleToken {
             target: self.asyncIdStoragePath
         )
 
-        let asyncState <- create AsyncState()
+        let rendingTipVaultCapability: Capability<&FlowToken.Vault{FungibleToken.Receiver}> = self.account.getCapability(/public/flowTokenReceiver)
+        if !rendingTipVaultCapability.check() {
+            panic("Failed to get reference to flowTokenReceiver for this account")
+        }
+
+        let asyncState <- create AsyncState(rendingTipVaultCapability)
         self.account.save(<- asyncState, to: self.asyncStateStoragePath)
 
         // link capability to admin resource to deployment account
