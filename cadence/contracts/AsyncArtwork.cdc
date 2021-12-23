@@ -73,6 +73,7 @@ pub contract AsyncArtwork: NonFungibleToken {
             pre {
                 self.masterMintReservation[id] : "Not authorized to mint"
                 id > 0 : "Can't mint a token with id 0 anymore"
+                self.masterMintReservation[id]! == controlTokenArtists.length : "Layer count does not match control token artist length"
             }
 
             post {
@@ -104,18 +105,22 @@ pub contract AsyncArtwork: NonFungibleToken {
             }
         }
 
-        pub fun updateControlToken(
+        pub fun useControlToken(
             id: UInt64, 
             leverIds: [Int64], 
             newLeverValues: [Int64], 
             renderingTip: @FungibleToken.Vault?
         ) {
             pre {
-                ownedNFTs[id] || self.controlUpdate.contains(id) : "Not authorized to mint"
+                ownedNFTs[id] || self.controlUpdate.contains(id) : "Not authorized to use control token"
             }
         }
 
-        pub fun grantPermission(id: UInt64, permissionedUser: Address, grant: Bool)
+        pub fun grantControlPermission(id: UInt64, permissionedUser: Address, grant: Bool) {
+            pre {
+                ownedNFTs[id] : "Not authorized to grant permissions for this token"
+            }
+        }
     }
 
     pub resource interface CollectionAsyncGateway {
@@ -131,9 +136,10 @@ pub contract AsyncArtwork: NonFungibleToken {
         // used to track what control tokens a user can update
         access(self) let controlUpdate: [UInt64]
 
-        pub fun reserveMasterMint(id: UInt64, asyncIdCap: Capability<&AsyncId>) {
+        pub fun reserveMasterMint(id: UInt64, layerCount: UInt64, asyncIdCap: Capability<&AsyncId>) {
             pre {
                 asyncIdCap.borrow() == self.asyncIdCap.borrow() : "Only AsyncArt can invoke"
+                !self.masterMintReservation[id] : "Reservation already added"
             }
 
             post {
@@ -144,20 +150,22 @@ pub contract AsyncArtwork: NonFungibleToken {
         pub fun reserveControlMint(id: UInt64, asyncIdCap: Capability<&AsyncId>) {
             pre {
                 asyncIdCap.borrow() == self.asyncIdCap.borrow() : "Only AsyncArt can invoke"
+                !self.controlMintReservation.contains(id) : "Reservation already added"
             }
 
             post {
-                self.controlMintReservation[id] : "Reservation not added"
+                self.controlMintReservation.contains(id) : "Reservation not added"
             }
         }
 
-        pub fun grantPermission(id: UInt64, grant: Bool, asyncIdCap: Capability<&AsyncId>) {
+        pub fun updateControlUpdate(id: UInt64, grant: Bool, asyncIdCap: Capability<&AsyncId>) {
             pre {
                 asyncIdCap.borrow() == self.asyncIdCap.borrow() : "Only AsyncArt can invoke"
+                !self.controlUpdate.contains(id) == grant : "Current state of permission for token matches requested state"
             }  
 
             post {
-                self.controlUpdate[id] == grant : "Permission not granted"
+                self.controlUpdate.contains(id) == grant : "Permission not granted"
             }
         }
     }
@@ -200,7 +208,20 @@ pub contract AsyncArtwork: NonFungibleToken {
             artworkUri: String, 
             controlTokenArtists: [Address], 
             uniqueArtists: [Address]
-        )
+        ) {
+            let state = self.asyncStateCap.borrow() ?? panic("Could not borrow reference to AsyncState")
+
+            let masterToken <- state.mintArtwork(
+                masterTokenId: id, 
+                uri: artworkUri, 
+                controlTokenArtists: controlTokenArtist, 
+                uniqueArtists: uniqueArtists
+            )
+
+            self.deposit(token: <- masterToken)
+
+            self.masterMintReservation.remove(key: id)
+        }
 
         pub fun mintControlToken(
             id: UInt64,
@@ -210,26 +231,71 @@ pub contract AsyncArtwork: NonFungibleToken {
             leverStartValues: [Int64],
             numAllowedUpdates: Int64,
             additionalCollaborators: [Address]
-        )
+        ) {
+            let state = self.asyncStateCap.borrow() ?? panic("Could not borrow reference to AsyncState")
 
-        pub fun updateControlToken(
+            let controlToken <- state.setupControlToken(
+                controlTokenId: id,
+                tokenUri: tokenUri, 
+                leverMinValues: leverMinValues, 
+                leverMaxValues: leverMaxValues, 
+                leverStartValues: leverStartValues,
+                numAllowedUpdates: numAllowedUpdates,
+                additionalCollaborators: additionalCollaborators
+            )
+
+            self.deposit(token: <- controlToken)
+
+            var index: UInt64 
+            for i, element in self.controlMintReservation {
+                if element == id {
+                    index = i
+                }
+            }
+            self.controlMintReservation.remove(at: index)
+        }
+
+        pub fun useControlToken(
             id: UInt64, 
             leverIds: [Int64], 
             newLeverValues: [Int64], 
             renderingTip: @FungibleToken.Vault?
-        )
+        ) {
+            let state = self.asyncStateCap.borrow() ?? panic("Could not borrow reference to AsyncState")
 
-        pub fun grantPermission(id: UInt64, permissionedUser: Address, grant: Bool)
+            state.useControlToken(
+                controlTokenId: id, 
+                leverIds: leverIds,
+                newLeverValues: newLeverValues,
+                renderingTip: renderingTip
+            )
+        }
+
+        pub fun grantControlPermission(id: UInt64, permissionedUser: Address, grant: Bool) {
+            let state = self.asyncStateCap.borrow() ?? panic("Could not borrow reference to AsyncState")
+
+            state.grantControlPermission(
+                tokenId: id,
+                permissionedUser: permissionedUser,
+                grant: grant 
+            )
+        }
 
         // =============================
         // CollectionAsyncGateway interface
         // =============================
 
-        pub fun reserveMasterMint(id: UInt64, asyncIdCap: Capability<&AsyncId>)
+        pub fun reserveMasterMint(id: UInt64, layerCount: UInt64, asyncIdCap: Capability<&AsyncId>) {
+            self.masterMintReservation.insert(key: id, layerCount)
+        }
 
-        pub fun reserveControlMint(id: UInt64, asyncIdCap: Capability<&AsyncId>)
+        pub fun reserveControlMint(id: UInt64, asyncIdCap: Capability<&AsyncId>) {
+            self.controlMintReservation.append(id)
+        }
 
-        pub fun grantPermission(id: UInt64, grant: Bool, asyncIdCap: Capability<&AsyncId>)
+        pub fun updateControlUpdate(id: UInt64, grant: Bool, asyncIdCap: Capability<&AsyncId>) {
+            self.controlUpdate.append(id)
+        }
 
         // =============================
         // NonFungibleToken.Provider, NonFungibleToken.Receiver, NonFungibleToken.CollectionPublic interfaces
@@ -254,8 +320,8 @@ pub contract AsyncArtwork: NonFungibleToken {
             // add the new token to the dictionary which removes the old one
             let oldToken <- self.ownedNFTs[id] <- token
 
-            let asyncState = self.asyncStateCap.borrow() ?? panic("Could not borrow reference to AsyncState")
-            asyncState.updateOwner(tokenId: id, newOwner: self.account.address)
+            let state = self.asyncStateCap.borrow() ?? panic("Could not borrow reference to AsyncState")
+            state.updateOwner(tokenId: id, newOwner: self.account.address)
 
             emit Deposit(id: id, to: self.owner?.address)
 
@@ -283,6 +349,18 @@ pub contract AsyncArtwork: NonFungibleToken {
         let idCap = self.account.getCapability<&AsyncId>(asyncIdPrivateCapabilityPath)
         let stateCap = self.account.getCapability<&{AsyncStateUser}>(asyncStateUserCapabilityPath)
         return <- create Collection(asyncIdCap: idCap, asyncStateCap: stateCap)
+    }
+
+    // minter and platform are decoupled
+    pub resource interface Minter {
+
+		pub fun whitelistTokenForCreator(
+            creatorAddress: Address,
+            masterTokenId: UInt64,
+            layerCount: UInt64,
+            platformFirstSalePercentage: UFix64?,
+            platformSecondSalePercentage: UFix64?
+        )
     }
 
     // used to return data to the public, hiding the update functions
@@ -473,13 +551,6 @@ pub contract AsyncArtwork: NonFungibleToken {
         pub var expectedTokenSupply: UInt64
         pub var defaultPlatformFirstSalePercentage: UFix64
         pub var defaultPlatformSecondSalePercentage: UFix64
-        pub fun whitelistTokenForCreator(
-            creatorAddress: Address,
-            masterTokenId: UInt64,
-            layerCount: UInt64,
-            platformFirstSalePercentage: UFix64?,
-            platformSecondSalePercentage: UFix64?
-        )
         pub fun updatePlatformSalePercentageForToken(
             tokenId: UInt64,
             platformFirstSalePercentage: UFix64,
@@ -539,7 +610,7 @@ pub contract AsyncArtwork: NonFungibleToken {
     }
 
     // The resource which manages all business logic related to AsyncArtwork
-    pub resource AsyncState: AsyncStateAdmin, AsyncStateUser, AsyncStatePublic {
+    pub resource AsyncState: AsyncStateAdmin, AsyncStateUser, AsyncStatePublic, Minter  {
         // The number of tokens which have been allocated an id for minting
         pub var expectedTokenSupply: UInt64
 
