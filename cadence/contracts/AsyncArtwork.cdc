@@ -9,10 +9,29 @@ pub contract AsyncArtwork: NonFungibleToken {
     pub var collectionPublicPath: PublicPath
     pub var asyncIdStoragePath: StoragePath
     pub var asyncIdPrivateCapabilityPath: PrivatePath
-    pub var asyncStateStoragePath: StoragePath
-    pub var asyncStateAdminCapabilityPath: PrivatePath
-    pub var asyncStateUserCapabilityPath: PrivatePath
-    pub var asyncStatePublicCapabilityPath: PublicPath
+    pub var asyncStateAdminStoragePath: StoragePath
+    pub var minterStoragePath: StoragePath
+
+    // The number of tokens which have been allocated an id for minting
+    pub var expectedTokenSupply: UInt64
+
+    // A mapping of ids (from minted NFTs) to the metadata associated with them
+    access(self) let metadata: {UInt64 : NFTMetadata}
+
+    // a default value for the first sales percentage assigned to an NFT when whitelisted
+    // set to 5.0 if Async wanted a 5% cut
+    pub var defaultPlatformFirstSalePercentage: UFix64
+
+    // a default value for the second sales percentage assigned to an NFT when whitelisted
+    // set to 5.0 if Async wanted a 5% cut
+    pub var defaultPlatformSecondSalePercentage: UFix64
+
+    // private capability to async id resource used to validate calls from this resource to user's AsyncCollections
+    access(self) let asyncIdPrivateCapability: Capability<&AsyncId>
+
+    // A capability to the FlowToken vault on this contract to recieve tips
+    // We could also make a custom vault resource to be more robust
+    pub var rendingTipVaultCapability: Capability<&FlowToken.Vault{FungibleToken.Receiver}>
 
     pub event ContractInitialized()
     pub event Withdraw(id: UInt64, from: Address?)
@@ -51,7 +70,8 @@ pub contract AsyncArtwork: NonFungibleToken {
         }
     }
 
-    pub resource interface CollectionOwnerGateway {
+    // Private
+    pub resource interface AsyncCollectionPrivate {
         pub fun mintMasterToken(
             id: UInt64, 
             artworkUri: String, 
@@ -79,24 +99,22 @@ pub contract AsyncArtwork: NonFungibleToken {
         pub fun grantControlPermission(id: UInt64, permissionedUser: Address, grant: Bool)
     }
 
-    pub resource interface CollectionAsyncGateway {
+    // Public
+    pub resource interface AsyncCollectionPublic {
         pub fun reserveMasterMint(id: UInt64, layerCount: UInt64, asyncIdCap: Capability<&AsyncId>)
 
         pub fun reserveControlMint(id: UInt64, asyncIdCap: Capability<&AsyncId>)
 
-        pub fun updateControlUpdate(id: UInt64, grant: Bool, asyncIdCap: Capability<&AsyncId>)
+        pub fun receivePermissionUpdate(id: UInt64, grant: Bool, asyncIdCap: Capability<&AsyncId>)
     }
 
-    pub resource Collection: NonFungibleToken.Provider, NonFungibleToken.Receiver, NonFungibleToken.CollectionPublic, CollectionOwnerGateway, CollectionAsyncGateway {
+    pub resource Collection: NonFungibleToken.Provider, NonFungibleToken.Receiver, NonFungibleToken.CollectionPublic, AsyncCollectionPublic, AsyncCollectionPrivate {
         // dictionary of NFT conforming tokens
         // NFT is a resource type with an `UInt64` ID field
         pub var ownedNFTs: @{UInt64: NonFungibleToken.NFT}
 
-        // used to authenticate communication between Collection and AsyncState
+        // used to authenticate calls to public collection methods which can mutate controlUpdate, controlMintReservation and masterMintReservation
         access(self) let asyncIdCap: Capability<&AsyncId>
-
-        // used to communicate with AsyncState
-        access(self) let asyncStateCap: Capability<&{AsyncStateUser}>
 
         // used to track what master tokens a user can mint
         access(self) let masterMintReservation: {UInt64: UInt64}
@@ -107,10 +125,12 @@ pub contract AsyncArtwork: NonFungibleToken {
         // used to track what control tokens a user can update
         access(self) let controlUpdate: {UInt64: UInt64}
 
-        init (asyncIdCap: Capability<&AsyncId>, asyncStateCap: Capability<&{AsyncStateUser}>) {
+        init (asyncIdCap: Capability<&AsyncId>) {
+            pre {
+                asyncIdCap.check() : "Cannot borrow reference to async id"
+            }
             self.ownedNFTs <- {}
             self.asyncIdCap = asyncIdCap
-            self.asyncStateCap = asyncStateCap
             self.masterMintReservation = {}
             self.controlMintReservation = {}
             self.controlUpdate = {}
@@ -127,6 +147,8 @@ pub contract AsyncArtwork: NonFungibleToken {
             uniqueArtists: [Address]
         ) {
             pre {
+                AsyncArtwork.metadata.containsKey(masterTokenId) : "masterTokenId not associated with an allocated tokenId"
+                AsyncArtwork.metadata[masterTokenId]!.isMaster == true : "masterTokenId not associated with Master NFT"
                 self.masterMintReservation.containsKey(id) : "Not authorized to mint"
                 id > 0 : "Can't mint a token with id 0 anymore"
                 self.masterMintReservation[id] == UInt64(controlTokenArtists.length) : "Layer count does not match control token artist length"
@@ -137,18 +159,23 @@ pub contract AsyncArtwork: NonFungibleToken {
                 self.ownedNFTs.containsKey(id) : "Did not receive minted token"
             }
             
-            let state = self.asyncStateCap.borrow() ?? panic("Could not borrow reference to AsyncState")
             let owner = self.owner ?? panic("No current owner")
 
-            let masterToken <- state.mintArtwork(
-                masterTokenId: id, 
-                uri: artworkUri, 
-                controlTokenArtists: controlTokenArtists, 
-                uniqueArtists: uniqueArtists,
-                owner: owner.address
-            )
+            self.metadata[masterTokenId]!.initializeMasterToken(uri: uri, uniqueTokenCreators: uniqueArtists, owner: owner)
 
-            self.deposit(token: <- masterToken)
+            let masterTokenNFT <- create NFT(id: masterTokenId)
+
+            AsyncArtwork.totalSupply = AsyncArtwork.totalSupply + 1
+
+            var controlTokenIndex: UInt64 = masterTokenId + 1
+            for artist in controlTokenArtists {
+                let artistPublicAccount = getAccount(artist)
+                let artistPublicCollection = artistPublicAccount.getCapability(AsyncArtwork.collectionPublicPath).borrow() ?? panic("Failed to borrow async gateway capability")
+                artistPublicCollection.reserveControlMint(id: controlTokenIndex, asyncIdCap: AsyncArtwork.asyncIdPrivateCapability)
+                controlTokenIndex = controlTokenIndex + 1
+            }
+
+            self.deposit(token: <- masterTokenNFT)
 
             self.masterMintReservation.remove(key: id)
         }
@@ -163,6 +190,7 @@ pub contract AsyncArtwork: NonFungibleToken {
             additionalCollaborators: [Address]
         ) {
             pre {
+                AsyncArtwork.metadata.containsKey(id) : "Token id is not associated with any metadata"
                 self.controlMintReservation.containsKey(id) : "Not authorized to mint"
                 leverMinValues.length <= 500 : "Too many control levers"
                 additionalCollaborators.length <= 50 : "Too many collaborators"
@@ -175,21 +203,23 @@ pub contract AsyncArtwork: NonFungibleToken {
                 self.ownedNFTs.containsKey(id) : "Did not receive minted token"
             }
 
-            let state = self.asyncStateCap.borrow() ?? panic("Could not borrow reference to AsyncState")
             let owner = self.owner ?? panic("No current owner")
 
-            let controlToken <- state.setupControlToken(
-                controlTokenId: id,
-                tokenUri: tokenUri, 
-                leverMinValues: leverMinValues, 
-                leverMaxValues: leverMaxValues, 
+            AsyncArtwork.metadata[controlTokenId]!.initializeControlToken(
+                uri: tokenUri,
+                leverMinValues: leverMinValues,
+                leverMaxValues: leverMaxValues,
                 leverStartValues: leverStartValues,
                 numAllowedUpdates: numAllowedUpdates,
-                additionalCollaborators: additionalCollaborators,
-                owner: owner.address
+                uniqueTokenCreators: additionalCollaborators,
+                owner: owner
             )
 
-            self.deposit(token: <- controlToken)
+            // Mint NFT (with id: controlTokenId)
+            let controlTokenNFT <- create NFT(id: controlTokenId)
+            AsyncArtwork.totalSupply = AsyncArtwork.totalSupply + 1
+
+            self.deposit(token: <- controlTokenNFT)
 
             self.controlMintReservation.remove(key: id)
         }
@@ -202,38 +232,54 @@ pub contract AsyncArtwork: NonFungibleToken {
         ) {
             pre {
                 self.ownedNFTs.containsKey(id) || self.controlUpdate.containsKey(id) : "Not authorized to use control token"
+                AsyncArtwork.metadata.containsKey(id) : "Control token id not allocated"
+                leverIds.length == newLeverValues.length : "Lengths of lever arrays are different"
+                AsyncArtwork.rendingTipVaultCapability.check() : "Cannot borrow reference to tip vault"
             }
 
-            let state = self.asyncStateCap.borrow() ?? panic("Could not borrow reference to AsyncState")
+            if renderingTip != nil {
+                self.rendingTipVaultCapability.borrow()!.deposit(from: <- renderingTip!)
+            } else {
+                destroy renderingTip
+            }
 
-            state.useControlToken(
-                controlTokenId: id, 
-                leverIds: leverIds,
-                newLeverValues: newLeverValues,
-                renderingTip: <- renderingTip
-            )
+            self.metadata[controlTokenId]!.updateControlTokenLevers(leverIds: leverIds, newLeverValues: newLeverValues)
         }
 
+        // Grant permissions to another user to update the levels on your control token?
         pub fun grantControlPermission(id: UInt64, permissionedUser: Address, grant: Bool) {
             pre {
                 self.ownedNFTs.containsKey(id) : "Not authorized to grant permissions for this token"
+                AsyncArtwork.metadata.containsKey(id) : "Token metadata does not exist"
+                !AsyncArtwork.metadata[id]!.isMaster : "Cannot grant permissions for master token"
             }
 
-            let state = self.asyncStateCap.borrow() ?? panic("Could not borrow reference to AsyncState")
-
-            state.grantControlPermission(
-                tokenId: id,
-                permissionedUser: permissionedUser,
-                grant: grant 
-            )
+            let permissionedUserPublicAccount = getAccount(permissionedUser)
+            let permissionedUserAsyncCollection = permissionedUserPublicAccount.getCapability(AsyncArtwork.collectionPublicPath).borrow() ?? panic("Address specified does not have public capability to AsyncCollection")
+            permissionedUserAsyncCollection.receivePermissionUpdate(id: tokenId, grant: grant, self.asyncIdPrivateCapability)
         }
 
         // =============================
-        // CollectionAsyncGateway interface
+        // Public interface
         // =============================
+
+        pub fun receivePermissionUpdate(id: UInt64, grant: Bool, asyncIdCap: Capability<&AsyncId>) {
+            pre {
+                asyncIdCap.check() : "Cannot borrow AsyncId capability"
+                asyncIdCap.borrow() == AsyncArtwork.asyncIdPrivateCapability.borrow()
+                AsyncArtwork.metadata.containsKey(id) : "Metadata for this token id does not exist"
+                !self.controlUpdate.containsKey(id) == grant : "Current state of permission for token matches requested state"
+            }
+            if grant {
+                self.controlUpdate.insert(key: id, 0)
+            } else {
+                self.controlUpdate.remove(key: id)
+            }
+        }
 
         pub fun reserveMasterMint(id: UInt64, layerCount: UInt64, asyncIdCap: Capability<&AsyncId>) {
             pre {
+                asyncIdCap.check(): "Cannot borrow AsyncId capability"
                 asyncIdCap.borrow() == self.asyncIdCap.borrow() : "Only AsyncArt can invoke"
                 !self.masterMintReservation.containsKey(id) : "Reservation already added"
             }
@@ -247,6 +293,7 @@ pub contract AsyncArtwork: NonFungibleToken {
 
         pub fun reserveControlMint(id: UInt64, asyncIdCap: Capability<&AsyncId>) {
             pre {
+                asyncIdCap.check(): "Cannot borrow AsyncId capability"
                 asyncIdCap.borrow() == self.asyncIdCap.borrow() : "Only AsyncArt can invoke"
                 !self.controlMintReservation.containsKey(id) : "Reservation already added"
             }
@@ -256,19 +303,6 @@ pub contract AsyncArtwork: NonFungibleToken {
             }
 
             self.controlMintReservation.insert(key: id, 0)
-        }
-
-        pub fun updateControlUpdate(id: UInt64, grant: Bool, asyncIdCap: Capability<&AsyncId>) {
-            pre {
-                asyncIdCap.borrow() == self.asyncIdCap.borrow() : "Only AsyncArt can invoke"
-                !self.controlUpdate.containsKey(id) == grant : "Current state of permission for token matches requested state"
-            }  
-
-            post {
-                self.controlUpdate.containsKey(id) == grant : "Permission not granted"
-            }
-
-            self.controlUpdate.insert(key: id, 0)
         }
 
         // =============================
@@ -287,6 +321,10 @@ pub contract AsyncArtwork: NonFungibleToken {
         // deposit takes a NFT and adds it to the collections dictionary
         // and adds the ID to the id array
         pub fun deposit(token: @NonFungibleToken.NFT) {
+            pre {
+                AsyncArtwork.metadata.containsKey(tokenId) : "Metadata for token doesn't exist"
+            }
+
             let token <- token as! @AsyncArtwork.NFT
 
             let id: UInt64 = token.id
@@ -296,7 +334,7 @@ pub contract AsyncArtwork: NonFungibleToken {
 
             let state = self.asyncStateCap.borrow() ?? panic("Could not borrow reference to AsyncState")
             let owner = self.owner ?? panic("No current owner")
-            state.updateOwner(tokenId: id, newOwner: owner.address)
+            self.metadata[tokenId]!.updateOwner(newOwner)
 
             emit Deposit(id: id, to: self.owner?.address)
 
@@ -322,20 +360,74 @@ pub contract AsyncArtwork: NonFungibleToken {
     // public function that anyone can call to create a new empty collection
     pub fun createEmptyCollection(): @NonFungibleToken.Collection {
         let idCap = self.account.getCapability<&AsyncId>(self.asyncIdPrivateCapabilityPath)
-        let stateCap = self.account.getCapability<&{AsyncStateUser}>(self.asyncStateUserCapabilityPath)
         return <- create Collection(asyncIdCap: idCap, asyncStateCap: stateCap)
     }
 
-    // minter and platform are decoupled
-    pub resource interface Minter {
+    // returns whether or not a given sales percentage is a legal value
+    access(self) fun isSalesPercentageValid(_ percentage: UFix64): Bool {
+        return percentage < 100.0 && percentage >= 0.0
+    }
 
-		pub fun whitelistTokenForCreator(
+    // minter and platform are decoupled
+    pub resource Minter {
+		// Whitelist a master token for minting by an individual artist along with a certain number of component layers
+        // TODO: remove masterTokenId and just work directly with expected token supply? i don't see why it needs to be passed in?
+        pub fun whitelistTokenForCreator(
             creatorAddress: Address,
             masterTokenId: UInt64,
             layerCount: UInt64,
             platformFirstSalePercentage: UFix64?,
             platformSecondSalePercentage: UFix64?
-        )
+        ) {
+            pre {
+                AsyncArtwork.metadata[masterTokenId] == nil : "NFT Metadata already exists at supplied masterTokenId"
+                platformFirstSalePercentage == nil || AsyncArtwork.isSalesPercentageValid(platformFirstSalePercentage!) : "Invalid platformFirstSalePercentage value"
+                platformSecondSalePercentage == nil || AsyncArtwork.isSalesPercentageValid(platformSecondSalePercentage!) : "Invalid platformSecondSalePercentage value"
+            }
+
+            let creatorPublicAccount = getAccount(creatorAddress)
+            let creatorAsyncPublicCollection = creatorPublicAccount.getCapability(AsyncArtwork.collectionPublicPath).borrow() ?? panic("Address specified does not have public capability to AsyncCollectionGateway")
+            creatorAsyncPublicCollection.reserveMasterMint(id: masterTokenId, asyncIdCap: AsyncArtwork.asyncIdPrivateCapability)
+
+            // establish basic metadata for master token
+            AsyncArtwork.metadata[masterTokenId] = NFTMetadata(
+                id: masterTokenId,
+                platformFirstSalePercentage: platformFirstSalePercentage == nil ? AsyncArtwork.defaultPlatformFirstSalePercentage : platformFirstSalePercentage!,
+                platformSecondSalePercentage: platformSecondSalePercentage == nil ? AsyncArtwork.defaultPlatformSecondSalePercentage : platformSecondSalePercentage!,
+                isMaster: true,
+                layerCount: layerCount,
+                tokenUri: nil, 
+                leverMinValues: nil,
+                leverMaxValues: nil,
+                leverStartValues: nil, 
+                numAllowedUpdates: nil,
+                uniqueTokenCreators: nil,
+                permissionedControllers: nil
+            )
+
+            // establish basic metadata for control tokens
+            var layerIndex = masterTokenId + 1
+            while layerIndex <= masterTokenId + layerCount {
+                AsyncArtwork.metadata[layerIndex] = NFTMetadata(
+                    id: layerIndex,
+                    platformFirstSalePercentage: platformFirstSalePercentage == nil ? self.defaultPlatformFirstSalePercentage : platformFirstSalePercentage!,
+                    platformSecondSalePercentage: platformSecondSalePercentage == nil ? self.defaultPlatformSecondSalePercentage : platformSecondSalePercentage!,
+                    isMaster: false,
+                    layerCount: nil,
+                    tokenUri: nil, 
+                    leverMinValues: nil,
+                    leverMaxValues: nil,
+                    leverStartValues: nil, 
+                    numAllowedUpdates: nil,
+                    uniqueTokenCreators: nil,
+                    permissionedControllers: nil
+                )
+
+                layerIndex = layerIndex + 1
+            }
+
+            AsyncArtwork.expectedTokenSupply = AsyncArtwork.expectedTokenSupply + layerCount + 1
+        }
     }
 
     // used to return data to the public, hiding the update functions
@@ -534,154 +626,9 @@ pub contract AsyncArtwork: NonFungibleToken {
         }
     }
 
-    pub resource interface AsyncStateAdmin {
-        pub var expectedTokenSupply: UInt64
-        pub var defaultPlatformFirstSalePercentage: UFix64
-        pub var defaultPlatformSecondSalePercentage: UFix64
-        pub fun updatePlatformSalePercentageForToken(
-            tokenId: UInt64,
-            platformFirstSalePercentage: UFix64,
-            platformSecondSalePercentage: UFix64
-        )
-        pub fun setTokenDidHaveFirstSaleForToken(tokenId: UInt64)
-        pub fun setExpectedTokenSupply (newExpectedTokenSupply: UInt64)
-        pub fun updateDefaultPlatformSalesPercentage (platformFirstSalePercentage: UFix64, platformSecondSalePercentage: UFix64)
-        pub fun updateTokenURI(tokenId: UInt64, uri: String)
-        pub fun lockTokenURI(tokenId: UInt64)
-    }
-
-    pub resource interface AsyncStateUser {
-        pub fun setupControlToken(
-            controlTokenId: UInt64,
-            tokenUri: String, 
-            leverMinValues: [Int64], 
-            leverMaxValues: [Int64], 
-            leverStartValues: [Int64],
-            numAllowedUpdates: Int64,
-            additionalCollaborators: [Address],
-            owner: Address
-        ): @NFT
-
-        pub fun mintArtwork(
-            masterTokenId: UInt64,
-            uri: String,
-            controlTokenArtists: [Address],
-            uniqueArtists: [Address],
-            owner: Address
-        ): @NFT
-
-        pub fun grantControlPermission(
-            tokenId: UInt64,
-            permissionedUser: Address,
-            grant: Bool
-        )
-
-        pub fun useControlToken(
-            controlTokenId: UInt64,
-            leverIds: [Int64],
-            newLeverValues: [Int64],
-            renderingTip: @FlowToken.Vault?
-        )
-
-        pub fun updateOwner(
-            tokenId: UInt64,
-            newOwner: Address
-        )
-    }
-
-    pub resource interface AsyncStatePublic {
-        pub fun getNFTMetadata(tokenId: UInt64): NFTMetadata{NFTMetadataPublic}
-    }
-
-    pub resource interface AsyncStateMarketplace {
-        // certain functions that the marketplace contract should have access to
-        // i.e. updating tokenSoldOnce
-    }
-
     // The resource which manages all business logic related to AsyncArtwork
-    pub resource AsyncState: AsyncStateAdmin, AsyncStateUser, AsyncStatePublic, Minter  {
-        // The number of tokens which have been allocated an id for minting
-        pub var expectedTokenSupply: UInt64
-
-        // A mapping of ids (from minted NFTs) to the metadata associated with them
-        access(self) let metadata: {UInt64 : NFTMetadata}
-
-
-        // a default value for the first sales percentage assigned to an NFT when whitelisted
-        // set to 5.0 if Async wanted a 5% cut
-        pub var defaultPlatformFirstSalePercentage: UFix64
-
-        // a default value for the second sales percentage assigned to an NFT when whitelisted
-        // set to 5.0 if Async wanted a 5% cut
-        pub var defaultPlatformSecondSalePercentage: UFix64
-
-        // private capability to async id resource used to validate calls from this resource to user's AsyncCollections
-        access(self) let asyncIdPrivateCapability: Capability<&AsyncId>
-
-        // A capability to the FlowToken vault on this contract to recieve tips
-        // We could also make a custom vault resource to be more robust
-        pub var rendingTipVaultCapability: Capability<&FlowToken.Vault{FungibleToken.Receiver}>
-
-        // returns whether or not a given sales percentage is a legal value
-        access(self) fun isSalesPercentageValid(_ percentage: UFix64): Bool {
-            return percentage < 100.0 && percentage >= 0.0
-        }
-
-        // Whitelist a master token for minting by an individual artist along with a certain number of component layers
-        // TODO: remove masterTokenId and just work directly with expected token supply? i don't see why it needs to be passed in?
-        pub fun whitelistTokenForCreator(
-            creatorAddress: Address,
-            masterTokenId: UInt64,
-            layerCount: UInt64,
-            platformFirstSalePercentage: UFix64?,
-            platformSecondSalePercentage: UFix64?
-        ) {
-            pre {
-                self.metadata[masterTokenId] == nil : "NFT Metadata already exists at supplied masterTokenId"
-                platformFirstSalePercentage == nil || self.isSalesPercentageValid(platformFirstSalePercentage!) : "Invalid platformFirstSalePercentage value"
-                platformSecondSalePercentage == nil || self.isSalesPercentageValid(platformSecondSalePercentage!) : "Invalid platformSecondSalePercentage value"
-            }
-            let creatorPublicAccount = getAccount(creatorAddress)
-            //let creatorAsyncCollectionGateway = creatorPublicAccount.getCapability(/public/CollectionAsyncGateway).borrow() ?? panic("Address specified does not have public capability to AsyncCollectionGateway")
-            // creatorAsyncCollectionGateway.reserveMasterMint(id: masterTokenId, asyncIdCap: self.asyncIdPrivateCapability)
-
-            // establish basic metadata for master token
-            self.metadata[masterTokenId] = NFTMetadata(
-                id: masterTokenId,
-                platformFirstSalePercentage: platformFirstSalePercentage == nil ? self.defaultPlatformFirstSalePercentage : platformFirstSalePercentage!,
-                platformSecondSalePercentage: platformSecondSalePercentage == nil ? self.defaultPlatformSecondSalePercentage : platformSecondSalePercentage!,
-                isMaster: true,
-                layerCount: layerCount,
-                tokenUri: nil, 
-                leverMinValues: nil,
-                leverMaxValues: nil,
-                leverStartValues: nil, 
-                numAllowedUpdates: nil,
-                uniqueTokenCreators: nil,
-                permissionedControllers: nil
-            )
-
-            // establish basic metadata for control tokens
-            var layerIndex = masterTokenId + 1
-            while layerIndex <= masterTokenId + layerCount {
-                self.metadata[layerIndex] = NFTMetadata(
-                    id: layerIndex,
-                    platformFirstSalePercentage: platformFirstSalePercentage == nil ? self.defaultPlatformFirstSalePercentage : platformFirstSalePercentage!,
-                    platformSecondSalePercentage: platformSecondSalePercentage == nil ? self.defaultPlatformSecondSalePercentage : platformSecondSalePercentage!,
-                    isMaster: false,
-                    layerCount: nil,
-                    tokenUri: nil, 
-                    leverMinValues: nil,
-                    leverMaxValues: nil,
-                    leverStartValues: nil, 
-                    numAllowedUpdates: nil,
-                    uniqueTokenCreators: nil,
-                    permissionedControllers: nil
-                )
-
-                layerIndex = layerIndex + 1
-            }
-        }
+    // Consider giving marketplace contract a capability to this admin
+    pub resource AsyncStateAdmin  {
 
         // Admin can update the platform sales percentages for a given token
         pub fun updatePlatformSalePercentageForToken(
@@ -690,20 +637,20 @@ pub contract AsyncArtwork: NonFungibleToken {
             platformSecondSalePercentage: UFix64
         ) {
             pre {
-                self.isSalesPercentageValid(platformFirstSalePercentage) : "Cannot update. Invalid platformFirstSalePercentage value"
-                self.isSalesPercentageValid(platformSecondSalePercentage) : "Cannot update. Invalid platformSecondSalePercentage value"
-                self.metadata[tokenId] != nil : "Token doesn't exist"
+                AsyncArtwork.isSalesPercentageValid(platformFirstSalePercentage) : "Cannot update. Invalid platformFirstSalePercentage value"
+                AsyncArtwork.isSalesPercentageValid(platformSecondSalePercentage) : "Cannot update. Invalid platformSecondSalePercentage value"
+                AsyncArtwork.metadata.containsKey(tokenId) : "Metadata for token id doesn't exist"
             }
 
-            self.metadata[tokenId]!.updatePlatformSalesPercentages(platformFirstSalePercentage, platformSecondSalePercentage)
+            AsyncArtwork.metadata[tokenId]!.updatePlatformSalesPercentages(platformFirstSalePercentage, platformSecondSalePercentage)
         }
 
         // Admin can set the "tokenSoldOnce" flag on a piece of metadata manually
         pub fun setTokenDidHaveFirstSaleForToken(tokenId: UInt64) {
             pre {
-                self.metadata[tokenId] != nil : "TokenId does not exist"
+                AsyncArtwork.metadata[tokenId] != nil : "TokenId does not exist"
             }
-            self.metadata[tokenId]!.setTokenSoldOnce()
+            AsyncArtwork.metadata[tokenId]!.setTokenSoldOnce()
         }
 
         // Admin can update the expectedTokenSupply state variable
@@ -713,7 +660,7 @@ pub contract AsyncArtwork: NonFungibleToken {
             pre {
                 newExpectedTokenSupply >= 0 : "Unexpectedly found negative value for expected token supply"
             }
-            self.expectedTokenSupply = newExpectedTokenSupply
+            AsyncArtwork.expectedTokenSupply = newExpectedTokenSupply
         }
 
         // Admin can update the default sales percentages attached to new tokens
@@ -722,11 +669,11 @@ pub contract AsyncArtwork: NonFungibleToken {
             platformSecondSalePercentage: UFix64
         ) {
             pre {
-                self.isSalesPercentageValid(platformFirstSalePercentage) : "Invalid new default platformFirstSalePercentage"
-                self.isSalesPercentageValid(platformSecondSalePercentage) : "Invalid new default platformSecondSalePercentage"
+                AsyncArtwork.isSalesPercentageValid(platformFirstSalePercentage) : "Invalid new default platformFirstSalePercentage"
+                AsyncArtwork.isSalesPercentageValid(platformSecondSalePercentage) : "Invalid new default platformSecondSalePercentage"
             }
-            self.defaultPlatformFirstSalePercentage = platformFirstSalePercentage
-            self.defaultPlatformSecondSalePercentage = platformSecondSalePercentage
+            AsyncArtwork.defaultPlatformFirstSalePercentage = platformFirstSalePercentage
+            AsyncArtwork.defaultPlatformSecondSalePercentage = platformSecondSalePercentage
         }
 
         // Admin can update the URI associated with a specific token
@@ -735,9 +682,9 @@ pub contract AsyncArtwork: NonFungibleToken {
             uri: String
         ) {
             pre {
-                self.metadata[tokenId] != nil : "Token with tokenId does not exist in metadata mapping"
+                AsyncArtwork.metadata.containsKey(tokenId) : "Token with tokenId does not exist in metadata mapping"
             }
-            self.metadata[tokenId]!.updateUri(uri)
+            AsyncArtwork.metadata[tokenId]!.updateUri(uri)
         }
 
         // Admin can lock the token uri
@@ -745,137 +692,9 @@ pub contract AsyncArtwork: NonFungibleToken {
             tokenId: UInt64
         ) {
             pre {
-                self.metadata[tokenId] != nil : "Token with tokenId does not exist in metadata mapping"
+                AsyncArtwork.metadata.containsKey(tokenId): "Token with tokenId does not exist in metadata mapping"
             }
-            self.metadata[tokenId]!.lockUri()
-        }
-
-        // Mint Control Token NFT once one is already allocated to you via MintArtwork
-        pub fun setupControlToken(
-            controlTokenId: UInt64,
-            tokenUri: String,
-            leverMinValues: [Int64], 
-            leverMaxValues: [Int64], 
-            leverStartValues: [Int64],
-            numAllowedUpdates: Int64,
-            additionalCollaborators: [Address],
-            owner: Address
-        ): @NFT {
-            pre {
-                leverMaxValues.length <= 500 : "Too many control levers."
-                leverMaxValues.length == leverMinValues.length && leverStartValues.length == leverMaxValues.length : "Length of lever arrays do not match"
-                numAllowedUpdates == -1 || numAllowedUpdates > 0 : "Invalid num allowed updates"
-                additionalCollaborators.length <= 50 : "Too many collaborators"
-                self.metadata[controlTokenId] != nil : "controlTokenId does not exist in metadata mapping"
-            }
-
-            self.metadata[controlTokenId]!.initializeControlToken(
-                uri: tokenUri,
-                leverMinValues: leverMinValues,
-                leverMaxValues: leverMaxValues,
-                leverStartValues: leverStartValues,
-                numAllowedUpdates: numAllowedUpdates,
-                uniqueTokenCreators: additionalCollaborators,
-                owner: owner
-            )
-
-            // Mint NFT (with id: controlTokenId)
-            let controlTokenNFT <- create NFT(id: controlTokenId)
-
-            return <- controlTokenNFT
-        }
-
-        // Mint Master Token NFT already allocated to you via WhitelistTokenForCreator
-        pub fun mintArtwork(
-            masterTokenId: UInt64, 
-            uri: String,
-            controlTokenArtists: [Address],
-            uniqueArtists: [Address],
-            owner: Address
-        ): @NFT {
-            pre {
-                self.metadata[masterTokenId] != nil : "masterTokenId not associated with an allocated tokenId"
-                self.metadata[masterTokenId]!.isMaster == true : "masterTokenId not associated with Master NFT"
-            }
-
-            self.metadata[masterTokenId]!.initializeMasterToken(uri: uri, uniqueTokenCreators: uniqueArtists, owner: owner)
-
-            let masterTokenNFT <- create NFT(id: masterTokenId)
-
-            var controlTokenIndex: UInt64 = masterTokenId + 1
-            for artist in controlTokenArtists {
-                let artistPublicAccount = getAccount(artist)
-                //let artistAsyncGateway = artistPublicAccount.getCapability(/public/CollectionAsyncGateway).borrow() ?? panic("Failed to borrow async gateway capability")
-                // artistAsyncGateway.reserveControlMint(id: controlTokenIndex, asyncIdCap: self.asyncIdPrivateCapability)
-                controlTokenIndex = controlTokenIndex + 1
-            }
-
-            return <- masterTokenNFT
-        }
-
-        // Public getter for the metadata of any token
-        pub fun getNFTMetadata(tokenId: UInt64): NFTMetadata{NFTMetadataPublic} {
-            pre {
-                self.metadata[tokenId] != nil : "token id does not exist in metadata mapping"
-            }
-            let publicMetadata: NFTMetadata{NFTMetadataPublic} = self.metadata[tokenId]!
-            return publicMetadata
-        }
-
-        // Async Users can grant another Async User control over their NFT
-        pub fun grantControlPermission(tokenId: UInt64, permissionedUser: Address, grant: Bool) {
-            pre {
-                self.metadata[tokenId] != nil : "Token id not allocated"
-            }
-
-            let permissionedUserPublicAccount = getAccount(permissionedUser)
-            // let creatorAsyncGateway = permissionedUserPublicAccount.getCapability(/public/CollectionAsyncGateway).borrow() ?? panic("Address specified does not have public capability to AsyncCollection")
-            // creatorAsyncGateway.grantPermission(id: tokenId, grant: true, self.asyncIdPrivateCapability)
-        }
-
-        // Async Users can update the control levers for NFTs they own
-        pub fun useControlToken(
-            controlTokenId: UInt64,
-            leverIds: [Int64],
-            newLeverValues: [Int64],
-            renderingTip: @FlowToken.Vault?
-        ) {
-            pre {
-                self.metadata[controlTokenId] != nil : "Control token id not allocated"
-                leverIds.length == newLeverValues.length : "Lengths of lever arrays are different"
-                self.rendingTipVaultCapability.check() : "Cannot borrow reference to tip vault"
-            }
-
-            if renderingTip != nil {
-                self.rendingTipVaultCapability.borrow()!.deposit(from: <- renderingTip!)
-            } else {
-                destroy renderingTip
-            }
-
-            self.metadata[controlTokenId]!.updateControlTokenLevers(leverIds: leverIds, newLeverValues: newLeverValues)
-        }
-
-        pub fun updateOwner(
-            tokenId: UInt64,
-            newOwner: Address
-        ) {
-            pre {
-                self.metadata.containsKey(tokenId) : "Metadata for token doesn't exist"
-            }
-            self.metadata[tokenId]!.updateOwner(newOwner)
-        }
-
-        init(_ rendingTipVaultCapability: Capability<&FlowToken.Vault{FungibleToken.Receiver}>, _ asyncIdPrivateCapability: Capability<&AsyncId>) {
-            pre {
-                rendingTipVaultCapability.check() : "Cannot borrow renderingTipVaultCapability"
-                asyncIdPrivateCapability.check() : "Cannot borrow capability to asyncId"
-            }
-            self.asyncIdPrivateCapability = asyncIdPrivateCapability
-            self.rendingTipVaultCapability = rendingTipVaultCapability
-            self.expectedTokenSupply = 0
-            self.metadata = {}
-            self.defaultPlatformFirstSalePercentage = 5.0
-            self.defaultPlatformSecondSalePercentage = 1.0
+            AsyncArtwork.metadata[tokenId]!.lockUri()
         }
     }
 
@@ -886,6 +705,15 @@ pub contract AsyncArtwork: NonFungibleToken {
         init() {
             self.id = 42
         }
+    }
+
+    // Public getter for the metadata of any token
+    pub fun getNFTMetadata(tokenId: UInt64): NFTMetadata{NFTMetadataPublic} {
+        pre {
+            self.metadata.containsKey(tokenId) : "token id does not exist in metadata mapping"
+        }
+        let publicMetadata: NFTMetadata{NFTMetadataPublic} = self.metadata[tokenId]!
+        return publicMetadata
     }
 
 	init() {
