@@ -11,7 +11,7 @@ def test_setup_control_token():
   main()
 
   newPlatformFeePercentages = [["UFix64", "2.0"], ["UFix64", "1.0"]]
-  assert send_transaction("changePlatformFeePercentages", args=newPlatformFeePercentages, signer="AsyncArtAccount")
+  assert send_transaction("updatePlatformFeePercentages", args=newPlatformFeePercentages, signer="AsyncArtAccount")
   assert 2.0 == float(send_script_and_return_result("getDefaultPlatformFirstSalePercentage"))
   assert 1.0 == float(send_script_and_return_result("getDefaultPlatformSecondSalePercentage"))
   assert check_for_event("A.01cf0e2f2f715450.AsyncArtwork.DefaultPlatformSalePercentageUpdated")
