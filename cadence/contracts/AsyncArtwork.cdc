@@ -853,7 +853,7 @@ pub contract AsyncArtwork: NonFungibleToken {
             target: self.collectionStoragePath
         )
 
-        self.account.link<&{NonFungibleToken.CollectionPublic, AsyncCollectionPublic}>(
+        self.account.link<&{NonFungibleToken.CollectionPublic, NonFungibleToken.Receiver, AsyncCollectionPublic}>(
             self.collectionPublicPath,
             target: self.collectionStoragePath
         )
