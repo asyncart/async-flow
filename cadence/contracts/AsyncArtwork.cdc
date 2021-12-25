@@ -454,7 +454,6 @@ pub contract AsyncArtwork: NonFungibleToken {
     // minter and platform are decoupled
     pub resource Minter {
 		// Whitelist a master token for minting by an individual artist along with a certain number of component layers
-        // TODO: remove masterTokenId and just work directly with expected token supply? i don't see why it needs to be passed in?
         pub fun whitelistTokenForCreator(
             creatorAddress: Address,
             masterTokenId: UInt64,
