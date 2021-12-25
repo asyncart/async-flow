@@ -159,7 +159,7 @@ pub contract AsyncArtwork: NonFungibleToken {
             id: UInt64, 
             leverIds: [Int64], 
             newLeverValues: [Int64], 
-            renderingTip: @FlowToken.Vault?
+            renderingTip: @FungibleToken.Vault?
         )
 
         pub fun grantControlPermission(id: UInt64, permissionedUser: Address, grant: Bool)
@@ -172,6 +172,12 @@ pub contract AsyncArtwork: NonFungibleToken {
         pub fun reserveControlMint(id: UInt64, auth: @AsyncArtwork.Auth)
 
         pub fun updateControlPermission(id: UInt64, grant: Bool, auth: @AsyncArtwork.Auth)
+
+        pub fun getMasterMintReservation(): {UInt64: UInt64}
+
+        pub fun getControlMintReservation(): {UInt64: UInt64}
+        
+        pub fun getControlUpdate(): {UInt64: UInt64}
     }
 
     pub resource Collection: NonFungibleToken.Provider, NonFungibleToken.Receiver, NonFungibleToken.CollectionPublic, AsyncCollectionPublic, AsyncCollectionPrivate {
@@ -193,6 +199,22 @@ pub contract AsyncArtwork: NonFungibleToken {
             self.masterMintReservation = {}
             self.controlMintReservation = {}
             self.controlUpdate = {}
+        }
+
+        // =============================
+        // Getters
+        // =============================
+
+        pub fun getMasterMintReservation(): {UInt64: UInt64} {
+            return self.masterMintReservation
+        }
+
+        pub fun getControlMintReservation(): {UInt64: UInt64} {
+            return self.controlMintReservation
+        }
+
+        pub fun getControlUpdate(): {UInt64: UInt64} {
+            return self.controlUpdate
         }
 
         // =============================
@@ -288,7 +310,7 @@ pub contract AsyncArtwork: NonFungibleToken {
             id: UInt64, 
             leverIds: [Int64], 
             newLeverValues: [Int64], 
-            renderingTip: @FlowToken.Vault?
+            renderingTip: @FungibleToken.Vault?
         ) {
             pre {
                 self.ownedNFTs.containsKey(id) || self.controlUpdate.containsKey(id) : "Not authorized to use control token"
@@ -699,7 +721,7 @@ pub contract AsyncArtwork: NonFungibleToken {
 
     // The resource which manages all business logic related to AsyncArtwork
     // Consider giving marketplace contract a capability to this admin
-    pub resource AsyncAdmin  {
+    pub resource Admin  {
         // Admin can update the platform sales percentages for a given token
         pub fun updatePlatformSalePercentageForToken(
             tokenId: UInt64,
@@ -799,6 +821,11 @@ pub contract AsyncArtwork: NonFungibleToken {
         return publicMetadata
     }
 
+    // get tip balance
+    pub fun getTipBalance(): UFix64 {
+        return self.tipVault.balance
+    }
+
 	init() {
         self.collectionStoragePath = /storage/AsyncArtworkCollection
         self.collectionPrivatePath = /private/AsyncArtworkCollection
@@ -832,10 +859,10 @@ pub contract AsyncArtwork: NonFungibleToken {
         )
 
         // Admin
-        let admin <- create AsyncAdmin()
+        let admin <- create Admin()
         self.account.save(<-admin, to: self.adminStoragePath)
 
-        self.account.link<&AsyncAdmin>(
+        self.account.link<&Admin>(
             self.adminPrivatePath,
             target: self.adminStoragePath
         )
