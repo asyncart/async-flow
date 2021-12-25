@@ -6,7 +6,7 @@ import pytest
 
 @pytest.mark.core
 
-def test_setup_control_token():
+def test_update_artist_second_sale_percentage():
   # Deploy contracts
   main()
 
@@ -17,4 +17,4 @@ def test_setup_control_token():
   print("Successfully Updated Default Platform Sales Percentages")
 
 if __name__ == '__main__':
-    test_setup_control_token()
+    test_update_artist_second_sale_percentage()
