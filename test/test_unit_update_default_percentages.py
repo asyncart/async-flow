@@ -8,10 +8,7 @@ import pytest
 @pytest.mark.core
 
 # expected args: [platformFirstPercentage, platformSecondPercentage]
-def test_update_platform_default_sales_percentages(args, signer, should_succeed):
-  # Deploy contracts
-  main()
-
+def update_platform_default_sales_percentages(args, signer, should_succeed):
   newPlatformFeePercentages = [["UFix64", args[0]], ["UFix64", args[1]]]
   assert send_transaction("updatePlatformFeePercentages", args=newPlatformFeePercentages, signer=signer)
   assert float(args[0]) == float(send_script_and_return_result("getDefaultPlatformFirstSalePercentage"))
@@ -19,5 +16,11 @@ def test_update_platform_default_sales_percentages(args, signer, should_succeed)
   assert check_for_event(f'A.{address("AsyncArtwork")[2:]}.AsyncArtwork.DefaultPlatformSalePercentageUpdated')
   print("Successfully Updated Default Platform Sales Percentages")
 
+def test_update_platform_default_sales_percentages():
+  # Deploy contracts
+  main()
+  
+  update_platform_default_sales_percentages(["2.0", "1.0"], "AsyncArtAccount", True)
+
 if __name__ == '__main__':
-    test_update_platform_default_sales_percentages(["2.0", "1.0"], "AsyncArtAccount", True)
+  test_update_platform_default_sales_percentages()

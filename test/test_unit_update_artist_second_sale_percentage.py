@@ -8,10 +8,7 @@ import pytest
 @pytest.mark.core
 
 # expected args: [newArtistSecondSalePercentage]
-def test_update_artist_second_sale_percentage(args, signer, should_succeed):
-  # Deploy contracts
-  main()
-
+def update_artist_second_sale_percentage(args, signer, should_succeed):
   newArtistSecondSalePercentage = [["UFix64", args[0]]]
 
   if should_succeed:
@@ -23,5 +20,11 @@ def test_update_artist_second_sale_percentage(args, signer, should_succeed):
     assert not send_transaction("updateArtistSecondSalePercentage", args=newArtistSecondSalePercentage, signer=signer)
     print("Updating Artist Second Sale Percentage Failed as Expected")
 
+def test_update_artist_second_sale_percentage():
+  # Deploy contracts
+  main()
+  
+  update_artist_second_sale_percentage(["2.0"], "AsyncArtAccount", True)
+ 
 if __name__ == '__main__':
-    test_update_artist_second_sale_percentage(["2.0"], "AsyncArtAccount", True)
+  test_update_artist_second_sale_percentage()
