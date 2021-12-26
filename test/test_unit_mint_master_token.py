@@ -12,7 +12,6 @@ from test_unit_whitelist import whitelist
 
 # expected args: [id, artworkUri, controlTokenArtists, uniqueArtists]
 
-@pytest.mark.core
 def mint_master_token(args, signer, should_succeed, expected_master_mint_res, expected_metadata="", assert_metadata=False):
   control_token_artists = [["Address", address(user)] for user in args[2]]
   unique_artists = [["Address", address(user)] for user in args[3]]
@@ -33,6 +32,7 @@ def mint_master_token(args, signer, should_succeed, expected_master_mint_res, ex
     assert not send_transaction("mintMasterToken", args=mint_args, signer=signer)
     print("Minting Master Token Failed as Expected")
 
+@pytest.mark.core
 def test_mint_master_token():
   # Deploy contracts
   main()

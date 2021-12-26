@@ -15,7 +15,6 @@ from test_unit_grant_control_permission import grant_control_permission
 
 # expected args: [id, leverIds, newLeverValues, tip]
 
-@pytest.mark.core
 def use_control_token(args, signer, should_succeed, expected_metadata="", assert_metadata=False):
   leverIds = [["UInt64", val] for val in args[1]]
   newLeverValues = [["Int64", val] for val in args[2]]
@@ -41,6 +40,7 @@ def use_control_token(args, signer, should_succeed, expected_metadata="", assert
     assert not send_transaction("useControlToken", args=use_args, signer=signer)
     print("Updating Control Token Failed as Expected")
 
+@pytest.mark.core
 def test_use_control():
   # Deploy contracts
   main()

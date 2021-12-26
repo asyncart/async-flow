@@ -15,7 +15,6 @@ from test_unit_use_control_token import use_control_token
 
 # expected args: [id, recipient]
 
-@pytest.mark.core
 def transfer_nft(args, signer, should_succeed):
   transfer_args = [["UInt64", args[0]], ["Address", address(args[1])]]
 
@@ -32,6 +31,7 @@ def transfer_nft(args, signer, should_succeed):
     assert not send_transaction("transferNFT", args=transfer_args, signer=signer)
     print("Transferring NFT Failed as Expected")
 
+@pytest.mark.core
 def test_transfer_nft():
   # Deploy contracts
   main()

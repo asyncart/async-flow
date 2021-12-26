@@ -7,7 +7,6 @@ import pytest
 
 # expected args: [platformFirstPercentage, platformSecondPercentage]
 
-@pytest.mark.core
 def update_platform_default_sales_percentages(args, signer, should_succeed):
   newPlatformFeePercentages = [["UFix64", args[0]], ["UFix64", args[1]]]
   if should_succeed:
@@ -20,7 +19,7 @@ def update_platform_default_sales_percentages(args, signer, should_succeed):
     assert not send_transaction("updatePlatformFeePercentages", args=newPlatformFeePercentages, signer=signer)
     print("Updating Default Platform Sales Percentages Failed As Expected")
 
-
+@pytest.mark.core
 def test_update_platform_default_sales_percentages():
   # Deploy contracts
   main()

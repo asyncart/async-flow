@@ -16,7 +16,6 @@ from test_unit_use_control_token import use_control_token
 
 # expected args: [recipient]
 
-@pytest.mark.core
 def withdraw_tips(args, signer, should_succeed):
   args = [["Address", address(args[0])]]
   if should_succeed:
@@ -34,6 +33,7 @@ def withdraw_tips(args, signer, should_succeed):
     assert not send_transaction("withdrawTips", args=args, signer=signer)
     print("Withdrawing Tips Failed as Expected")
 
+@pytest.mark.core
 def test_whitelist():
   # Deploy contracts
   main()

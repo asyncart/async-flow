@@ -13,7 +13,6 @@ from test_unit_mint_master_token import mint_master_token
 
 # expected args: [id, tokenUri, leverMinValues, leverMaxValues, leverStartValues, numAllowedUpdates, additionalCollaborators]
 
-@pytest.mark.core
 def mint_control_token(args, signer, should_succeed, expected_control_mint_reservation, expected_metadata="", assert_metadata=False):
   lever_min_vals = [["Int64", val] for val in args[2]]
   lever_max_vals = [["Int64", val] for val in args[3]]
@@ -44,6 +43,8 @@ def mint_control_token(args, signer, should_succeed, expected_control_mint_reser
     assert not send_transaction("mintControlToken", args=mint_args, signer=signer)
     print("Minting Control Token Failed as Expected")
 
+
+@pytest.mark.core
 def test_mint_control():
   # Deploy contracts
   main()
