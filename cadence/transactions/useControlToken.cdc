@@ -1,9 +1,9 @@
 import AsyncArtwork from "../contracts/AsyncArtwork.cdc"
-import FlowToken from "../contracts/FlowToken.cdc"
+import FungibleToken from "../contracts/FungibleToken.cdc"
 
 transaction(
     id: UInt64, 
-    leverIds: [Int64], 
+    leverIds: [UInt64], 
     newLeverValues: [Int64], 
     tip: UFix64
 ) {
