@@ -3,10 +3,10 @@ import AsyncArtwork from "../contracts/AsyncArtwork.cdc"
 transaction(
     newArtistSecondSalePercentage: UFix64, 
 ) {
-    var asyncAdminCap: Capability<&AsyncArtwork.AsyncAdmin>
+    var asyncAdminCap: Capability<&AsyncArtwork.Admin>
 
     prepare(acct: AuthAccount) {
-        self.asyncAdminCap = acct.getCapability<&AsyncArtwork.AsyncAdmin>(AsyncArtwork.adminPrivatePath)
+        self.asyncAdminCap = acct.getCapability<&AsyncArtwork.Admin>(AsyncArtwork.adminPrivatePath)
     }
 
     execute {
