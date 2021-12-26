@@ -186,12 +186,15 @@ pub contract AsyncArtwork: NonFungibleToken {
         pub var ownedNFTs: @{UInt64: NonFungibleToken.NFT}
 
         // used to track what master tokens a user can mint
+        // a maaping of mintable masterTokenIds -> their layer counts
         access(self) let masterMintReservation: {UInt64: UInt64}
 
         // used to track what control tokens a user can mint
+        // a mapping of mintable controlTokenIds -> themselves (a set, but Cadence doesn't have sets)
         access(self) let controlMintReservation: {UInt64: UInt64}
 
         // used to track what control tokens a user can update
+        // a mapping of updatable controlTokenIds -> themselves (a set, but Cadence doesn't have sets)
         access(self) let controlUpdate: {UInt64: UInt64}
 
         init () {
@@ -228,10 +231,9 @@ pub contract AsyncArtwork: NonFungibleToken {
             uniqueArtists: [Address]
         ) {
             pre {
-                AsyncArtwork.metadata.containsKey(id) : "masterTokenId not associated with an allocated tokenId"
-                AsyncArtwork.metadata[id]!.isMaster == true : "masterTokenId not associated with Master NFT"
+                AsyncArtwork.metadata.containsKey(id) : "id not associated with any metadata"
+                AsyncArtwork.metadata[id]!.isMaster == true : "Metadata for token id is set for a control token"
                 self.masterMintReservation.containsKey(id) : "Not authorized to mint"
-                id > 0 : "Can't mint a token with id 0 anymore"
                 self.masterMintReservation[id] == UInt64(controlTokenArtists.length) : "Layer count does not match control token artist length"
             }
 
@@ -297,7 +299,6 @@ pub contract AsyncArtwork: NonFungibleToken {
                 owner: owner.address
             )
 
-            // Mint NFT (with id: controlTokenId)
             let controlTokenNFT <- create NFT(id: id)
             AsyncArtwork.totalSupply = AsyncArtwork.totalSupply + 1
 
@@ -462,6 +463,7 @@ pub contract AsyncArtwork: NonFungibleToken {
             platformSecondSalePercentage: UFix64?
         ) {
             pre {
+                masterTokenId == AsyncArtwork.expectedTokenSupply : "Master token id must be the same as the expectedTokenSupply"
                 AsyncArtwork.metadata[masterTokenId] == nil : "NFT Metadata already exists at supplied masterTokenId"
                 platformFirstSalePercentage == nil || AsyncArtwork.isSalesPercentageValid(platformFirstSalePercentage!) : "Invalid platformFirstSalePercentage value"
                 platformSecondSalePercentage == nil || AsyncArtwork.isSalesPercentageValid(platformSecondSalePercentage!) : "Invalid platformSecondSalePercentage value"
@@ -550,9 +552,6 @@ pub contract AsyncArtwork: NonFungibleToken {
 
         // Whether or not this NFT has been sold once on Async's marketplace
         pub var tokenSoldOnce: Bool
-
-        // These fields only apply for control tokens
-        // For master NFTs they will be nil or empty
 
         // The number of control levers that this control token has
         pub var numControlLevers: Int?
@@ -749,7 +748,7 @@ pub contract AsyncArtwork: NonFungibleToken {
         // if there are other reasons why we would want this value to change (in a more custom way) then we can leave this
         pub fun setExpectedTokenSupply (newExpectedTokenSupply: UInt64) {
             pre {
-                newExpectedTokenSupply >= 0 : "Unexpectedly found negative value for expected token supply"
+                newExpectedTokenSupply > AsyncArtwork.expectedTokenSupply : "Cannot move the expectedTokenSupply backwards. Would mint NFTs with duplicate ids."
             }
             AsyncArtwork.expectedTokenSupply = newExpectedTokenSupply
         }
