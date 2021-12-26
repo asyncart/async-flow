@@ -67,11 +67,52 @@ def test_grant_control_permission():
     assert_metadata=True
   )
 
+  # Check that user cannot grant permission to non-AsyncUser
+  grant_control_permission(
+      ["2", "User4", True],
+      "User2",
+      False,
+      "{2: 0}"
+  )
+
+  # Check that user can grant permission to other AsyncUser
   grant_control_permission(
       ["2", "User3", True],
       "User2",
       True,
       "{2: 0}"
+  )
+
+  # Check that user can grant permission to master token owner
+  grant_control_permission(
+      ["2", "User1", True],
+      "User2",
+      True,
+      "{2: 0}"
+  )
+
+  # Check that user cannot redundantly grant permission to the same user again
+  grant_control_permission(
+      ["2", "User3", True],
+      "User2",
+      False,
+      "{2: 0}"
+  )
+
+  # Check that user with new permission cannot further grant permission (not NFT owner)
+  grant_control_permission(
+      ["2", "User1", True],
+      "User3",
+      False,
+      "{2: 0}"
+  )
+
+  # Check that user can revoke granted permission
+  grant_control_permission(
+      ["2", "User3", False],
+      "User2",
+      True,
+      "{}"
   )
 
 if __name__ == '__main__':

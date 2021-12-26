@@ -49,10 +49,57 @@ def test_mint_master_token():
 
   expected_metadata = 'A.{contract}.AsyncArtwork.NFTMetadata(id: 1, isMaster: true, uri: "<uri>", isUriLocked: false, platformFirstSalePercentage: 5.00000000, platformSecondSalePercentage: 1.00000000, tokenSoldOnce: false, numControlLevers: nil, numRemainingUpdates: nil, owner: {owner}, levers: {levers}, uniqueTokenCreators: [{uniqueTokenCreator}])'.format(contract=address("AsyncArtwork")[2:], owner=address("User1"), levers="{}", uniqueTokenCreator=address("User2"))
 
+  # Check user cannot mint master token not allocated for them
+  mint_master_token(
+    ["2", "<uri>", ["User2"], ["User2"]],
+    "User1",
+    False,
+    "{}",
+    assert_metadata=False
+  )
+
+  # Check wrong user cannot mint master token
+  mint_master_token(
+    ["1", "<uri>", ["User2"], ["User2"]],
+    "User2",
+    False,
+    "{}",
+    assert_metadata=False
+  )
+
+  # Check that user cannot specify a different number of control token artists than layer count
+  mint_master_token(
+    ["1", "<uri>", [], []],
+    "User1",
+    False,
+    "{}",
+    assert_metadata=False
+  )
+
+  # Check wrong user cannot specify control token artist without AsyncCollection
+  mint_master_token(
+    ["1", "<uri>", ["User3"], ["User2"]],
+    "User1",
+    False,
+    "{}",
+    assert_metadata=False
+  )
+
+  # Check user can mint whitelisted token
   mint_master_token(
     ["1", "<uri>", ["User2"], ["User2"]],
     "User1",
     True,
+    "{}",
+    expected_metadata=expected_metadata,
+    assert_metadata=True
+  )
+
+  # Check user cannot mint whitelisted token again
+  mint_master_token(
+    ["1", "<uri>", ["User2"], ["User2"]],
+    "User1",
+    False,
     "{}",
     expected_metadata=expected_metadata,
     assert_metadata=True

@@ -24,7 +24,14 @@ def test_update_artist_second_sale_percentage():
   # Deploy contracts
   main()
   
+  # Check Admin Can Update Percentage to Valid Value
   update_artist_second_sale_percentage(["2.0"], "AsyncArtAccount", True)
+
+  # Check Admin Can't Update Percentage to Invalid Value
+  update_artist_second_sale_percentage(["100.5"], "AsyncArtAccount", False)
+
+  # Check Non-admin Can't Update Percentage
+  update_artist_second_sale_percentage(["1.0"], "User1", False)
  
 if __name__ == '__main__':
   test_update_artist_second_sale_percentage()

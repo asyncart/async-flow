@@ -93,6 +93,28 @@ def test_whitelist():
       assert_metadata=True
   )
 
+  # Check that random async user can't withdraw tips to themselves
+  withdraw_tips(
+      ["User1"],
+      "User1",
+      False
+  )
+
+  # Check that random async user can't initiate a tips withdraw to AsyncAccount
+  withdraw_tips(
+      ["AsyncArtAccount"],
+      "User1",
+      False
+  )
+
+  # Check that random account can't withdraw tips
+  withdraw_tips(
+      ["User4"],
+      "User4",
+      False
+  )
+
+  # Check that the admin account can withdraw tips
   withdraw_tips(
       ["AsyncArtAccount"],
       "AsyncArtAccount",

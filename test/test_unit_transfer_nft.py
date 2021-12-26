@@ -11,6 +11,7 @@ from test_unit_setup_async_user import setup_async_user
 from test_unit_whitelist import whitelist
 from test_unit_mint_master_token import mint_master_token 
 from test_unit_mint_control_token import mint_control_token
+from test_unit_use_control_token import use_control_token
 
 # expected args: [id, recipient]
 
@@ -70,9 +71,37 @@ def test_transfer_nft():
     assert_metadata=True
   )
 
+  # Check that user2 can update the NFT
+  use_control_token(
+      ["2", ["0", "1"], ["5", "17"], "0.0"],
+      "User2",
+      True
+  )
+
+  # Check that user3 cannot update the NFT
+  use_control_token(
+      ["2", ["0", "1"], ["5", "17"], "0.0"],
+      "User3",
+      False
+  )
+
   transfer_nft(
       ["2", "User3"],
       "User2",
+      True
+  )
+
+  # Check that user2 cannnot update the NFT after transferring it
+  use_control_token(
+      ["2", ["0", "1"], ["5", "17"], "0.0"],
+      "User2",
+      False
+  )
+
+  # Check that user3 can update the NFT after receiving it
+  use_control_token(
+      ["2", ["0", "1"], ["5", "17"], "0.0"],
+      "User3",
       True
   )
 
