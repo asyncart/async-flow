@@ -67,7 +67,7 @@ pub contract AsyncArtwork: NonFungibleToken {
 
     pub event ControlLeverUpdated(
         tokenId: UInt64,
-        priorityTip: UInt64,
+        priorityTip: UFix64,
         numRemainingUpdates: Int64,
         leverIds: [UInt64],
         previousValues: [Int64],
@@ -157,7 +157,7 @@ pub contract AsyncArtwork: NonFungibleToken {
 
         pub fun useControlToken(
             id: UInt64, 
-            leverIds: [Int64], 
+            leverIds: [UInt64], 
             newLeverValues: [Int64], 
             renderingTip: @FungibleToken.Vault?
         )
@@ -309,7 +309,7 @@ pub contract AsyncArtwork: NonFungibleToken {
 
         pub fun useControlToken(
             id: UInt64, 
-            leverIds: [Int64], 
+            leverIds: [UInt64], 
             newLeverValues: [Int64], 
             renderingTip: @FungibleToken.Vault?
         ) {
@@ -319,13 +319,34 @@ pub contract AsyncArtwork: NonFungibleToken {
                 leverIds.length == newLeverValues.length : "Lengths of lever arrays are different"
             }
 
+            var tip: UFix64 = 0.0
+
+            let oldLevers: {UInt64: AsyncArtwork.ControlLever} = AsyncArtwork.metadata[id]!.getLevers()
+            let previousValues: [Int64] = []
+
+            for leverId in leverIds {
+                let lever: AsyncArtwork.ControlLever = oldLevers[leverId] ?? panic("Could not find control lever for an id")
+                previousValues.append(lever.currentValue)
+            }
+
             if renderingTip != nil {
+                let oldBalance: UFix64 = AsyncArtwork.getTipBalance()
                 AsyncArtwork.tipVault.deposit(from: <- renderingTip!)
+                tip = AsyncArtwork.getTipBalance() - oldBalance
             } else {
                 destroy renderingTip
             }
 
-            AsyncArtwork.metadata[id]!.updateControlTokenLevers(leverIds: leverIds, newLeverValues: newLeverValues)
+            let newValues: [Int64] = AsyncArtwork.metadata[id]!.updateControlTokenLevers(leverIds: leverIds, newLeverValues: newLeverValues)
+
+            emit ControlLeverUpdated(
+                tokenId: id,
+                priorityTip: tip,
+                numRemainingUpdates: AsyncArtwork.metadata[id]!.numRemainingUpdates!,
+                leverIds: leverIds,
+                previousValues: previousValues,
+                updatedValues: newValues
+            )
         }
 
         // Grant permissions to another user to update the levels on your control token?
@@ -640,6 +661,7 @@ pub contract AsyncArtwork: NonFungibleToken {
             self.uri = uri
             self.uniqueTokenCreators = uniqueTokenCreators
             self.owner = owner
+            self.numRemainingUpdates = numAllowedUpdates
 
             var i: UInt64 = 0
             while i < UInt64(leverStartValues.length) {
@@ -660,23 +682,27 @@ pub contract AsyncArtwork: NonFungibleToken {
             self.owner = owner
         }
 
-        pub fun updateControlTokenLevers(leverIds: [Int64], newLeverValues: [Int64]) {
+        pub fun updateControlTokenLevers(leverIds: [UInt64], newLeverValues: [Int64]): [Int64] {
             pre {
                 !self.isMaster : "Cannot update levers on a master token"
                 self.numRemainingUpdates != nil && self.numRemainingUpdates! > 0 : "No remaining updates for NFT"
             }
 
+            let newValues: [Int64] = []
             var i: UInt64 = 0
             while i < UInt64(leverIds.length) {
-                if self.levers[i] == nil {
+                if self.levers[leverIds[i]] == nil {
                     panic("Attempted to update invalid lever id")
                 } else {
-                    self.levers[i]!.updateValue(newLeverValues[i])
+                    self.levers[leverIds[i]]!.updateValue(newLeverValues[i])
+                    newValues.append(self.levers[leverIds[i]]!.currentValue)
                 }
                 i = i + 1
             }
 
             self.numRemainingUpdates = self.numRemainingUpdates! - 1
+
+            return newValues
         }
 
         pub fun getLevers(): {UInt64: ControlLever} {

@@ -9,7 +9,7 @@ transaction(recipient: Address) {
         self.admin = acct.borrow<&AsyncArtwork.Admin>(from: AsyncArtwork.adminStoragePath) ?? panic("Could not borrow Admin resource")
         
         let recipientAccount = getAccount(recipient)
-        self.vault = recipientAccount.getCapability<&{FungibleToken.Receiver}>(/public/flowTokenVault).borrow() 
+        self.vault = recipientAccount.getCapability<&{FungibleToken.Receiver}>(/public/flowTokenReceiver).borrow() 
             ?? panic("Could not borrow reference to recipient vault")
     }
 
