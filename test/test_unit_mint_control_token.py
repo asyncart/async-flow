@@ -11,9 +11,9 @@ from test_unit_setup_async_user import setup_async_user
 from test_unit_whitelist import whitelist
 from test_unit_mint_master_token import mint_master_token 
 
-@pytest.mark.core
-
 # expected args: [id, tokenUri, leverMinValues, leverMaxValues, leverStartValues, numAllowedUpdates, additionalCollaborators]
+
+@pytest.mark.core
 def mint_control_token(args, signer, should_succeed, expected_control_mint_reservation, expected_metadata="", assert_metadata=False):
   lever_min_vals = [["Int64", val] for val in args[2]]
   lever_max_vals = [["Int64", val] for val in args[3]]

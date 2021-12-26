@@ -5,7 +5,6 @@ from event_handler import check_for_event
 import pytest
 
 @pytest.mark.core
-
 def setup_async_user(signer):
   assert send_transaction("setupAsyncUser", signer=signer)
   print("Successfully Created Collection")

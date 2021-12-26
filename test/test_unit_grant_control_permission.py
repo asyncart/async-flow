@@ -12,9 +12,9 @@ from test_unit_whitelist import whitelist
 from test_unit_mint_master_token import mint_master_token 
 from test_unit_mint_control_token import mint_control_token
 
-@pytest.mark.core
-
 # expected args: [id, permissionedUser, grant]
+
+@pytest.mark.core
 def grant_control_permission(args, signer, should_succeed, expected_control_update):
   grant_args = [["UInt64", args[0]], ["Address", address(args[1])], ["Bool", args[2]]]
 

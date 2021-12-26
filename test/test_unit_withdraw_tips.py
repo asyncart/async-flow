@@ -14,9 +14,9 @@ from test_unit_mint_control_token import mint_control_token
 from test_unit_grant_control_permission import grant_control_permission
 from test_unit_use_control_token import use_control_token
 
-@pytest.mark.core
-
 # expected args: [recipient]
+
+@pytest.mark.core
 def withdraw_tips(args, signer, should_succeed):
   args = [["Address", address(args[0])]]
   if should_succeed:

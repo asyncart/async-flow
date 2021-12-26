@@ -12,9 +12,9 @@ from test_unit_whitelist import whitelist
 from test_unit_mint_master_token import mint_master_token 
 from test_unit_mint_control_token import mint_control_token
 
-@pytest.mark.core
-
 # expected args: [id, recipient]
+
+@pytest.mark.core
 def transfer_nft(args, signer, should_succeed):
   transfer_args = [["UInt64", args[0]], ["Address", address(args[1])]]
 

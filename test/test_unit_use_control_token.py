@@ -13,9 +13,9 @@ from test_unit_mint_master_token import mint_master_token
 from test_unit_mint_control_token import mint_control_token
 from test_unit_grant_control_permission import grant_control_permission
 
-@pytest.mark.core
-
 # expected args: [id, leverIds, newLeverValues, tip]
+
+@pytest.mark.core
 def use_control_token(args, signer, should_succeed, expected_metadata="", assert_metadata=False):
   leverIds = [["UInt64", val] for val in args[1]]
   newLeverValues = [["Int64", val] for val in args[2]]

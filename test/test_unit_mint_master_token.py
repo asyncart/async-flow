@@ -10,9 +10,9 @@ import pytest
 from test_unit_setup_async_user import setup_async_user
 from test_unit_whitelist import whitelist
 
-@pytest.mark.core
-
 # expected args: [id, artworkUri, controlTokenArtists, uniqueArtists]
+
+@pytest.mark.core
 def mint_master_token(args, signer, should_succeed, expected_master_mint_res, expected_metadata="", assert_metadata=False):
   control_token_artists = [["Address", address(user)] for user in args[2]]
   unique_artists = [["Address", address(user)] for user in args[3]]

@@ -5,9 +5,9 @@ from event_handler import check_for_event
 from utils import address
 import pytest
 
-@pytest.mark.core
-
 # expected args: [newArtistSecondSalePercentage]
+
+@pytest.mark.core
 def update_artist_second_sale_percentage(args, signer, should_succeed):
   newArtistSecondSalePercentage = [["UFix64", args[0]]]
 
