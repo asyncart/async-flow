@@ -15,7 +15,7 @@ from test_mint_master import mint_master
 # WIP
 def mint_control():
   lever_min_vals = ["Array", [["Int64", "0"]]]
-  mint_args = [["UInt64", "1"], ["String", "<ex-uri>"], ["Array", [["Address", "0xf3fcd2c1a78f5eee"]]], ["Array", [["Address", "0xf3fcd2c1a78f5eee"]]]]
+  mint_args = [["UInt64", "2"], ["String", "<ex-uri>"], ["Array", [["Address", "0xf3fcd2c1a78f5eee"]]], ["Array", [["Address", "0xf3fcd2c1a78f5eee"]]]]
   #assert send_transaction("mintMasterToken", args=mint_args, signer="User2")
   #assert check_for_event("A.01cf0e2f2f715450.AsyncArtwork.Deposit")
   #assert "{}" == send_script_and_return_result("getMasterMintReservation", args=[["Address", "0x179b6b1cb6755e31"]])

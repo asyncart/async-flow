@@ -12,11 +12,11 @@ from test_whitelist_token_for_creator import whitelist_token_for_creator
 @pytest.mark.core
 
 def mint_master():
-  mint_args = [["UInt64", "0"], ["String", "<ex-uri>"], ["Array", [["Address", "0xf3fcd2c1a78f5eee"]]], ["Array", [["Address", "0xf3fcd2c1a78f5eee"]]]]
+  mint_args = [["UInt64", "1"], ["String", "<ex-uri>"], ["Array", [["Address", "0xf3fcd2c1a78f5eee"]]], ["Array", [["Address", "0xf3fcd2c1a78f5eee"]]]]
   assert send_transaction("mintMasterToken", args=mint_args, signer="User1")
   assert check_for_event("A.01cf0e2f2f715450.AsyncArtwork.Deposit")
   assert "{}" == send_script_and_return_result("getMasterMintReservation", args=[["Address", "0x179b6b1cb6755e31"]])
-  print(send_script_and_return_result("getMetadata", args=[["UInt64", "0"]]))
+  print(send_script_and_return_result("getMetadata", args=[["UInt64", "1"]]))
   # Maybe add an asertion about the on-contract metadata
   print("Successfuly Minted Master NFT to Creator")
 

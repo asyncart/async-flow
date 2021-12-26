@@ -186,7 +186,7 @@ pub contract AsyncArtwork: NonFungibleToken {
         pub var ownedNFTs: @{UInt64: NonFungibleToken.NFT}
 
         // used to track what master tokens a user can mint
-        // a maaping of mintable masterTokenIds -> their layer counts
+        // a mapping of mintable masterTokenIds -> their layer counts
         access(self) let masterMintReservation: {UInt64: UInt64}
 
         // used to track what control tokens a user can mint
@@ -463,7 +463,7 @@ pub contract AsyncArtwork: NonFungibleToken {
             platformSecondSalePercentage: UFix64?
         ) {
             pre {
-                masterTokenId == AsyncArtwork.expectedTokenSupply : "Master token id must be the same as the expectedTokenSupply"
+                masterTokenId == AsyncArtwork.expectedTokenSupply + 1 : "Master token id must be the same as the expectedTokenSupply"
                 AsyncArtwork.metadata[masterTokenId] == nil : "NFT Metadata already exists at supplied masterTokenId"
                 platformFirstSalePercentage == nil || AsyncArtwork.isSalesPercentageValid(platformFirstSalePercentage!) : "Invalid platformFirstSalePercentage value"
                 platformSecondSalePercentage == nil || AsyncArtwork.isSalesPercentageValid(platformSecondSalePercentage!) : "Invalid platformSecondSalePercentage value"
