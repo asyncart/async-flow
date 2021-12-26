@@ -39,11 +39,23 @@
     "accounts": {
         "emulator-account": {
             "address": "f8d6e0586b0a20c7",
-            "key": "2cc5e24e28d5bf91dae9a66f927615f8893c3ae6e9a409a4f3ecb9af3dfc3f83"
+            "key": "cab2053b200cb9784de071dc9a601d60729875396ea236054f3f22c5a2f57fb7"
         },
         "AsyncArtAccount": {
             "address": "0x01cf0e2f2f715450",
-            "key": "cb20661475f2c552d293cc49e621ea209a26c0ef4432ae28e560872ffcc1f8e3"
+            "key": "bb3f622dc25db7c836a578cf3d75a36e6bc8843d4df15e622d5e394f9387d4f5"
+        },
+        "User1": {
+            "address": "0x179b6b1cb6755e31",
+            "key": "8e2b053fdd900ab2818b4ba6eaa571c85fe9034a72e6ad1bbd06f588baf14f90"
+        },
+        "User2": {
+            "address": "0xf3fcd2c1a78f5eee",
+            "key": "39b5d110fc9f419d01eab8fb3c9e3d67a072318a42799a850507c51bbf6868b9"
+        },
+        "User3": {
+            "address": "0xe03daebed8ca0615",
+            "key": "f7b7a946a233320c1c53eb4522fc1662e6b5ef31a4451083dc31fb2d1ef0e17f"
         }
     },
     "deployments": {

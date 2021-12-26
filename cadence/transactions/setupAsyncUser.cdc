@@ -7,12 +7,12 @@ transaction() {
             let collection <- AsyncArtwork.createEmptyCollection()
             acct.save(<- collection, to: AsyncArtwork.collectionStoragePath)
 
-            acct.link<&{NonFungibleToken.Provider, AsyncArtwork.AsyncCollectionPrivate}>(
+            acct.link<&AsyncArtwork.Collection{NonFungibleToken.Provider, AsyncArtwork.AsyncCollectionPrivate}>(
                 AsyncArtwork.collectionPrivatePath,
                 target: AsyncArtwork.collectionStoragePath
             )
 
-            acct.link<&{NonFungibleToken.CollectionPublic, NonFungibleToken.Receiver, AsyncArtwork.AsyncCollectionPublic}>(
+            acct.link<&AsyncArtwork.Collection{NonFungibleToken.CollectionPublic, NonFungibleToken.Receiver, AsyncArtwork.AsyncCollectionPublic}>(
                 AsyncArtwork.collectionPublicPath,
                 target: AsyncArtwork.collectionStoragePath
             )

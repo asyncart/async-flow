@@ -4,10 +4,10 @@ transaction(
     platformFirstPercentage: UFix64, 
     platformSecondPercentage: UFix64,
 ) {
-    var asyncAdminCap: Capability<&AsyncArtwork.AsyncAdmin>
+    var asyncAdminCap: Capability<&AsyncArtwork.Admin>
 
     prepare(acct: AuthAccount) {
-        self.asyncAdminCap = acct.getCapability<&AsyncArtwork.AsyncAdmin>(AsyncArtwork.adminPrivatePath)
+        self.asyncAdminCap = acct.getCapability<&AsyncArtwork.Admin>(AsyncArtwork.adminPrivatePath)
     }
 
     execute {
