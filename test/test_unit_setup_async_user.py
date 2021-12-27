@@ -4,11 +4,11 @@ from script_handler import send_script, send_script_and_return_result
 from event_handler import check_for_event
 import pytest
 
-@pytest.mark.core
 def setup_async_user(signer):
   assert send_transaction("setupAsyncUser", signer=signer)
   print("Successfully Created Collection")
 
+@pytest.mark.core
 def test_setup_async_users():
   # Deploy contracts
   main()

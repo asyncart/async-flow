@@ -16,7 +16,6 @@ from test_unit_use_control_token import use_control_token
 
 # expected args: [recipient]
 
-@pytest.mark.core
 def withdraw_tips(args, signer, should_succeed):
   args = [["Address", address(args[0])]]
   if should_succeed:
@@ -34,6 +33,7 @@ def withdraw_tips(args, signer, should_succeed):
     assert not send_transaction("withdrawTips", args=args, signer=signer)
     print("Withdrawing Tips Failed as Expected")
 
+@pytest.mark.core
 def test_whitelist():
   # Deploy contracts
   main()
@@ -93,6 +93,28 @@ def test_whitelist():
       assert_metadata=True
   )
 
+  # Check that random async user can't withdraw tips to themselves
+  withdraw_tips(
+      ["User1"],
+      "User1",
+      False
+  )
+
+  # Check that random async user can't initiate a tips withdraw to AsyncAccount
+  withdraw_tips(
+      ["AsyncArtAccount"],
+      "User1",
+      False
+  )
+
+  # Check that random account can't withdraw tips
+  withdraw_tips(
+      ["User4"],
+      "User4",
+      False
+  )
+
+  # Check that the admin account can withdraw tips
   withdraw_tips(
       ["AsyncArtAccount"],
       "AsyncArtAccount",

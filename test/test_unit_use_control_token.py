@@ -15,7 +15,6 @@ from test_unit_grant_control_permission import grant_control_permission
 
 # expected args: [id, leverIds, newLeverValues, tip]
 
-@pytest.mark.core
 def use_control_token(args, signer, should_succeed, expected_metadata="", assert_metadata=False):
   leverIds = [["UInt64", val] for val in args[1]]
   newLeverValues = [["Int64", val] for val in args[2]]
@@ -31,6 +30,7 @@ def use_control_token(args, signer, should_succeed, expected_metadata="", assert
     event = f'A.{address("AsyncArtwork")[2:]}.AsyncArtwork.ControlLeverUpdated'
     assert check_for_event(event)
     metadata = send_script_and_return_result("getMetadata", args=[["UInt64", args[0]]])
+    print("Updated METADATA")
     print(metadata)
     if assert_metadata:
       assert metadata == expected_metadata
@@ -40,6 +40,7 @@ def use_control_token(args, signer, should_succeed, expected_metadata="", assert
     assert not send_transaction("useControlToken", args=use_args, signer=signer)
     print("Updating Control Token Failed as Expected")
 
+@pytest.mark.core
 def test_use_control():
   # Deploy contracts
   main()
@@ -89,12 +90,99 @@ def test_use_control():
   levers = "{{0: A.{contract}.AsyncArtwork.ControlLever(minValue: 1, maxValue: 10, currentValue: 5), 1: A.{contract}.AsyncArtwork.ControlLever(minValue: 1, maxValue: 20, currentValue: 17)}}".format(contract=address("AsyncArtwork")[2:])
   expected_metadata = 'A.{contract}.AsyncArtwork.NFTMetadata(id: 2, isMaster: false, uri: "<uri>", isUriLocked: false, platformFirstSalePercentage: 5.00000000, platformSecondSalePercentage: 1.00000000, tokenSoldOnce: false, numControlLevers: nil, numRemainingUpdates: 4, owner: {owner}, levers: {levers}, uniqueTokenCreators: [{uniqueTokenCreators}])'.format(contract=address("AsyncArtwork")[2:], owner=address("User2"), levers=levers, uniqueTokenCreators=uniqueTokenCreators)
 
+  # Check that non-permissioned controller cannot update token levers
+  use_control_token(
+      ["2", ["0", "1"], ["5", "17"], "0.0"],
+      "User1",
+      False
+  )
+
+  # Check that user cannot update control token they are not associated with
+  use_control_token(
+      ["3", ["0", "1"], ["5", "17"], "0.0"],
+      "User2",
+      False
+  )
+
+  # Check that permissioned controller can update token levers
   use_control_token(
       ["2", ["0", "1"], ["5", "17"], "0.0"],
       "User3",
       True,
       expected_metadata=expected_metadata,
       assert_metadata=True
+  )
+
+  levers = "{{0: A.{contract}.AsyncArtwork.ControlLever(minValue: 1, maxValue: 10, currentValue: 1), 1: A.{contract}.AsyncArtwork.ControlLever(minValue: 1, maxValue: 20, currentValue: 20)}}".format(contract=address("AsyncArtwork")[2:])
+  expected_metadata = 'A.{contract}.AsyncArtwork.NFTMetadata(id: 2, isMaster: false, uri: "<uri>", isUriLocked: false, platformFirstSalePercentage: 5.00000000, platformSecondSalePercentage: 1.00000000, tokenSoldOnce: false, numControlLevers: nil, numRemainingUpdates: 3, owner: {owner}, levers: {levers}, uniqueTokenCreators: [{uniqueTokenCreators}])'.format(contract=address("AsyncArtwork")[2:], owner=address("User2"), levers=levers, uniqueTokenCreators=uniqueTokenCreators)
+
+  # Check that owner can update token levers
+  use_control_token(
+      ["2", ["0", "1"], ["1", "20"], "0.0"],
+      "User2",
+      True,
+      expected_metadata=expected_metadata,
+      assert_metadata=True
+  )
+
+  # Check that update to non-existent token id fails
+  use_control_token(
+      ["2", ["2"], ["1"], "0.0"],
+      "User2",
+      False
+  )
+
+  # Check that updating lever above max val fails
+  use_control_token(
+      ["2", ["0"], ["21"], "0.0"],
+      "User2",
+      False
+  )
+
+  # Check that updating lever below min val fails
+  use_control_token(
+      ["2", ["0"], ["-1"], "0.0"],
+      "User2",
+      False
+  )
+
+  levers = "{{0: A.{contract}.AsyncArtwork.ControlLever(minValue: 1, maxValue: 10, currentValue: 9), 1: A.{contract}.AsyncArtwork.ControlLever(minValue: 1, maxValue: 20, currentValue: 20)}}".format(contract=address("AsyncArtwork")[2:])
+  expected_metadata = 'A.{contract}.AsyncArtwork.NFTMetadata(id: 2, isMaster: false, uri: "<uri>", isUriLocked: false, platformFirstSalePercentage: 5.00000000, platformSecondSalePercentage: 1.00000000, tokenSoldOnce: false, numControlLevers: nil, numRemainingUpdates: 2, owner: {owner}, levers: {levers}, uniqueTokenCreators: [{uniqueTokenCreators}])'.format(contract=address("AsyncArtwork")[2:], owner=address("User2"), levers=levers, uniqueTokenCreators=uniqueTokenCreators)
+
+  # Check that owner can update only one lever
+  use_control_token(
+      ["2", ["0"], ["9"], "0.0"],
+      "User2",
+      True,
+      expected_metadata=expected_metadata,
+      assert_metadata=True
+  )
+
+  expected_metadata = 'A.{contract}.AsyncArtwork.NFTMetadata(id: 2, isMaster: false, uri: "<uri>", isUriLocked: false, platformFirstSalePercentage: 5.00000000, platformSecondSalePercentage: 1.00000000, tokenSoldOnce: false, numControlLevers: nil, numRemainingUpdates: 1, owner: {owner}, levers: {levers}, uniqueTokenCreators: [{uniqueTokenCreators}])'.format(contract=address("AsyncArtwork")[2:], owner=address("User2"), levers=levers, uniqueTokenCreators=uniqueTokenCreators)
+  # Check that owner can update only one lever
+  use_control_token(
+      ["2", ["0"], ["9"], "0.0"],
+      "User2",
+      True,
+      expected_metadata=expected_metadata,
+      assert_metadata=True
+  )
+
+  expected_metadata = 'A.{contract}.AsyncArtwork.NFTMetadata(id: 2, isMaster: false, uri: "<uri>", isUriLocked: false, platformFirstSalePercentage: 5.00000000, platformSecondSalePercentage: 1.00000000, tokenSoldOnce: false, numControlLevers: nil, numRemainingUpdates: 0, owner: {owner}, levers: {levers}, uniqueTokenCreators: [{uniqueTokenCreators}])'.format(contract=address("AsyncArtwork")[2:], owner=address("User2"), levers=levers, uniqueTokenCreators=uniqueTokenCreators)
+  # Check that owner can update only one lever
+  use_control_token(
+      ["2", ["0"], ["9"], "0.0"],
+      "User2",
+      True,
+      expected_metadata=expected_metadata,
+      assert_metadata=True
+  )
+
+  # Check that control token cannot be updated more times than limit
+  use_control_token(
+      ["2", ["0"], ["9"], "0.0"],
+      "User2",
+      False
   )
 
 if __name__ == '__main__':

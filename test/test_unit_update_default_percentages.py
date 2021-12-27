@@ -7,20 +7,31 @@ import pytest
 
 # expected args: [platformFirstPercentage, platformSecondPercentage]
 
-@pytest.mark.core
 def update_platform_default_sales_percentages(args, signer, should_succeed):
   newPlatformFeePercentages = [["UFix64", args[0]], ["UFix64", args[1]]]
-  assert send_transaction("updatePlatformFeePercentages", args=newPlatformFeePercentages, signer=signer)
-  assert float(args[0]) == float(send_script_and_return_result("getDefaultPlatformFirstSalePercentage"))
-  assert float(args[1])== float(send_script_and_return_result("getDefaultPlatformSecondSalePercentage"))
-  assert check_for_event(f'A.{address("AsyncArtwork")[2:]}.AsyncArtwork.DefaultPlatformSalePercentageUpdated')
-  print("Successfully Updated Default Platform Sales Percentages")
+  if should_succeed:
+    assert send_transaction("updatePlatformFeePercentages", args=newPlatformFeePercentages, signer=signer)
+    assert float(args[0]) == float(send_script_and_return_result("getDefaultPlatformFirstSalePercentage"))
+    assert float(args[1])== float(send_script_and_return_result("getDefaultPlatformSecondSalePercentage"))
+    assert check_for_event(f'A.{address("AsyncArtwork")[2:]}.AsyncArtwork.DefaultPlatformSalePercentageUpdated')
+    print("Successfully Updated Default Platform Sales Percentages")
+  else:
+    assert not send_transaction("updatePlatformFeePercentages", args=newPlatformFeePercentages, signer=signer)
+    print("Updating Default Platform Sales Percentages Failed As Expected")
 
+@pytest.mark.core
 def test_update_platform_default_sales_percentages():
   # Deploy contracts
   main()
   
+  # Check success for Admin account
   update_platform_default_sales_percentages(["2.0", "1.0"], "AsyncArtAccount", True)
+
+  # Check failure for non-Admin account
+  update_platform_default_sales_percentages(["2.0", "1.0"], "User1", False)
+
+  # Check failure for invalid percentage
+  update_platform_default_sales_percentages(["110.0", "1.0"], "AsyncArtAccount", False)
 
 if __name__ == '__main__':
   test_update_platform_default_sales_percentages()
