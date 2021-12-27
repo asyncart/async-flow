@@ -34,7 +34,7 @@ def withdraw_tips(args, signer, should_succeed):
     print("Withdrawing Tips Failed as Expected")
 
 @pytest.mark.core
-def test_whitelist():
+def test_withdraw_tips():
   # Deploy contracts
   main()
 
@@ -122,5 +122,5 @@ def test_whitelist():
   )
 
 if __name__ == '__main__':
-  test_whitelist()
+  test_withdraw_tips()
  
