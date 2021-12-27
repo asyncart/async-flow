@@ -163,6 +163,8 @@ pub contract AsyncArtwork: NonFungibleToken {
         )
 
         pub fun grantControlPermission(id: UInt64, permissionedUser: Address, grant: Bool)
+
+        pub fun updateOwnerForOwnedNFTs()
     }
 
     // Public
@@ -368,6 +370,21 @@ pub contract AsyncArtwork: NonFungibleToken {
             )
         }
 
+        pub fun updateOwnerForOwnedNFTs() {
+            pre {
+                self.owner != nil : "Collection doesn't have owner"
+            }
+
+            for id in self.ownedNFTs.keys {
+                let NFT = self.borrowNFT(id: id)
+                let tokenId = NFT.id
+                let metadata = AsyncArtwork.metadata[tokenId]
+                if metadata != nil && (metadata!.owner == nil || metadata!.owner != self.owner!.address) {
+                    AsyncArtwork.metadata[tokenId]!.updateOwner(self.owner!.address)
+                }
+            }
+        }
+
         // =============================
         // AsyncCollectionPublic interface
         // =============================
@@ -548,6 +565,7 @@ pub contract AsyncArtwork: NonFungibleToken {
         pub var tokenSoldOnce: Bool
         pub var numControlLevers: Int?
         pub var numRemainingUpdates: Int64?
+        pub var owner: Address?
         pub fun getLeverValue(id: UInt64): Int64
         pub fun getLevers(): {UInt64: ControlLever}
         pub fun getUniqueTokenCreators(): [Address]
@@ -843,6 +861,15 @@ pub contract AsyncArtwork: NonFungibleToken {
         }
         let publicMetadata: NFTMetadata{NFTMetadataPublic} = self.metadata[tokenId]!
         return publicMetadata
+    }
+
+    // Public getter for the metadata of any token
+    pub fun getAllNFTs(): [NFTMetadata{NFTMetadataPublic}] {
+        let ret: [NFTMetadata{NFTMetadataPublic}] = []
+        for id in self.metadata.keys {
+            ret.append(self.getNFTMetadata(tokenId: id))
+        }
+        return ret
     }
 
     // get tip balance

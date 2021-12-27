@@ -13,7 +13,6 @@ from test_unit_mint_master_token import mint_master_token
 from test_unit_mint_control_token import mint_control_token
 
 # expected args: [id, permissionedUser, grant]
-
 def grant_control_permission(args, signer, should_succeed, expected_control_update):
   grant_args = [["UInt64", args[0]], ["Address", address(args[1])], ["Bool", args[2]]]
 
@@ -26,7 +25,6 @@ def grant_control_permission(args, signer, should_succeed, expected_control_upda
   else:
     assert not send_transaction("grantControlPermission", args=grant_args, signer=signer)
     print("Updating Control Permission Failed as Expected")
-
 
 @pytest.mark.core
 def test_grant_control_permission():
