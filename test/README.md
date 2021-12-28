@@ -3,13 +3,6 @@
 We have several test files, all of which use the pytest framework (and thus are prefixed with "test"). There are also some driver modules i.e. transaction_handler
 which are used to power the tests to run using the Flow CLI and emulator.
 
-To get setup with the test suite:
-
-- Cloning the repository
-- Ensure that you have Python3 installed: https://www.python.org/downloads/
-- Ensure Flow CLI is installed: https://docs.onflow.org/flow-cli/install/
-- Ensure that you have Pytest installed: (pip3 install -U pytest)
-
 Tests can be run as follows. It is important that all tests are run in the root directory, as all tests depend on the universal flow config file `flow.json` which must live at the root.
 
 To Run a Single File (Verbose Logging) python3 test/<filename> for example: python3 systemTests/test_unit_whitelist.py
