@@ -6,5 +6,3 @@ There is also a `test` directory which contains unit and integrations tests. Det
 on the test suite, including how to run it are found in its README.
 
 ### Notes
-
-Can unqiueTokenCreators contain the owner?
