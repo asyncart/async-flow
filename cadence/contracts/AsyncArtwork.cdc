@@ -241,7 +241,7 @@ pub contract AsyncArtwork: NonFungibleToken {
 
             post {
                 !self.masterMintReservation.containsKey(id) : "Reservation not removed after mint"
-                self.ownedNFTs.containsKey(id) : "Did not receive minted token"
+                (self.ownedNFTs.containsKey(id) && self.borrowNFT(id: id).id == id) : "Did not receive minted token"
             }
             
             let owner = self.owner ?? panic("No current owner")
@@ -286,7 +286,7 @@ pub contract AsyncArtwork: NonFungibleToken {
 
             post {
                 !self.controlMintReservation.containsKey(id) : "Reservation not removed after mint"
-                self.ownedNFTs.containsKey(id) : "Did not receive minted token"
+                (self.ownedNFTs.containsKey(id) && self.borrowNFT(id: id).id == id) : "Did not receive minted token"
             }
 
             let owner = self.owner ?? panic("No current owner")
@@ -316,7 +316,7 @@ pub contract AsyncArtwork: NonFungibleToken {
             renderingTip: @FungibleToken.Vault?
         ) {
             pre {
-                self.ownedNFTs.containsKey(id) || self.controlUpdate.containsKey(id) : "Not authorized to use control token"
+                (self.ownedNFTs.containsKey(id) && self.borrowNFT(id: id).id == id) || self.controlUpdate.containsKey(id) : "Not authorized to use control token"
                 AsyncArtwork.metadata.containsKey(id) : "Control token id not allocated"
                 leverIds.length == newLeverValues.length : "Lengths of lever arrays are different"
             }
@@ -354,7 +354,7 @@ pub contract AsyncArtwork: NonFungibleToken {
         // Grant permissions to another user to update the levels on your control token?
         pub fun grantControlPermission(id: UInt64, permissionedUser: Address, grant: Bool) {
             pre {
-                self.ownedNFTs.containsKey(id) : "Not authorized to grant permissions for this token"
+                (self.ownedNFTs.containsKey(id) && self.borrowNFT(id: id).id == id) : "Not authorized to grant permissions for this token"
                 AsyncArtwork.metadata.containsKey(id) : "Token metadata does not exist"
                 !AsyncArtwork.metadata[id]!.isMaster : "Cannot grant permissions for master token"
             }
