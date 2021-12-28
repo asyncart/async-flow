@@ -683,12 +683,8 @@ pub contract AsyncArtwork: NonFungibleToken {
 
             var i: UInt64 = 0
             while i < UInt64(leverStartValues.length) {
-                if self.levers[i] == nil {
-                    self.levers[i] = ControlLever(minValue: leverMinValues[i], maxValue: leverMaxValues[i], startValue: leverStartValues[i])
-                    i = i + 1
-                } else {
-                    panic("Attempting to overwrite existing lever")
-                }
+                self.levers[i] = ControlLever(minValue: leverMinValues[i], maxValue: leverMaxValues[i], startValue: leverStartValues[i])
+                i = i + 1
             }
         }
 

@@ -14,7 +14,7 @@ Tests can be run as follows. It is important that all tests are run in the root 
 
 To Run a Single File (Verbose Logging) python3 test/<filename> for example: python3 systemTests/test_unit_whitelist.py
 
-To Run a Single File (As Test) pytest test/<filename> for example: python3 systemTests/test_unit_whitelist.py
+To Run a Single File (As Test) pytest test/<filename> for example: pytest test/test_unit_whitelist.py
 
 To Run the Entire Test Suite: pytest
 

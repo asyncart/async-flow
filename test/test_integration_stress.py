@@ -37,7 +37,7 @@ def test_integration():
     ["User2", "3", "2", "5.0", "1.0"],
     "AsyncArtAccount",
     False,
-    "{1: 1, 3: 2}"
+    "{3: 2}"
   )
 
   # give async collections to users 2 and 3
@@ -216,7 +216,7 @@ def test_integration():
   expected_metadata = 'A.{contract}.AsyncArtwork.NFTMetadata(id: 2, isMaster: false, uri: "<uri>", isUriLocked: false, platformFirstSalePercentage: 5.00000000, platformSecondSalePercentage: 1.00000000, tokenSoldOnce: false, numControlLevers: nil, numRemainingUpdates: 0, owner: {owner}, levers: {levers}, uniqueTokenCreators: [{uniqueTokenCreators}])'.format(contract=address("AsyncArtwork")[2:], owner=address("User2"), levers=levers, uniqueTokenCreators=uniqueTokenCreators)
 
   transfer_flow_token("User2", "100.0", "emulator-account")
-  
+
   # User2 updates their control token
   use_control_token(
       ["2", ["0", "1"], ["5", "17"], "10.0"],
