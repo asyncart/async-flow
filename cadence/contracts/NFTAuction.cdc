@@ -1,6 +1,7 @@
 import NonFungibleToken from "./NonFungibleToken.cdc"
 import FungibleToken from "./FungibleToken.cdc"
 import AsyncArtwork from "./AsyncArtwork.cdc"
+import Blueprint from "./Blueprint.cdc"
 
 // KNOWN VULNERABILITIES
 
@@ -21,7 +22,17 @@ pub contract NFTAuction {
     pub var maximumMinPricePercentage: UFix64
     pub var defaultAuctionBidPeriod: UFix64
 
-    pub resource MarketPlaceClient {
+    access(self) fun _createNewNftAuction(
+        nftTypeIdentifier: String,
+        tokenId: UInt64,
+        currency: String,
+        minPrice: UFix64,
+        buyNowPrice: UFix64,
+        feeRecipients: Address,
+        feePercentages: UFix64
+    ) {}
+
+    pub resource MarketplaceClient {
         // createDefaultNftAuction
         pub fun createDefaultNftAuction(
             nftTypeIdentifier: String,
@@ -32,8 +43,26 @@ pub contract NFTAuction {
             feeRecipients: Address,
             feePercentages: UFix64
         ) {
+            pre {
+                NFTAuction.auctions[nftTypeIdentifier] != nil : "Type identifier invalid"
+                minPrice > 0.0 : "Price not greater than 0"
+                self.owner != nil : "Cannot perform operation while client in transit"
+            }
 
+            let sender: Address = self.owner!.address 
+            NFTAuction.manageAuctionStarted(nftTypeIdentifier, tokenId, sender)
+
+            NFTAuction._createNewNftAuction(
+                nftTypeIdentifier: nftTypeIdentifier,
+                tokenId: tokenId,
+                currency: currency,
+                minPrice: minPrice,
+                buyNowPrice: buyNowPrice,
+                feeRecipients: feeRecipients,
+                feePercentages: feePercentages
+            )
         }
+
         // createNewNftAuction
         pub fun createNewNftAuction(
             nftTypeIdentifier: String,
@@ -44,18 +73,82 @@ pub contract NFTAuction {
             auctionBidPeriod: UFix64,
             feeRecipients: Address,
             feePercentages: UFix64
-        )
+        ) {}
 
         // createSale
+        pub fun createSale(
+            nftTypeIdentifier: String,
+            tokenId: UInt64,
+            currency: String,
+            minPrice: UFix64,
+            buyNowPrice: UFix64,
+            whitelistedBuyer: Address,
+            auctionBidPeriod: UFix64,
+            feeRecipients: [Address],
+            feePercentages: [UFix64]
+        ) {}
+
         // makeBid
+        pub fun makeBid(
+            nftTypeIdentifier: String,
+            tokenId: UInt64,
+            currency: String,
+            tokenAmount: UFix64
+        ) {}
+
         // makeCustomBid
+        pub fun makeCustomBid(
+            nftTypeIdentifier: String,
+            tokenId: UInt64,
+            currency: String,
+            tokenAmount: UFix64,
+            nftRecipient: Address 
+        ) {}
+
         // settleAuction
+        pub fun settleAuction(
+            nftTypeIdentifier: String,
+            tokenId: UInt64
+        ) {}
+
         // withdrawAuction
+        pub fun withdrawAuction(
+            nftTypeIdentifier: String,
+            tokenId: UInt64
+        ) {}
+
         // withdrawBid
+        pub fun withdrawBid(
+            nftTypeIdentifier: String,
+            tokenId: UInt64
+        ) {}
+
         // updateWhitelistedBuyer
+        pub fun updateWhitelistedBuyer(
+            nftTypeIdentifier: String,
+            tokenId: UInt64,
+            newWhitelistedBuyer: Address
+        ) {}
+
         // updateMinimumPrice
+        pub fun updateMinimumPrice(
+            nftTypeIdentifier: String,
+            tokenId: UInt64,
+            newMinPrice: UFix64
+        ) {}
+
         // updateBuyNowPrice
+        pub fun updateBuyNowPrice(
+            nftTypeIdentifier: String,
+            tokenId: UInt64,
+            newBuyNowPrice: UFix64
+        ) {}
+
         // takeHighestBid
+        pub fun takeHighestBid(
+            nftTypeIdentifier: String,
+            tokenId: UInt64
+        ) {}
     }
 
     pub struct Auction {
@@ -96,6 +189,21 @@ pub contract NFTAuction {
     // A mapping of NFT type identifiers (analog of NFT contract addresses on ETH) to {nftIds -> Auctions}
     access(self) let auctions: {String: {UInt64: Auction}}
 
+    pub struct Paths {
+        pub var public: PublicPath
+        pub var private: PrivatePath
+        pub var storage: StoragePath
+
+        init(_ _public: PublicPath, _ _private: PrivatePath, _ _storage: StoragePath) {
+            self.public = _public 
+            self.private = _private 
+            self.storage = _storage 
+        }
+    }
+
+    // A mapping of NFT type identifiers to expected paths
+    access(self) let nftTypePaths: {String: Paths}
+
     pub event NftAuctionCreated(
         nftProjectIdentifier: String,
         tokenId: UInt64,
@@ -109,7 +217,7 @@ pub contract NFTAuction {
         feePercentages: [UFix64]
     );
 
-    event SaleCreated(
+    pub event SaleCreated(
         nftTypeIdentifier: String,
         tokenId: UInt64,
         nftSeller: Address,
@@ -120,7 +228,7 @@ pub contract NFTAuction {
         feePercentages: [UFix64]
     );
 
-    event BidMade(
+    pub event BidMade(
         nftTypeIdentifier: String,
         tokenId: UInt64,
         bidder: Address,
@@ -129,13 +237,13 @@ pub contract NFTAuction {
         tokenAmount: UFix64
     );
 
-    event AuctionPeriodUpdated(
+    pub event AuctionPeriodUpdated(
         nftTypeIdentifier: String,
         tokenId: UInt64,
         auctionEndPeriod: UFix64
     );
 
-    event NFTTransferredAndSellerPaid(
+    pub event NFTTransferredAndSellerPaid(
         nftTypeIdentifier: String,
         tokenId: UInt64,
         nftSeller: Address,
@@ -144,43 +252,43 @@ pub contract NFTAuction {
         nftRecipient: Address
     );
 
-    event AuctionSettled(
+    pub event AuctionSettled(
         nftTypeIdentifier: String,
         tokenId: UInt64,
         auctionSettler: Address
     );
 
-    event AuctionWithdrawn(
+    pub event AuctionWithdrawn(
         nftTypeIdentifier: String,
         tokenId: UInt64,
         nftOwner: Address
     );
 
-    event BidWithdrawn(
+    pub event BidWithdrawn(
         nftTypeIdentifier: String,
         tokenId: UInt64,
         highestBidder: Address
     );
 
-    event WhitelistedBuyerUpdated(
+    pub event WhitelistedBuyerUpdated(
         nftTypeIdentifier: String,
         tokenId: UInt64,
         newWhitelistedBuyer: Address
     );
 
-    event MinimumPriceUpdated(
+    pub event MinimumPriceUpdated(
         nftTypeIdentifier: String,
         tokenId: UInt64,
         newMinPrice: UFix64
     );
 
-    event BuyNowPriceUpdated(
+    pub event BuyNowPriceUpdated(
         nftTypeIdentifier: String,
         tokenId: UInt64,
         newBuyNowPrice: UFix64
     );
 
-    event HighestBidTaken(
+    pub event HighestBidTaken(
         nftTypeIdentifier: String,
         tokenId: UInt64
     );
@@ -188,12 +296,30 @@ pub contract NFTAuction {
     pub event ContractInitialized()
 
     // skipped isAuctionNotStartedByOwner -> weird name seems obscure, hopefully we can do something better
+    access(self) fun manageAuctionStarted(_ nftTypeIdentifier: String, _ tokenId: UInt64, _ sender: Address) {
+        let auction: Auction? = self.auctions[nftTypeIdentifier]![tokenId]
+        if auction != nil {
+            // auction exists
+            if auction!.nftSeller == sender {
+                panic("Auction already started by owner")
+            }
 
-    access(self) doesAuctionExist(_ nftTypeIdentifier: String, _ tokenId: UInt64): Bool {
-        return auctions.containsKey(nftTypeIdentifier) && auctions[nftTypeIdentifier]!.containsKey(tokenId)
+            let path: PublicPath = self.nftTypePaths[nftTypeIdentifier]!.public
+
+            let collection = getAccount(sender).getCapability<&{NonFungibleToken.CollectionPublic}>(path).borrow() ?? panic("Could not borrow reference to sender's collection")
+            if collection.borrowNFT(id: tokenId) == nil {
+                panic("Sender doesn't own NFT")
+            }
+
+            self.auctions[nftTypeIdentifier]!.remove(key: tokenId)
+        }
     }
 
-    access(self) isAuctionOngoing(_ nftTypeIdentifier: String, _ tokenId: UInt64): Bool {
+    access(self) fun doesAuctionExist(_ nftTypeIdentifier: String, _ tokenId: UInt64): Bool {
+        return self.auctions.containsKey(nftTypeIdentifier) && self.auctions[nftTypeIdentifier]!.containsKey(tokenId)
+    }
+
+    access(self) fun isAuctionOngoing(_ nftTypeIdentifier: String, _ tokenId: UInt64): Bool {
         pre {
             self.doesAuctionExist(nftTypeIdentifier, tokenId): "Auction does not exist for nft type + tokenId specified"
         }
@@ -206,14 +332,14 @@ pub contract NFTAuction {
 
     // skipped priceGreaterThanZero -> doesn't seem useful
 
-    access(self) minPriceDoesNotExceedLimit(buyNowPrice: UFix64, minPrice: UFix64): Bool {
+    access(self) fun minPriceDoesNotExceedLimit(buyNowPrice: UFix64, minPrice: UFix64): Bool {
         return buyNowPrice == 0.0 || buyNowPrice * (self.maximumMinPricePercentage/100) >= minPrice
     }
 
     // skipped notNFTSeller, onlyNFTSeller tbd on how we will authenticate stuff
 
     // @notice: A bid DOES NOT have to meet the "minPrice" to be a valid bid...idk why... but it's true!
-    access(self) doesBidMeetRequirements(nftTypeIdentifier: String, tokenId: UFix64, tokenAmount: UFix64): Bool {
+    access(self) fun doesBidMeetRequirements(nftTypeIdentifier: String, tokenId: UFix64, tokenAmount: UFix64): Bool {
         pre {
             self.doesAuctionExist(nftTypeIdentifier, tokenId): "Auction does not exist for nft type + tokenId specified"
         }
@@ -230,7 +356,7 @@ pub contract NFTAuction {
     }
 
     // skipped onlyApplicableBuyer -> auth soln needed
-    access(self) minimumBidMade(_ nftTypeIdentifier: String,_ tokenId: UInt64): Bool {
+    access(self) fun minimumBidMade(_ nftTypeIdentifier: String,_ tokenId: UInt64): Bool {
         pre {
             self.doesAuctionExist(nftTypeIdentifier, tokenId): "Auction does not exist for nft type + tokenId specified"
         }
@@ -246,7 +372,7 @@ pub contract NFTAuction {
 
     // increasePercentageAboveMinimum also needless
 
-    access(self) areFeePercentagesLessThanMaximumm(feePercentages: [UFix64]) {
+    access(self) fun areFeePercentagesLessThanMaximumm(feePercentages: [UFix64]) {
         var sum: UFix64 = 0.0
         for percentage in feePercentages {
             sum = sum + percentage
@@ -254,7 +380,7 @@ pub contract NFTAuction {
         return sum <= 100
     }
 
-    access(self) isASale(_ nftTypeIdentifier: String,_ tokenId: UInt64): Bool {
+    access(self) fun isASale(_ nftTypeIdentifier: String,_ tokenId: UInt64): Bool {
         pre {
             self.doesAuctionExist(nftTypeIdentifier, tokenId): "Auction does not exist for nft type + tokenId specified"
         }
@@ -263,7 +389,7 @@ pub contract NFTAuction {
         return auction.buyNowPrice > 0.0 && auction.minPrice == 0.0
     }
 
-    access(self) isWhitelistedSale(_ nftTypeIdentifier: String,_ tokenId: UInt64): Bool {
+    access(self) fun isWhitelistedSale(_ nftTypeIdentifier: String,_ tokenId: UInt64): Bool {
         pre {
             self.doesAuctionExist(nftTypeIdentifier, tokenId): "Auction does not exist for nft type + tokenId specified"
         }
@@ -272,7 +398,7 @@ pub contract NFTAuction {
         return auction.whitelistedBuyer != nil
     }
 
-    access(self) bidMade(_ nftTypeIdentifier: String,_ tokenId: UInt64): Bool {
+    access(self) fun bidMade(_ nftTypeIdentifier: String,_ tokenId: UInt64): Bool {
         pre {
             self.doesAuctionExist(nftTypeIdentifier, tokenId): "Auction does not exist for nft type + tokenId specified"
         }
@@ -281,7 +407,7 @@ pub contract NFTAuction {
         return auction.nftHighestBid > 0.0
     }
 
-    access(self) isBuyNowPriceMet(_ nftTypeIdentifier: String,_ tokenId: UInt64): Bool {
+    access(self) fun isBuyNowPriceMet(_ nftTypeIdentifier: String,_ tokenId: UInt64): Bool {
         pre {
             self.doesAuctionExist(nftTypeIdentifier, tokenId): "Auction does not exist for nft type + tokenId specified"
         }
@@ -292,11 +418,30 @@ pub contract NFTAuction {
 
     // Getters (waiting to see on platformm default behaviour)
 
-	init() {
+	init(asyncArtworkNFTType: String, blueprintNFTType: String) {
         self.defaultBidIncreasePercentage = 0.1
         self.defaultAuctionBidPeriod = 86400.0
         self.minimumSettableIncreasePercentage = 0.1
-        self.maximumMinPricePercentage = 80
+        self.maximumMinPricePercentage = 80.0
+
+        self.auctions = {
+            asyncArtworkNFTType: {},
+            blueprintNFTType: {}
+        }
+
+        self.nftTypePaths = {
+            asyncArtworkNFTType: Paths(
+                AsyncArtwork.collectionPublicPath,
+                AsyncArtwork.collectionPrivatePath, 
+                AsyncArtwork.collectionStoragePath
+            ),
+            blueprintNFTType: Paths(
+                Blueprint.collectionPublicPath, 
+                Blueprint.collectionPrivatePath, 
+                Blueprint.collectionStoragePath
+            )
+        }
+
         emit ContractInitialized()
 	}
 }
