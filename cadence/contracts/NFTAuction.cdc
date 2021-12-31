@@ -160,6 +160,16 @@ pub contract NFTAuction {
         return (totalBid * percentage) / 10000
     }
 
+    access(self) fun sumPercentages(percentages: [UFix64]): UFix64 {
+        var totalPercentage: UFix64 = 0.0 
+
+        for percentage in percentages {
+            totalPercentage = totalPercentage + percentage
+        }
+
+        return totalPercentage
+    }
+
     access(self) fun _createNewNftAuction(
         sender: Address,
         nftTypeIdentifier: String,
@@ -169,13 +179,17 @@ pub contract NFTAuction {
         buyNowPrice: UFix64,
         feeRecipients: [Address],
         feePercentages: [UFix64],
+        nftProviderCapability: Capability<&{NonFungibleToken.Provider}>,
         auctionBidPeriod: UFix64?, // this is the time that the auction lasts until another bid occurs
         bidIncreasePercentage: UFix64?,
     ) {
         pre {
             buyNowPrice == 0.0 || self.getPortionOfBid(totalBid: buyNowPrice, percentage: self.maximumMinPricePercentage) >= minPrice : "MinPrice > 80% of buyNowPrice"
-            feeRecipients.length == feeRecipients.length 
+            feeRecipients.length == feeRecipients.length : "Recipients length != percentages length"
+            self.sumPercentages(percentages: feePercentages) <= 10000.0 : "Fee percentages exceed maximum"
         }
+
+
     }
 
     pub resource MarketplaceClient {
@@ -187,7 +201,8 @@ pub contract NFTAuction {
             minPrice: UFix64,
             buyNowPrice: UFix64,
             feeRecipients: [Address],
-            feePercentages: [UFix64]
+            feePercentages: [UFix64],
+            nftProviderCapability: Capability<&{NonFungibleToken.Provider}>,
         ) {
             pre {
                 NFTAuction.auctions[nftTypeIdentifier] != nil : "Type identifier invalid"
@@ -207,6 +222,7 @@ pub contract NFTAuction {
                 buyNowPrice: buyNowPrice,
                 feeRecipients: feeRecipients,
                 feePercentages: feePercentages,
+                nftProviderCapability: nftProviderCapability,
                 auctionBidPeriod: nil,
                 bidIncreasePercentage: nil
             )
@@ -222,7 +238,8 @@ pub contract NFTAuction {
             auctionBidPeriod: UFix64, // this is the time that the auction lasts until another bid occurs
             bidIncreasePercentage: UFix64,
             feeRecipients: [Address],
-            feePercentages: [UFix64]
+            feePercentages: [UFix64],
+            nftProviderCapability: Capability<&{NonFungibleToken.Provider}>,
         ) {
             pre {
                 NFTAuction.auctions[nftTypeIdentifier] != nil : "Type identifier invalid"
@@ -242,6 +259,7 @@ pub contract NFTAuction {
                 buyNowPrice: buyNowPrice,
                 feeRecipients: feeRecipients,
                 feePercentages: feePercentages,
+                nftProviderCapability: nftProviderCapability,
                 auctionBidPeriod: auctionBidPeriod,
                 bidIncreasePercentage: bidIncreasePercentage
             )
@@ -324,13 +342,10 @@ pub contract NFTAuction {
     }
 
     pub struct Auction {
-        // non-optionals
-        pub var nftHighestBid: UFix64
-        pub var nftHighestBidder: Address
         pub var feeRecipients: [Address]
         pub var feePercentages: [UFix64]
-
-        // optionals
+        pub var nftHighestBid: UFix64?
+        pub var nftHighestBidder: Address?
         pub var nftRecipient: Address?
         pub var auctionBidPeriod: UFix64?
         pub var auctionEnd: UFix64?
@@ -357,11 +372,40 @@ pub contract NFTAuction {
             self.bidIncreasePercentage = nil
         }
 
+        pub fun setAuction(
+            auctionBidPeriod: UFix64?,
+            auctionEnd: UFix64?,
+            minPrice: UFix64?,
+            buyNowPrice: UFix64?,
+            biddingCurrency: String?,
+            whitelistedBuyer: Address?,
+            nftSeller: Address?,
+            bidIncreasePercentage: UFix64?
+        ) {
+            self.auctionBidPeriod = auctionBidPeriod
+            self.auctionEnd = auctionEnd
+            self.minPrice = minPrice
+            self.buyNowPrice = buyNowPrice
+            self.biddingCurrency = biddingCurrency
+            self.whitelistedBuyer = whitelistedBuyer
+            self.nftSeller = nftSeller
+            self.bidIncreasePercentage = bidIncreasePercentage
+        }
+
+        pub fun setNFTRecipient(nftRecipient: Address) {
+            self.nftRecipient = nftRecipient
+        }
+
+        pub fun setHigherBid(nftHighestBid: UFix64, nftHighestBidder: Address) {
+            self.nftHighestBid = nftHighestBid
+            self.nftHighestBidder = nftHighestBidder
+        }
+
         init(
-            nftHighestBid: UFix64,
-            nftHighestBidder: Address,
             feeRecipients: [Address],
             feePercentages: [UFix64],
+            nftHighestBid: UFix64?,
+            nftHighestBidder: Address?,
             nftRecipient: Address?,
             auctionBidPeriod: UFix64?,
             auctionEnd: UFix64?,
