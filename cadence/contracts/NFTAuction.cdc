@@ -45,6 +45,9 @@ pub contract NFTAuction {
     // A mapping of currency type identifiers to expected paths
     access(self) let currencyPaths: {String: Paths}
 
+    // A mapping of NFT type identifiers to {nftIds -> Capabilities to grab an nft}
+    access(self) let nftProviderCapabilities: {String: {UInt64: Capability<&NonFungibleToken.Collection>}}
+
     pub event NftAuctionCreated(
         nftProjectIdentifier: String,
         tokenId: UInt64,
@@ -179,7 +182,7 @@ pub contract NFTAuction {
         buyNowPrice: UFix64,
         feeRecipients: [Address],
         feePercentages: [UFix64],
-        nftProviderCapability: Capability<&{NonFungibleToken.Provider}>,
+        nftProviderCapability: Capability<&NonFungibleToken.Collection>,
         auctionBidPeriod: UFix64?, // this is the time that the auction lasts until another bid occurs
         bidIncreasePercentage: UFix64?,
     ) {
@@ -189,7 +192,44 @@ pub contract NFTAuction {
             self.sumPercentages(percentages: feePercentages) <= 10000.0 : "Fee percentages exceed maximum"
         }
 
-
+        if self.auctions[nftTypeIdentifier]![tokenId] == nil {
+            let auction = Auction(
+                feeRecipients: feeRecipients,
+                feePercentages: feePercentages,
+                nftHighestBid: nil,
+                nftHighestBidder: nil,
+                nftRecipient: nil,
+                auctionBidPeriod: auctionBidPeriod,
+                minPrice: minPrice,
+                buyNowPrice: buyNowPrice,
+                biddingCurrency: currency,
+                whitelistedBuyer: nil,
+                nftSeller: sender,
+                bidIncreasePercentage: bidIncreasePercentage
+            )
+            self.auctions[nftTypeIdentifier]!.insert(key: tokenId, auction)
+            self.nftProviderCapabilities[nftTypeIdentifier]!.insert(key: tokenId, nftProviderCapability)
+        } else {
+            let currentCurrency = self.auctions[nftTypeIdentifier]![tokenId]!.biddingCurrency 
+            // check if bid already
+            self.auctions[nftTypeIdentifier]![tokenId]!.setAuction(
+                auctionBidPeriod: auctionBidPeriod, 
+                minPrice: minPrice, 
+                buyNowPrice: buyNowPrice, 
+                biddingCurrency: currency, 
+                whitelistedBuyer: nil, 
+                nftSeller: sender, 
+                bidIncreasePercentage: bidIncreasePercentage
+            )
+            // check to see if currency mismatch? or is that later
+            if currentCurrency != nil && currency != currentCurrency {
+                var vault: @FungibleToken.Vault? <- nil
+                vault <-> self.bidVaults[nftTypeIdentifier]![tokenId]
+                if vault == nil {
+                    panic("Vualt can't be non-existent as auction object had been instantiated")
+                }
+            }
+        }
     }
 
     pub resource MarketplaceClient {
@@ -202,7 +242,7 @@ pub contract NFTAuction {
             buyNowPrice: UFix64,
             feeRecipients: [Address],
             feePercentages: [UFix64],
-            nftProviderCapability: Capability<&{NonFungibleToken.Provider}>,
+            nftProviderCapability: Capability<&NonFungibleToken.Collection>,
         ) {
             pre {
                 NFTAuction.auctions[nftTypeIdentifier] != nil : "Type identifier invalid"
@@ -239,7 +279,7 @@ pub contract NFTAuction {
             bidIncreasePercentage: UFix64,
             feeRecipients: [Address],
             feePercentages: [UFix64],
-            nftProviderCapability: Capability<&{NonFungibleToken.Provider}>,
+            nftProviderCapability: Capability<&NonFungibleToken.Collection>,
         ) {
             pre {
                 NFTAuction.auctions[nftTypeIdentifier] != nil : "Type identifier invalid"
@@ -275,7 +315,8 @@ pub contract NFTAuction {
             whitelistedBuyer: Address,
             auctionBidPeriod: UFix64,
             feeRecipients: [Address],
-            feePercentages: [UFix64]
+            feePercentages: [UFix64],
+            nftProviderCapability: Capability<&NonFungibleToken.Collection>
         ) {}
 
         // makeBid
@@ -374,7 +415,6 @@ pub contract NFTAuction {
 
         pub fun setAuction(
             auctionBidPeriod: UFix64?,
-            auctionEnd: UFix64?,
             minPrice: UFix64?,
             buyNowPrice: UFix64?,
             biddingCurrency: String?,
@@ -383,7 +423,6 @@ pub contract NFTAuction {
             bidIncreasePercentage: UFix64?
         ) {
             self.auctionBidPeriod = auctionBidPeriod
-            self.auctionEnd = auctionEnd
             self.minPrice = minPrice
             self.buyNowPrice = buyNowPrice
             self.biddingCurrency = biddingCurrency
@@ -401,6 +440,11 @@ pub contract NFTAuction {
             self.nftHighestBidder = nftHighestBidder
         }
 
+        pub fun setAuctionEnd() {
+            let bidPeriod: UFix64 = self.auctionBidPeriod != nil ? self.auctionBidPeriod : NFTAuction.defaultAuctionBidPeriod
+            self.auctionEnd = bidPeriod + getCurrentBlock().timestamp
+        }
+
         init(
             feeRecipients: [Address],
             feePercentages: [UFix64],
@@ -408,7 +452,6 @@ pub contract NFTAuction {
             nftHighestBidder: Address?,
             nftRecipient: Address?,
             auctionBidPeriod: UFix64?,
-            auctionEnd: UFix64?,
             minPrice: UFix64?,
             buyNowPrice: UFix64?,
             biddingCurrency: String?,
@@ -425,7 +468,7 @@ pub contract NFTAuction {
 
             self.nftRecipient = nftRecipient
             self.auctionBidPeriod = auctionBidPeriod
-            self.auctionEnd = auctionEnd
+            self.auctionEnd = nil
             self.minPrice = minPrice
             self.buyNowPrice = buyNowPrice
             self.biddingCurrency = biddingCurrency
@@ -514,14 +557,6 @@ pub contract NFTAuction {
 
     // increasePercentageAboveMinimum also needless
 
-    access(self) fun areFeePercentagesLessThanMaximumm(feePercentages: [UFix64]) {
-        var sum: UFix64 = 0.0
-        for percentage in feePercentages {
-            sum = sum + percentage
-        }
-        return sum <= 100
-    }
-
     access(self) fun isASale(_ nftTypeIdentifier: String,_ tokenId: UInt64): Bool {
         pre {
             self.doesAuctionExist(nftTypeIdentifier, tokenId): "Auction does not exist for nft type + tokenId specified"
@@ -571,6 +606,11 @@ pub contract NFTAuction {
         self.flowTokenCurrencyType = flowTokenCurrencyType
 
         self.auctions = {
+            asyncArtworkNFTType: {},
+            blueprintNFTType: {}
+        }
+
+        self.nftProviderCapabilities = {
             asyncArtworkNFTType: {},
             blueprintNFTType: {}
         }
