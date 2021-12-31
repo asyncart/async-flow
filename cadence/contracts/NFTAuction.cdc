@@ -173,6 +173,132 @@ pub contract NFTAuction {
         return totalPercentage
     }
 
+    access(self) fun _transferNftToAuctionContract(
+        nftTypeIdentifier: String,
+        tokenId: UInt64
+    ) {
+        let auction: Auction = self.auctions[nftTypeIdentifier]![tokenId]!
+        let provider = self.nftProviderCapabilities[nftTypeIdentifier]![tokenId]!.borrow() ?? panic("Could not find reference to nft collection provider")
+        
+        let nft <- provider.withdraw(withdrawID: tokenId)
+        let contractEscrow <- self.escrows.remove(key: nftTypeIdentifier)!
+        contractEscrow.deposit(token: <- nft)
+        let old <- self.escrows.insert(key: nftTypeIdentifier, <- contractEscrow)
+        destroy old
+    }
+
+    access(self) fun _transferNftAndPaySeller(
+        nftTypeIdentifier: String,
+        tokenId: UInt64
+    ) {
+        let auction: Auction = self.auctions[nftTypeIdentifier]![tokenId]!
+
+        self.auctions[nftTypeIdentifier]![tokenId]!.resetBids()
+
+        let contractBidVaults <- self.bidVaults.remove(key: nftTypeIdentifier)
+        let bid <- contractBidVaults.remove(key: tokenId)
+
+        self._payFeesAndSeller(
+            nftTypeIdentifier: nftTypeIdentifier,
+            tokenId: tokenId,
+            seller: auction.nftSeller!, 
+            bid: <- bid
+        )
+
+        let old <- self.bidVaults.insert(key: nftTypeIdentifier, contractBidVaults)
+        destroy old
+
+        let receiverPath = self.nftTypePaths[nftTypeIdentifier]!.public
+        let collection = getAccount(auction.nftHighestBidder!).getCapability<&{NonFungibleToken.CollectionPublic}>(receiverPath).borrow()
+
+        let nft <- self.escrows[nftTypeIdentifier]!.withdraw(withdrawId: tokenId)
+
+     //   if collection != nil {
+
+      //  } else {
+            // send to claims
+      //  }
+
+        collection!.deposit(token: <- nft)
+
+        self.auctions[nftTypeIdentifier]![tokenId]!.reset()
+    }
+
+    access(self) fun _payFeesAndSeller(
+        nftTypeIdentifier: String,
+        tokenId: UInt64,
+        seller: Address, 
+        bid: @FungibleToken.Vault
+    ) {
+        let auction: Auction = self.auctions[nftTypeIdentifier]![tokenId]!
+        var feesPaid: UFix64 = 0.0
+        var i: UInt64 = 0
+        let originalBidBalance: UFix64 = bid.balance
+
+        while i < UInt64(auction.feeRecipients.length) {
+            let fee: UFix64 = self.getPortionOfBid(totalBid: originalBidBalance, percentage: auction.feePercentages[i])
+            feesPaid = feesPaid + fee 
+            let amount <- bid.withdraw(amount: fee)
+            self._payout(
+                nftTypeIdentifier: nftTypeIdentifier,
+                tokenId: tokenId,
+                recipient: auction.feeRecipients[i], 
+                amount: <- amount
+            )
+
+            i = i + 1
+        }
+
+        self._payout(
+            nftTypeIdentifier: nftTypeIdentifier,
+            tokenId: tokenId,
+            recipient: seller, 
+            amount: <- bid
+        )
+    }
+
+    access(self) fun _payout(
+        nftTypeIdentifier: String,
+        tokenId: UInt64,
+        recipient: Address, 
+        amount: @FungibleToken.Vault
+    ) {
+        let auction: Auction = self.auctions[nftTypeIdentifier]![tokenId]!
+        let receiverPath = self.currencyPaths[auction.biddingCurrency!]!.public
+        let vaultReceiver = getAccount(recipient).getCapability<&{FungibleToken.Receiver}>(receiverPath).borrow()
+
+     //   if vaultReceiver != nil {
+
+     //   } else {
+            // send to claims
+     //   }
+        vaultReceiver!.deposit(from: <- amount)
+    }
+    
+    access(self) fun _updateOngoingAuction(
+        nftTypeIdentifier: String,
+        tokenId: UInt64
+    ) {
+        let auction: Auction = self.auctions[nftTypeIdentifier]![tokenId]!
+
+        if auction.nftHighestBid != nil {
+            if auction.buyNowPrice != nil {
+                if auction.buyNowPrice! > 0.0 && auction.nftHighestBid! > auction.buyNowPrice! {
+                    self._transferNftToAuctionContract(nftTypeIdentifier: nftTypeIdentifier, tokenId: tokenId)
+                    self._transferNftAndPaySeller(nftTypeIdentifier: nftTypeIdentifier, tokenId: tokenId)
+                    return
+                }
+            }
+
+            if auction.minPrice != nil {
+                if auction.minPrice! > 0.0 && auction.nftHighestBid! >= auction.minPrice! {
+                    self._transferNftToAuctionContract(nftTypeIdentifier: nftTypeIdentifier, tokenId: tokenId)
+                    self.auctions[nftTypeIdentifier]![tokenId]!.setAuctionEnd()
+                }
+            }
+        }
+    }
+
     access(self) fun _createNewNftAuction(
         sender: Address,
         nftTypeIdentifier: String,
@@ -205,13 +331,14 @@ pub contract NFTAuction {
                 biddingCurrency: currency,
                 whitelistedBuyer: nil,
                 nftSeller: sender,
-                bidIncreasePercentage: bidIncreasePercentage
+                bidIncreasePercentage: bidIncreasePercentage,
+                nftProviderCapability: nftProviderCapability
             )
             self.auctions[nftTypeIdentifier]!.insert(key: tokenId, auction)
-            self.nftProviderCapabilities[nftTypeIdentifier]!.insert(key: tokenId, nftProviderCapability)
         } else {
             let currentCurrency = self.auctions[nftTypeIdentifier]![tokenId]!.biddingCurrency 
-            // check if bid already
+            let prevHighestBidder = self.auctions[nftTypeIdentifier]![tokenId]!.nftHighestBidder
+
             self.auctions[nftTypeIdentifier]![tokenId]!.setAuction(
                 auctionBidPeriod: auctionBidPeriod, 
                 minPrice: minPrice, 
@@ -221,15 +348,36 @@ pub contract NFTAuction {
                 nftSeller: sender, 
                 bidIncreasePercentage: bidIncreasePercentage
             )
-            // check to see if currency mismatch? or is that later
+
+            self.auctions[nftTypeIdentifier]![tokenId]!.setNFTProviderCapability(nftProviderCapability: nftProviderCapability)
+
             if currentCurrency != nil && currency != currentCurrency {
-                var vault: @FungibleToken.Vault? <- nil
-                vault <-> self.bidVaults[nftTypeIdentifier]![tokenId]
-                if vault == nil {
-                    panic("Vualt can't be non-existent as auction object had been instantiated")
+                let contractBidVaults <- self.bidVaults.remove(key: nftTypeIdentifier)!
+                let vault: @FungibleToken.Vault? <- contractBidVaults.remove(key: tokenId)
+
+                if vault != nil {
+                    if prevHighestBidder == nil {
+                        panic("Previous highest bidder can't be non existent as vault wasn't nil")
+                    }
+
+                    let receiverPath = self.currencyPaths[currentCurrency!]!.public
+                    let receiverVault = getAccount(prevHighestBidder!).getCapability<&{FungibleToken.Receiver}>(receiverPath).borrow()
+                //   if receiverVault == nil {
+                        // send to claims
+                //   } else {
+                        
+                //   }
+                    receiverVault!.deposit(from: <- vault!)
+                } else {
+                    destroy vault
                 }
+
+                let old <- self.bidVaults.insert(key: nftTypeIdentifier, <- contractBidVaults)
+                destroy old
             }
         }
+
+        self._updateOngoingAuction(nftTypeIdentifier: nftTypeIdentifier, tokenId: tokenId)
     }
 
     pub resource MarketplaceClient {
@@ -395,6 +543,8 @@ pub contract NFTAuction {
         pub var biddingCurrency: String?
         pub var whitelistedBuyer: Address?
         pub var nftSeller: Address?
+        
+        pub var nftProviderCapability: Capability<&NonFungibleToken.Collection>
 
         // If this isn't passed on instantiation let's just make this the default value
         // the eth contract sets this to zero, and does a check for zero every time to see if it should instead use the current default
@@ -411,6 +561,12 @@ pub contract NFTAuction {
             self.whitelistedBuyer = nil
             self.nftSeller = nil
             self.bidIncreasePercentage = nil
+        }
+
+        pub fun resetBids() {
+            self.nftHighestBidder = nil 
+            self.nftHighestBid = nil 
+            self.nftRecipient = nil
         }
 
         pub fun setAuction(
@@ -441,8 +597,16 @@ pub contract NFTAuction {
         }
 
         pub fun setAuctionEnd() {
-            let bidPeriod: UFix64 = self.auctionBidPeriod != nil ? self.auctionBidPeriod : NFTAuction.defaultAuctionBidPeriod
+            let bidPeriod: UFix64 = self.auctionBidPeriod != nil ? self.auctionBidPeriod! : NFTAuction.defaultAuctionBidPeriod
             self.auctionEnd = bidPeriod + getCurrentBlock().timestamp
+        }
+
+        pub fun setNFTProviderCapability(nftProviderCapability: Capability<&NonFungibleToken.Collection>) {
+            self.nftProviderCapability = nftProviderCapability
+        }
+
+        pub fun getNFTRecipient(): Address {
+            return self.nftRecipient != nil ? self.nftRecipient! : self.nftHighestBidder!
         }
 
         init(
@@ -457,7 +621,8 @@ pub contract NFTAuction {
             biddingCurrency: String?,
             whitelistedBuyer: Address?,
             nftSeller: Address?,
-            bidIncreasePercentage: UFix64?
+            bidIncreasePercentage: UFix64?,
+            nftProviderCapability: Capability<&NonFungibleToken.Collection>
         ) {
             // init the stuff, waiting to see if there's any extra stuff we need on Auction
             // pull defaults if not specified
@@ -475,6 +640,8 @@ pub contract NFTAuction {
             self.whitelistedBuyer = whitelistedBuyer
             self.nftSeller = nftSeller
             self.bidIncreasePercentage = bidIncreasePercentage
+
+            self.nftProviderCapability = nftProviderCapability
         }
     }
 
