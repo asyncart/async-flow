@@ -280,33 +280,58 @@ pub contract NFTAuction {
     }
 
     pub struct Auction {
-        // If this isn't passed on instantiation let's just make this the default value
-        // the eth contract sets this to zero, and does a check for zero every time to see if it should instead use the current default
-        // we could do that, but seems weird?
-        pub var bidIncreasePercentage: UFix64
-        pub var auctionBidPeriod: UFix64
-        pub var auctionEnd: UFix64
-        pub var minPrice: UFix64
-        pub var buyNowPrice: UFix64
+        // non-optionals
         pub var nftHighestBid: UFix64
         pub var nftHighestBidder: Address
-        pub var nftHighestBidderIdCap: Capability<&MarketUser>
-        pub var nftSeller: Address
-        pub var nftSellerIdCap: Capability<&MarketUser>
-
-        // I think we might need to ditch the MarketUser authentication capability because of this
-        // we need a random user to be able to restrict bidding to an arbitrary account without msg.sender
-        // We could do this via the same method that we use with collections
-        pub var whitelistedBuyer: Address?
         pub var nftRecipient: Address
-        pub var biddingCurrency: String
         pub var feeRecipients: [Address]
         pub var feePercentages: [UFix64]
 
-        init() {
+        // optionals
+        pub var auctionBidPeriod: UFix64?
+        pub var auctionEnd: UFix64?
+        pub var minPrice: UFix64?
+        pub var buyNowPrice: UFix64?
+        pub var biddingCurrency: String?
+        pub var whitelistedBuyer: Address?
+        pub var nftSeller: Address?
+
+        // If this isn't passed on instantiation let's just make this the default value
+        // the eth contract sets this to zero, and does a check for zero every time to see if it should instead use the current default
+        // we could do that, but seems weird?
+        pub var bidIncreasePercentage: UFix64?
+
+        init(
+            nftHighestBid: UFix64,
+            nftHighestBidder: Address,
+            nftRecipient: Address,
+            feeRecipients: [Address],
+            feePercentages: [UFix64],
+            auctionBidPeriod: UFix64?,
+            auctionEnd: UFix64?,
+            minPrice: UFix64?,
+            buyNowPrice: UFix64?,
+            biddingCurrency: String?,
+            whitelistedBuyer: Address?,
+            nftSeller: Address?,
+            bidIncreasePercentage: UFix64?
+        ) {
             // init the stuff, waiting to see if there's any extra stuff we need on Auction
             // pull defaults if not specified
+            self.nftHighestBid = nftHighestBid
+            self.nftHighestBidder = nftHighestBidder
+            self.nftRecipient = nftRecipient 
+            self.feeRecipients = feeRecipients
+            self.feePercentages = feePercentages
 
+            self.auctionBidPeriod = auctionBidPeriod
+            self.auctionEnd = auctionEnd
+            self.minPrice = minPrice
+            self.buyNowPrice = buyNowPrice
+            self.biddingCurrency = biddingCurrency
+            self.whitelistedBuyer = whitelistedBuyer
+            self.nftSeller = nftSeller
+            self.bidIncreasePercentage = bidIncreasePercentage
         }
     }
 
