@@ -1,5 +1,7 @@
 import NonFungibleToken from "./NonFungibleToken.cdc"
 import FungibleToken from "./FungibleToken.cdc"
+import FlowToken from "./FlowToken.cdc"
+import FUSD from "./FUSD.cdc"
 import AsyncArtwork from "./AsyncArtwork.cdc"
 import Blueprint from "./Blueprint.cdc"
 
@@ -21,6 +23,132 @@ pub contract NFTAuction {
     // i.e. if this is 80, then if a given NFT has a buyNowPrice of 200, it's minPrice <= 160
     pub var maximumMinPricePercentage: UFix64
     pub var defaultAuctionBidPeriod: UFix64
+
+    // A mapping of NFT type identifiers (analog of NFT contract addresses on ETH) to {nftIds -> Auctions}
+    access(self) let auctions: {String: {UInt64: Auction}}
+
+    // A mapping of NFT type identifiers to escrow collections
+    access(self) let escrows: @{String: NonFungibleToken.Collection}
+
+    // A mapping of NFT type identifiers to {nftIds -> bids for an auction}
+    access(self) let bidVaults: @{String: {UInt64: FungibleToken.Vault}}
+
+    // A mapping of NFT type identifiers to expected paths
+    access(self) let nftTypePaths: {String: Paths}
+
+    // A mapping of currency type identifiers to expected paths
+    access(self) let currencyPaths: {String: Paths}
+
+    pub event NftAuctionCreated(
+        nftProjectIdentifier: String,
+        tokenId: UInt64,
+        nftSeller: Address,
+        currency: String,
+        minPrice: UFix64,
+        buyNowPrice: UFix64,
+        auctionBidPeriod: UFix64,
+        bidIncreasePercentage: UFix64,
+        feeRecipients: [Address],
+        feePercentages: [UFix64]
+    );
+
+    pub event SaleCreated(
+        nftTypeIdentifier: String,
+        tokenId: UInt64,
+        nftSeller: Address,
+        currency: String,
+        buyNowPrice: UFix64,
+        whitelistedBuyer: Address,
+        feeRecipients: [Address],
+        feePercentages: [UFix64]
+    );
+
+    pub event BidMade(
+        nftTypeIdentifier: String,
+        tokenId: UInt64,
+        bidder: Address,
+        flowTokenAmount: UFix64,
+        currency: Address,
+        tokenAmount: UFix64
+    );
+
+    pub event AuctionPeriodUpdated(
+        nftTypeIdentifier: String,
+        tokenId: UInt64,
+        auctionEndPeriod: UFix64
+    );
+
+    pub event NFTTransferredAndSellerPaid(
+        nftTypeIdentifier: String,
+        tokenId: UInt64,
+        nftSeller: Address,
+        nftHighestBid: UFix64,
+        nftHighestBidder: Address,
+        nftRecipient: Address
+    );
+
+    pub event AuctionSettled(
+        nftTypeIdentifier: String,
+        tokenId: UInt64,
+        auctionSettler: Address
+    );
+
+    pub event AuctionWithdrawn(
+        nftTypeIdentifier: String,
+        tokenId: UInt64,
+        nftOwner: Address
+    );
+
+    pub event BidWithdrawn(
+        nftTypeIdentifier: String,
+        tokenId: UInt64,
+        highestBidder: Address
+    );
+
+    pub event WhitelistedBuyerUpdated(
+        nftTypeIdentifier: String,
+        tokenId: UInt64,
+        newWhitelistedBuyer: Address
+    );
+
+    pub event MinimumPriceUpdated(
+        nftTypeIdentifier: String,
+        tokenId: UInt64,
+        newMinPrice: UFix64
+    );
+
+    pub event BuyNowPriceUpdated(
+        nftTypeIdentifier: String,
+        tokenId: UInt64,
+        newBuyNowPrice: UFix64
+    );
+
+    pub event HighestBidTaken(
+        nftTypeIdentifier: String,
+        tokenId: UInt64
+    );
+
+    pub event ContractInitialized()
+
+    pub struct Paths {
+        pub var public: PublicPath
+        pub var private: PrivatePath
+        pub var storage: StoragePath
+
+        init(_ _public: PublicPath, _ _private: PrivatePath, _ _storage: StoragePath) {
+            self.public = _public 
+            self.private = _private 
+            self.storage = _storage 
+        }
+    }
+
+    pub fun getNftTypePaths(): {String: Paths} {
+        return self.nftTypePaths
+    }
+
+    pub fun getCurrencyPaths(): {String: Paths} {
+        return self.currencyPaths
+    }
 
     access(self) fun _createNewNftAuction(
         nftTypeIdentifier: String,
@@ -175,125 +303,12 @@ pub contract NFTAuction {
         pub var feeRecipients: [Address]
         pub var feePercentages: [UFix64]
 
-        // Keep the NFT on the Auction itself?
-        // Or define a seperate EscrowCollection?
-        access(self) NFT: @NonFungibleToken.NFT?
-
         init() {
             // init the stuff, waiting to see if there's any extra stuff we need on Auction
             // pull defaults if not specified
 
         }
     }
-
-    // A mapping of NFT type identifiers (analog of NFT contract addresses on ETH) to {nftIds -> Auctions}
-    access(self) let auctions: {String: {UInt64: Auction}}
-
-    pub struct Paths {
-        pub var public: PublicPath
-        pub var private: PrivatePath
-        pub var storage: StoragePath
-
-        init(_ _public: PublicPath, _ _private: PrivatePath, _ _storage: StoragePath) {
-            self.public = _public 
-            self.private = _private 
-            self.storage = _storage 
-        }
-    }
-
-    // A mapping of NFT type identifiers to expected paths
-    access(self) let nftTypePaths: {String: Paths}
-
-    pub event NftAuctionCreated(
-        nftProjectIdentifier: String,
-        tokenId: UInt64,
-        nftSeller: Address,
-        currency: String,
-        minPrice: UFix64,
-        buyNowPrice: UFix64,
-        auctionBidPeriod: UFix64,
-        bidIncreasePercentage: UFix64,
-        feeRecipients: [Address],
-        feePercentages: [UFix64]
-    );
-
-    pub event SaleCreated(
-        nftTypeIdentifier: String,
-        tokenId: UInt64,
-        nftSeller: Address,
-        currency: String,
-        buyNowPrice: UFix64,
-        whitelistedBuyer: Address,
-        feeRecipients: [Address],
-        feePercentages: [UFix64]
-    );
-
-    pub event BidMade(
-        nftTypeIdentifier: String,
-        tokenId: UInt64,
-        bidder: Address,
-        flowTokenAmount: UFix64,
-        currency: Address,
-        tokenAmount: UFix64
-    );
-
-    pub event AuctionPeriodUpdated(
-        nftTypeIdentifier: String,
-        tokenId: UInt64,
-        auctionEndPeriod: UFix64
-    );
-
-    pub event NFTTransferredAndSellerPaid(
-        nftTypeIdentifier: String,
-        tokenId: UInt64,
-        nftSeller: Address,
-        nftHighestBid: UFix64,
-        nftHighestBidder: Address,
-        nftRecipient: Address
-    );
-
-    pub event AuctionSettled(
-        nftTypeIdentifier: String,
-        tokenId: UInt64,
-        auctionSettler: Address
-    );
-
-    pub event AuctionWithdrawn(
-        nftTypeIdentifier: String,
-        tokenId: UInt64,
-        nftOwner: Address
-    );
-
-    pub event BidWithdrawn(
-        nftTypeIdentifier: String,
-        tokenId: UInt64,
-        highestBidder: Address
-    );
-
-    pub event WhitelistedBuyerUpdated(
-        nftTypeIdentifier: String,
-        tokenId: UInt64,
-        newWhitelistedBuyer: Address
-    );
-
-    pub event MinimumPriceUpdated(
-        nftTypeIdentifier: String,
-        tokenId: UInt64,
-        newMinPrice: UFix64
-    );
-
-    pub event BuyNowPriceUpdated(
-        nftTypeIdentifier: String,
-        tokenId: UInt64,
-        newBuyNowPrice: UFix64
-    );
-
-    pub event HighestBidTaken(
-        nftTypeIdentifier: String,
-        tokenId: UInt64
-    );
-
-    pub event ContractInitialized()
 
     // skipped isAuctionNotStartedByOwner -> weird name seems obscure, hopefully we can do something better
     access(self) fun manageAuctionStarted(_ nftTypeIdentifier: String, _ tokenId: UInt64, _ sender: Address) {
@@ -418,7 +433,7 @@ pub contract NFTAuction {
 
     // Getters (waiting to see on platformm default behaviour)
 
-	init(asyncArtworkNFTType: String, blueprintNFTType: String) {
+	init(asyncArtworkNFTType: String, blueprintNFTType: String, flowTokenCurrencyType: String, fusdCurrencyType: String) {
         self.defaultBidIncreasePercentage = 0.1
         self.defaultAuctionBidPeriod = 86400.0
         self.minimumSettableIncreasePercentage = 0.1
@@ -440,6 +455,33 @@ pub contract NFTAuction {
                 Blueprint.collectionPrivatePath, 
                 Blueprint.collectionStoragePath
             )
+        }
+
+        self.currencyPaths = {
+            flowTokenCurrencyType: Paths(
+                /public/flowTokenReceiver,
+                /private/flowTokenVault, // technically unknown standard
+                /storage/flowTokenVault
+            ),
+            fusdCurrencyType: Paths(
+                /public/fusdReceiver,
+                /private/fusdVault, // technically unknown standard
+                /storage/fusdVault
+            )
+        }
+
+        self.escrows <- {
+            asyncArtworkNFTType: <- AsyncArtwork.createEmptyCollection(),
+            blueprintNFTType: <- Blueprint.createEmptyCollection()
+        }
+
+        self.bidVaults <- {
+            asyncArtworkNFTType: <- {
+                (0 as UInt64): <- FlowToken.createEmptyVault() // NFT with id 0 doesn't exist, initializer
+            },
+            blueprintNFTType: <- {
+                (0 as UInt64): <- FlowToken.createEmptyVault() // NFT with id 0 doesn't exist, initializer
+            }
         }
 
         emit ContractInitialized()
