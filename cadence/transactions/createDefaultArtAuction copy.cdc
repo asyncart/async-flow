@@ -14,7 +14,7 @@ transaction(
     let marketplaceClient: &NFTAuction.MarketplaceClient
 
     prepare(acct: AuthAccount) {
-        self.collectionCapability = acct.getCapability<&{NonFungibleToken.Collection}>(AsyncArtwork.collectionPrivatePath) ?? panic("Could not borrow private capability to Collection resource")
+        self.collectionCapability = acct.getCapability<&NonFungibleToken.Collection>(AsyncArtwork.collectionPrivatePath) ?? panic("Could not borrow private capability to Collection resource")
         self.marketplaceClient = acct.borrow<&NFTAuction.MarketplaceClient>(from: NFTAuction.marketplaceClientStoragePath) ?? panic("Could not borrow Marketplace Client resource")
     }
 
