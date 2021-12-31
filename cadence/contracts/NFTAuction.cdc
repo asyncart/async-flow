@@ -20,6 +20,8 @@ pub contract NFTAuction {
     pub var marketplaceClientPrivatePath: PrivatePath
     pub var marketplaceClientStoragePath: StoragePath
 
+    pub var flowTokenCurrencyType: String
+
     pub var defaultBidIncreasePercentage: UFix64
     pub var minimumSettableIncreasePercentage: UFix64
 
@@ -154,15 +156,27 @@ pub contract NFTAuction {
         return self.currencyPaths
     }
 
+    access(self) fun getPortionOfBid(totalBid: UFix64, percentage: UFix64): UFix64 {
+        return (totalBid * percentage) / 10000
+    }
+
     access(self) fun _createNewNftAuction(
+        sender: Address,
         nftTypeIdentifier: String,
         tokenId: UInt64,
         currency: String,
         minPrice: UFix64,
         buyNowPrice: UFix64,
-        feeRecipients: Address,
-        feePercentages: UFix64
-    ) {}
+        feeRecipients: [Address],
+        feePercentages: [UFix64],
+        auctionBidPeriod: UFix64?, // this is the time that the auction lasts until another bid occurs
+        bidIncreasePercentage: UFix64?,
+    ) {
+        pre {
+            buyNowPrice == 0.0 || self.getPortionOfBid(totalBid: buyNowPrice, percentage: self.maximumMinPricePercentage) >= minPrice : "MinPrice > 80% of buyNowPrice"
+            feeRecipients.length == feeRecipients.length 
+        }
+    }
 
     pub resource MarketplaceClient {
         // createDefaultNftAuction
@@ -172,8 +186,8 @@ pub contract NFTAuction {
             currency: String,
             minPrice: UFix64,
             buyNowPrice: UFix64,
-            feeRecipients: Address,
-            feePercentages: UFix64
+            feeRecipients: [Address],
+            feePercentages: [UFix64]
         ) {
             pre {
                 NFTAuction.auctions[nftTypeIdentifier] != nil : "Type identifier invalid"
@@ -185,13 +199,16 @@ pub contract NFTAuction {
             NFTAuction.manageAuctionStarted(nftTypeIdentifier, tokenId, sender)
 
             NFTAuction._createNewNftAuction(
+                sender: sender,
                 nftTypeIdentifier: nftTypeIdentifier,
                 tokenId: tokenId,
                 currency: currency,
                 minPrice: minPrice,
                 buyNowPrice: buyNowPrice,
                 feeRecipients: feeRecipients,
-                feePercentages: feePercentages
+                feePercentages: feePercentages,
+                auctionBidPeriod: nil,
+                bidIncreasePercentage: nil
             )
         }
 
@@ -202,10 +219,33 @@ pub contract NFTAuction {
             currency: String,
             minPrice: UFix64,
             buyNowPrice: UFix64,
-            auctionBidPeriod: UFix64,
-            feeRecipients: Address,
-            feePercentages: UFix64
-        ) {}
+            auctionBidPeriod: UFix64, // this is the time that the auction lasts until another bid occurs
+            bidIncreasePercentage: UFix64,
+            feeRecipients: [Address],
+            feePercentages: [UFix64]
+        ) {
+            pre {
+                NFTAuction.auctions[nftTypeIdentifier] != nil : "Type identifier invalid"
+                minPrice > 0.0 : "Price not greater than 0"
+                self.owner != nil : "Cannot perform operation while client in transit"
+                bidIncreasePercentage >= NFTAuction.minimumSettableIncreasePercentage : "Bid increase percentage too low"
+            }
+            let sender: Address = self.owner!.address 
+            NFTAuction.manageAuctionStarted(nftTypeIdentifier, tokenId, sender)
+
+            NFTAuction._createNewNftAuction(
+                sender: sender,
+                nftTypeIdentifier: nftTypeIdentifier,
+                tokenId: tokenId,
+                currency: currency,
+                minPrice: minPrice,
+                buyNowPrice: buyNowPrice,
+                feeRecipients: feeRecipients,
+                feePercentages: feePercentages,
+                auctionBidPeriod: auctionBidPeriod,
+                bidIncreasePercentage: bidIncreasePercentage
+            )
+        }   
 
         // createSale
         pub fun createSale(
@@ -287,11 +327,11 @@ pub contract NFTAuction {
         // non-optionals
         pub var nftHighestBid: UFix64
         pub var nftHighestBidder: Address
-        pub var nftRecipient: Address
         pub var feeRecipients: [Address]
         pub var feePercentages: [UFix64]
 
         // optionals
+        pub var nftRecipient: Address?
         pub var auctionBidPeriod: UFix64?
         pub var auctionEnd: UFix64?
         pub var minPrice: UFix64?
@@ -305,12 +345,24 @@ pub contract NFTAuction {
         // we could do that, but seems weird?
         pub var bidIncreasePercentage: UFix64?
 
+        pub fun reset() {
+            self.nftRecipient = nil
+            self.auctionBidPeriod = nil
+            self.auctionEnd = nil
+            self.minPrice = nil
+            self.buyNowPrice = nil
+            self.biddingCurrency = nil
+            self.whitelistedBuyer = nil
+            self.nftSeller = nil
+            self.bidIncreasePercentage = nil
+        }
+
         init(
             nftHighestBid: UFix64,
             nftHighestBidder: Address,
-            nftRecipient: Address,
             feeRecipients: [Address],
             feePercentages: [UFix64],
+            nftRecipient: Address?,
             auctionBidPeriod: UFix64?,
             auctionEnd: UFix64?,
             minPrice: UFix64?,
@@ -323,11 +375,11 @@ pub contract NFTAuction {
             // init the stuff, waiting to see if there's any extra stuff we need on Auction
             // pull defaults if not specified
             self.nftHighestBid = nftHighestBid
-            self.nftHighestBidder = nftHighestBidder
-            self.nftRecipient = nftRecipient 
+            self.nftHighestBidder = nftHighestBidder 
             self.feeRecipients = feeRecipients
             self.feePercentages = feePercentages
 
+            self.nftRecipient = nftRecipient
             self.auctionBidPeriod = auctionBidPeriod
             self.auctionEnd = auctionEnd
             self.minPrice = minPrice
@@ -344,18 +396,20 @@ pub contract NFTAuction {
         let auction: Auction? = self.auctions[nftTypeIdentifier]![tokenId]
         if auction != nil {
             // auction exists
-            if auction!.nftSeller == sender {
-                panic("Auction already started by owner")
+            if auction!.nftSeller != nil {
+                if auction!.nftSeller! == sender {
+                    panic("Auction already started by owner")
+                }
+
+                let path: PublicPath = self.nftTypePaths[nftTypeIdentifier]!.public
+
+                let collection = getAccount(sender).getCapability<&{NonFungibleToken.CollectionPublic}>(path).borrow() ?? panic("Could not borrow reference to sender's collection")
+                if collection.borrowNFT(id: tokenId) == nil {
+                    panic("Sender doesn't own NFT")
+                }
+
+                self.auctions[nftTypeIdentifier]![tokenId]!.reset()
             }
-
-            let path: PublicPath = self.nftTypePaths[nftTypeIdentifier]!.public
-
-            let collection = getAccount(sender).getCapability<&{NonFungibleToken.CollectionPublic}>(path).borrow() ?? panic("Could not borrow reference to sender's collection")
-            if collection.borrowNFT(id: tokenId) == nil {
-                panic("Sender doesn't own NFT")
-            }
-
-            self.auctions[nftTypeIdentifier]!.remove(key: tokenId)
         }
     }
 
@@ -470,6 +524,7 @@ pub contract NFTAuction {
         self.marketplaceClientPublicPath = /public/MarketplaceClient
         self.marketplaceClientPrivatePath = /private/MarketplaceClient
         self.marketplaceClientStoragePath = /storage/MarketplaceClient
+        self.flowTokenCurrencyType = flowTokenCurrencyType
 
         self.auctions = {
             asyncArtworkNFTType: {},
