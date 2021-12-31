@@ -7,8 +7,10 @@ transaction(
     currency: String,
     minPrice: UFix64,
     buyNowPrice: UFix64,
+    whitelistedBuyer: Address,
+    auctionBidPeriod: UFix64,
     feeRecipients: [Address],
-    feePercentages: [UFix64]
+    feePercentages: [UFix64],
 ) {
     let collectionProviderCapability: Capability<&{NonFungibleToken.Provider}>
     let collectionPublicCapability: Capability<&{NonFungibleToken.CollectionPublic}>
@@ -29,11 +31,13 @@ transaction(
             panic("Lister does not own nft")
         }
 
-        self.marketplaceClient.createDefaultNftAuction(
+        self.marketplaceClient.createSale(
             nftTypeIdentifier: nft.getType().identifier,
             tokenId: tokenId,
             minPrice: minPrice,
             buyNowPrice: buyNowPrice,
+            whitelistedBuyer: whitelistedBuyer,
+            auctionBidPeriod: auctionBidPeriod,
             feeRecipients: feeRecipients,
             feePercentages: feePercentages,
             nftProviderCapability: self.collectionProviderCapability

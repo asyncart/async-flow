@@ -8,28 +8,28 @@ transaction(
     tokenAmount: UFix64,
     nftRecipient: Address
 ) {
-    let vaultCapability: Capability<&{FungibleToken.Vault}>
+    let vaultRef: &FungibleToken.Vault
     let marketplaceClient: &NFTAuction.MarketplaceClient
 
     prepare(acct: AuthAccount) {
         let standardCurrencyVaultPaths = NFTAuction.getCurrencyPaths()[currency]
 
-        if standardCurrencyVaultPath == nil {
+        if standardCurrencyVaultPaths == nil {
             panic("Specified currency is not supported")
         }
 
-        self.vaultCapability = acct.getCapability<&{FungibleToken.Vault}>(standardCurrencyVaultPaths.private) ?? panic("Could not borrow private capability to Vault resource")
+        self.vaultRef = acct.borrow<&FungibleToken.Vault>(standardCurrencyVaultPaths.storage) ?? panic("Could not borrow Vault resource")
         self.marketplaceClient = acct.borrow<&NFTAuction.MarketplaceClient>(from: NFTAuction.marketplaceClientStoragePath) ?? panic("Could not borrow Marketplace Client resource")
     }
 
     execute {
+        let tokens <- vaultRef.withdraw(amount: tokenAmount)
 
-        self.marketplaceClient.makeBid(
+        self.marketplaceClient.makeCustomBid(
             nftTypeIdentifier: nftTypeIdentifier,
             tokenId: tokenId,
             currency: String,
-            tokenAmount: UFix64,
-            bidderVaultCapability: self.vaultCapability,
+            tokens: <- tokens,
             nftRecipient: nftRecipient
         )
     }
