@@ -16,6 +16,10 @@ import Blueprint from "./Blueprint.cdc"
 // Defaults (at Auction create time or platformm defaults at getter call time)
 
 pub contract NFTAuction {
+    pub var marketplaceClientPublicPath: PublicPath
+    pub var marketplaceClientPrivatePath: PrivatePath
+    pub var marketplaceClientStoragePath: StoragePath
+
     pub var defaultBidIncreasePercentage: UFix64
     pub var minimumSettableIncreasePercentage: UFix64
 
@@ -463,6 +467,9 @@ pub contract NFTAuction {
         self.defaultAuctionBidPeriod = 86400.0
         self.minimumSettableIncreasePercentage = 0.1
         self.maximumMinPricePercentage = 80.0
+        self.marketplaceClientPublicPath = /public/MarketplaceClient
+        self.marketplaceClientPrivatePath = /private/MarketplaceClient
+        self.marketplaceClientStoragePath = /storage/MarketplaceClient
 
         self.auctions = {
             asyncArtworkNFTType: {},
