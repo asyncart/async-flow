@@ -160,7 +160,7 @@ pub contract NFTAuction {
     }
 
     access(self) fun getPortionOfBid(totalBid: UFix64, percentage: UFix64): UFix64 {
-        return (totalBid * percentage) / 10000
+        return (totalBid * percentage) / 100.0
     }
 
     access(self) fun sumPercentages(percentages: [UFix64]): UFix64 {
@@ -195,8 +195,8 @@ pub contract NFTAuction {
 
         self.auctions[nftTypeIdentifier]![tokenId]!.resetBids()
 
-        let contractBidVaults <- self.bidVaults.remove(key: nftTypeIdentifier)
-        let bid <- contractBidVaults.remove(key: tokenId)
+        let contractBidVaults <- self.bidVaults.remove(key: nftTypeIdentifier)!
+        let bid <- contractBidVaults.remove(key: tokenId)!
 
         self._payFeesAndSeller(
             nftTypeIdentifier: nftTypeIdentifier,
@@ -205,13 +205,17 @@ pub contract NFTAuction {
             bid: <- bid
         )
 
-        let old <- self.bidVaults.insert(key: nftTypeIdentifier, contractBidVaults)
-        destroy old
+        let oldVault <- self.bidVaults.insert(key: nftTypeIdentifier, <- contractBidVaults)
+        destroy oldVault
 
         let receiverPath = self.nftTypePaths[nftTypeIdentifier]!.public
         let collection = getAccount(auction.nftHighestBidder!).getCapability<&{NonFungibleToken.CollectionPublic}>(receiverPath).borrow()
 
-        let nft <- self.escrows[nftTypeIdentifier]!.withdraw(withdrawId: tokenId)
+        let escrow <- self.escrows.remove(key: nftTypeIdentifier)!
+
+        let nft <- escrow.withdraw(withdrawID: tokenId)
+        let oldCollection <- self.escrows.insert(key: nftTypeIdentifier, <- escrow)
+        destroy oldCollection
 
      //   if collection != nil {
 
