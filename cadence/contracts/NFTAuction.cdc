@@ -1,3 +1,10 @@
+import NonFungibleToken from "./NonFungibleToken.cdc"
+import FungibleToken from "./FungibleToken.cdc"
+import FlowToken from "./FlowToken.cdc"
+import FUSD from "./FUSD.cdc"
+import AsyncArtwork from "./AsyncArtwork.cdc"
+import Blueprint from "./Blueprint.cdc"
+
 pub contract NFTAuction {
     pub var marketplaceClientPublicPath: PublicPath
     pub var marketplaceClientPrivatePath: PrivatePath
@@ -1330,7 +1337,13 @@ pub contract NFTAuction {
 
     // Getters (waiting to see on platformm default behaviour)
 
-	init(asyncArtworkNFTType: String, blueprintNFTType: String, flowTokenCurrencyType: String, fusdCurrencyType: String) {
+	init() {
+        // TODO: Investigate how to pass args for contract deployment (and is it possible to do with project deploy)
+        let asyncArtworkNFTType = "A.01cf0e2f2f715450.AsyncArtwork.NFT"
+        let blueprintNFTType = "A.01cf0e2f2f715450.Blueprint.NFT"
+        let flowTokenCurrencyType = "A.0ae53cb6e3f42a79.FlowToken.Vault"
+        let fusdCurrencyType = "A.f8d6e0586b0a20c7.FUSD.Vault"
+
         self.defaultBidIncreasePercentage = 0.1
         self.defaultAuctionBidPeriod = 86400.0
         self.minimumSettableIncreasePercentage = 0.1
