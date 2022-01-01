@@ -29,7 +29,8 @@
                 "mainnet": "0x1654653399040a61"
             }
         },
-        "AsyncArtwork": "./cadence/contracts/AsyncArtwork.cdc"
+        "AsyncArtwork": "./cadence/contracts/AsyncArtwork.cdc",
+        "NFTAuction": "./cadence/contracts/NFTAuction.cdc"
     },
     "networks": {
         "emulator": "127.0.0.1:3569",
@@ -66,7 +67,8 @@
         "emulator": {
             "AsyncArtAccount": [
                 "NonFungibleToken",
-                "AsyncArtwork"
+                "AsyncArtwork",
+                "NFTAuction"
             ]
         }
     }
