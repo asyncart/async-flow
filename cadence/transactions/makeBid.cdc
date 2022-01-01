@@ -27,8 +27,7 @@ transaction(
         self.marketplaceClient.makeBid(
             nftTypeIdentifier: nftTypeIdentifier,
             tokenId: tokenId,
-            currency: String,
-            tokens: <- tokens
+            vault: <- tokens
         )
     }
 }

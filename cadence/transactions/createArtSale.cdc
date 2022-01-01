@@ -10,7 +10,7 @@ transaction(
     whitelistedBuyer: Address,
     auctionBidPeriod: UFix64,
     feeRecipients: [Address],
-    feePercentages: [UFix64],
+    feePercentages: [UFix64]
 ) {
     let collectionProviderCapability: Capability<&{NonFungibleToken.Provider}>
     let collectionPublicCapability: Capability<&{NonFungibleToken.CollectionPublic}>
@@ -34,6 +34,7 @@ transaction(
         self.marketplaceClient.createSale(
             nftTypeIdentifier: nft.getType().identifier,
             tokenId: tokenId,
+            currency: currency,
             minPrice: minPrice,
             buyNowPrice: buyNowPrice,
             whitelistedBuyer: whitelistedBuyer,

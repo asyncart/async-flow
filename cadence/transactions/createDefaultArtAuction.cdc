@@ -32,6 +32,7 @@ transaction(
         self.marketplaceClient.createDefaultNftAuction(
             nftTypeIdentifier: nft.getType().identifier,
             tokenId: tokenId,
+            currency: currency,
             minPrice: minPrice,
             buyNowPrice: buyNowPrice,
             feeRecipients: feeRecipients,
