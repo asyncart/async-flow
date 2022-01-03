@@ -17,12 +17,12 @@ transaction(
             panic("Specified currency is not supported")
         }
 
-        self.vaultRef = acct.borrow<&FungibleToken.Vault>(standardCurrencyVaultPaths.storage) ?? panic("Could not borrow Vault resource")
+        self.vaultRef = acct.borrow<&FungibleToken.Vault>(from: standardCurrencyVaultPaths!.storage) ?? panic("Could not borrow Vault resource")
         self.marketplaceClient = acct.borrow<&NFTAuction.MarketplaceClient>(from: NFTAuction.marketplaceClientStoragePath) ?? panic("Could not borrow Marketplace Client resource")
     }
 
     execute {
-        let tokens <- vaultRef.withdraw(amount: tokenAmount)
+        let tokens <- self.vaultRef.withdraw(amount: tokenAmount)
 
         self.marketplaceClient.makeBid(
             nftTypeIdentifier: nftTypeIdentifier,

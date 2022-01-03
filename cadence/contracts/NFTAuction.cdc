@@ -173,7 +173,7 @@ pub contract NFTAuction {
         tokenId: UInt64
     ) {
         let auction: Auction = self.auctions[nftTypeIdentifier]![tokenId]!
-        let provider = self.nftProviderCapabilities[nftTypeIdentifier]![tokenId]!.borrow() ?? panic("Could not find reference to nft collection provider")
+        let provider = auction.nftProviderCapability!.borrow() ?? panic("Could not find reference to nft collection provider")
         
         let nft <- provider.withdraw(withdrawID: tokenId)
         let contractEscrow <- self.escrowCollections.remove(key: nftTypeIdentifier)!
@@ -339,6 +339,7 @@ pub contract NFTAuction {
         }
     }
 
+    // This method seems obscure, also not the biggest fan of returning a copy of the struct (make void?)
     access(self) fun _resolveAuctionForBid(
         nftTypeIdentifier: String,
         tokenId: UInt64,
@@ -395,18 +396,9 @@ pub contract NFTAuction {
         pre {
             // TODO: exploit here is if it is early bid, then nftSeller is null
             sender != auction.nftSeller : "Owner can't bid on own NFT"
+            vault.getType().identifier == auction.biddingCurrency : "Attempted to bid with invalid currency"
+            self.doesBidMeetRequirements(auction: auction, amount: vault.balance) : "Bid does not meet amount requirements"
         }
-
-        // protect against currency type
-        if vault.getType().identifier != auction.biddingCurrency {
-            panic("Cannot bid with this currency on this auction")
-        }
-
-        if !self.doesBidMeetRequirements(auction: auction, amount: vault.balance) {
-            panic("Bid does not meet bid requirements")
-        }
-
-      //  let escrowVault <- self.escrowVaults.remove(key: auction.biddingCurrency)!
 
         // reverse previous bid if it exists
         if auction.nftHighestBidder != nil {
@@ -1109,6 +1101,10 @@ pub contract NFTAuction {
         }
     }
 
+    pub fun createMarketplaceClient(): @MarketplaceClient {
+        return <- create MarketplaceClient()
+    }
+
     pub struct interface AuctionPublic {
       pub var feeRecipients: [Address]
       pub var feePercentages: [UFix64]
@@ -1123,6 +1119,14 @@ pub contract NFTAuction {
       pub var whitelistedBuyer: Address?
       pub var nftSeller: Address?
       pub var bidIncreasePercentage: UFix64
+    }
+
+    // Public getter for auction information
+    pub fun getAuction(_ nftTypeIdentifier: String,_ tokenId: UInt64): Auction{AuctionPublic}? {
+        if !self.auctions.containsKey(nftTypeIdentifier) {
+            return nil
+        }
+        return self.auctions[nftTypeIdentifier]![tokenId]
     }
 
     pub struct Auction: AuctionPublic {
@@ -1330,9 +1334,7 @@ pub contract NFTAuction {
     access(self) fun nftCollectionSetup(nftTypeIdentifier: String, futureRecipient: Address): Bool {
         let path: PublicPath = self.nftTypePaths[nftTypeIdentifier]!.public
 
-        let collection = getAccount(futureRecipient).getCapability<&{NonFungibleToken.CollectionPublic}>(path).borrow()
-   
-        return collection != nil
+        return getAccount(futureRecipient).getCapability<&{NonFungibleToken.CollectionPublic}>(path).check()
    }
 
     // Getters (waiting to see on platformm default behaviour)

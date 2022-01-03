@@ -29,6 +29,10 @@ transaction(
             panic("Lister does not own nft")
         }
 
+        if nft.id != tokenId {
+            panic("User has altered their ownedNFTs mapping")
+        }
+
         self.marketplaceClient.createDefaultNftAuction(
             nftTypeIdentifier: nft.getType().identifier,
             tokenId: tokenId,

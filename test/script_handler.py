@@ -43,4 +43,4 @@ def send_script_and_return_result(scriptname, args=None, show=False):
         print(deet.decode())
     if "Error" in deet.decode():
         return False
-    return deet.decode().strip().split("t: ")[1]
+    return deet.decode().strip().split("Result: ")[1]
