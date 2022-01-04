@@ -9,6 +9,10 @@ pub contract NFTAuction {
     pub var marketplaceClientPublicPath: PublicPath
     pub var marketplaceClientPrivatePath: PrivatePath
     pub var marketplaceClientStoragePath: StoragePath
+    pub var escrowCollectionStoragePath: StoragePath
+    pub var escrowCollectionPrivatePath: PrivatePath
+    pub var escrowCollectionPublicPath: PublicPath
+    access(self) var escrowCollectionCap: Capability<&escrowCollection>
 
     pub var flowTokenCurrencyType: String
 
@@ -22,9 +26,6 @@ pub contract NFTAuction {
 
     // A mapping of NFT type identifiers (analog of NFT contract addresses on ETH) to {nftIds -> Auctions}
     access(self) let auctions: {String: {UInt64: Auction}}
-
-    // A mapping of NFT type identifiers to escrow collections
-    access(self) let escrowCollections: @{String: NonFungibleToken.Collection}
 
     // A mapping of currency type identifiers to their escrow vaults
     access(self) let escrowVaults: @{String: FungibleToken.Vault}
@@ -174,11 +175,8 @@ pub contract NFTAuction {
     ) {
         let auction: Auction = self.auctions[nftTypeIdentifier]![tokenId]!
         let provider = auction.nftProviderCapability!.borrow() ?? panic("Could not find reference to nft collection provider")
-        
         let nft <- provider.withdraw(withdrawID: tokenId)
-        let contractEscrow <- self.escrowCollections.remove(key: nftTypeIdentifier)!
-        contractEscrow.deposit(token: <- nft)
-        destroy <- self.escrowCollections.insert(key: nftTypeIdentifier, <- contractEscrow)
+        self.escrowCollectionCap.borrow()!.deposit(token: <- nft)
     }
 
     access(self) fun _transferNftAndPaySeller(
@@ -204,10 +202,7 @@ pub contract NFTAuction {
         let receiverPath = self.nftTypePaths[nftTypeIdentifier]!.public
         let collection = getAccount(auction.getNFTRecipient()).getCapability<&{NonFungibleToken.CollectionPublic}>(receiverPath).borrow()
 
-        let escrow <- self.escrowCollections.remove(key: nftTypeIdentifier)!
-
-        let nft <- escrow.withdraw(withdrawID: tokenId)
-        destroy <- self.escrowCollections.insert(key: nftTypeIdentifier, <- escrow)
+        let nft <- self.escrowCollectionCap.borrow()!.withdraw(nftTypeIdentifier: nftTypeIdentifier, tokenId: tokenId)
 
         let type: String = nft.getType().identifier
 
@@ -241,9 +236,7 @@ pub contract NFTAuction {
       ids.append(nft.id)
       self.nftClaims[type]!.insert(key: recipient, ids)
       
-      let escrow <- self.escrowCollections.remove(key: type)!
-      escrow.deposit(token: <-  nft)
-      destroy <- self.escrowCollections.insert(key: type, <- escrow)
+      self.escrowCollectionCap.borrow()!.deposit(token: <- nft)
     }
 
     access(self) fun _payFeesAndSeller(
@@ -318,7 +311,10 @@ pub contract NFTAuction {
         if auction.nftHighestBid != nil {
             if auction.buyNowPrice != nil {
                 if auction.nftHighestBid! > auction.buyNowPrice! {
-                    self._transferNftToAuctionContract(nftTypeIdentifier: nftTypeIdentifier, tokenId: tokenId)
+                    // Only pull the NFT into claims if it is not already there
+                    if !self.escrowCollectionCap.borrow()!.containsNFT(nftTypeIdentifier: nftTypeIdentifier, tokenId: tokenId) {
+                        self._transferNftToAuctionContract(nftTypeIdentifier: nftTypeIdentifier, tokenId: tokenId)
+                    }
                     self._transferNftAndPaySeller(nftTypeIdentifier: nftTypeIdentifier, tokenId: tokenId)
                     return
                 }
@@ -326,13 +322,18 @@ pub contract NFTAuction {
 
             if auction.minPrice != nil {
                 if auction.nftHighestBid! >= auction.minPrice! {
-                    self._transferNftToAuctionContract(nftTypeIdentifier: nftTypeIdentifier, tokenId: tokenId)
+                    // Only pull the NFT into claims if it is not already there
+                    if !self.escrowCollectionCap.borrow()!.containsNFT(nftTypeIdentifier: nftTypeIdentifier, tokenId: tokenId) {
+                        self._transferNftToAuctionContract(nftTypeIdentifier: nftTypeIdentifier, tokenId: tokenId)
+                    }
+
+                    // Extend the auction period every time a new bid is received
                     self.auctions[nftTypeIdentifier]![tokenId]!.setAuctionEnd()
 
                     emit AuctionPeriodUpdated(
-                      nftTypeIdentifier: nftTypeIdentifier,
-                      tokenId: tokenId,
-                      auctionEndPeriod: self.auctions[nftTypeIdentifier]![tokenId]!.auctionEnd!
+                        nftTypeIdentifier: nftTypeIdentifier,
+                        tokenId: tokenId,
+                        auctionEndPeriod: self.auctions[nftTypeIdentifier]![tokenId]!.auctionEnd!
                     )
                 }
             }
@@ -591,7 +592,6 @@ pub contract NFTAuction {
     }
 
     pub resource MarketplaceClient {
-        // createDefaultNftAuction
         pub fun createDefaultNftAuction(
             nftTypeIdentifier: String,
             tokenId: UInt64,
@@ -1064,6 +1064,7 @@ pub contract NFTAuction {
           )
         }
 
+        // how do we update the claims mapping?
         pub fun claimNFTs(nftTypeIdentifier: String): @[NonFungibleToken.NFT] {
             pre {
                 self.owner != nil : "Cannot perform operation while client in transit"
@@ -1073,13 +1074,11 @@ pub contract NFTAuction {
 
             let nfts: @[NonFungibleToken.NFT] <- []
             let ids = NFTAuction.nftClaims[nftTypeIdentifier]![self.owner!.address]!
-            let escrowCollection <- NFTAuction.escrowCollections.remove(key: nftTypeIdentifier)!
+            let escrowCollection = NFTAuction.escrowCollectionCap.borrow()!
 
             for id in ids {
-              nfts.append(<- escrowCollection.withdraw(withdrawID: id))
+              nfts.append(<- escrowCollection.withdraw(nftTypeIdentifier:nftTypeIdentifier, tokenId: id))
             }
-
-            destroy <- NFTAuction.escrowCollections.insert(key: nftTypeIdentifier, <- escrowCollection)
 
             return <- nfts
         }
@@ -1335,9 +1334,95 @@ pub contract NFTAuction {
         let path: PublicPath = self.nftTypePaths[nftTypeIdentifier]!.public
 
         return getAccount(futureRecipient).getCapability<&{NonFungibleToken.CollectionPublic}>(path).check()
-   }
+    }
 
     // Getters (waiting to see on platformm default behaviour)
+
+    // Collection Escrow Resource
+    pub resource interface escrowCollectionPublic {
+        pub var totalSupply: UInt64
+        pub fun borrowNFT(nftTypeIdentifier: String, tokenId: UInt64): &NonFungibleToken.NFT
+        pub fun containsNFT(nftTypeIdentifier: String, tokenId: UInt64): Bool
+    }
+    
+    pub resource escrowCollection: escrowCollectionPublic {
+        access(self) var ownedNFTs: {String: {UInt64: UInt64}}
+
+        // Dictionary of NFT types -> capabilities to their collections
+        access(self) var typesToCollectionCapabilities: {String: Capability<&NonFungibleToken.Collection>}
+
+        pub var typesToProviderPaths: {String: PrivatePath}
+
+        pub var typesToStoragePaths: {String: StoragePath}
+
+        pub var typesToReceiverPaths: {String: PublicPath}
+
+        pub var totalSupply: UInt64
+
+        pub fun containsNFT(nftTypeIdentifier: String, tokenId: UInt64): Bool {
+            return self.ownedNFTs.containsKey(nftTypeIdentifier) && self.ownedNFTs[nftTypeIdentifier]!.containsKey(tokenId)
+        }
+
+        pub fun withdraw(nftTypeIdentifier: String, tokenId: UInt64): @NonFungibleToken.NFT {
+            if self.ownedNFTs.containsKey(nftTypeIdentifier) && self.ownedNFTs[nftTypeIdentifier]!.containsKey(tokenId) {
+                self.ownedNFTs[nftTypeIdentifier]!.remove(key: tokenId)
+            } else {
+                panic("Withdrawing id that is not in ownedNFTs")
+            }
+
+            let typeRef = self.typesToCollectionCapabilities[nftTypeIdentifier] ?? panic("NFT type not supported") 
+            let collection = typeRef.borrow() ?? panic("Could not borrow reference to Collection") 
+            let nft <- collection.withdraw(withdrawID: tokenId)
+            self.totalSupply = self.totalSupply - (1 as UInt64)
+            return <- nft
+        }
+    
+        pub fun deposit(token: @NonFungibleToken.NFT) {
+            let tokenType = token.getType().identifier
+
+            if self.ownedNFTs.containsKey(tokenType) {
+                if self.ownedNFTs[tokenType]!.containsKey(token.id) {
+                    panic("Somehow depositing token that is already in claims!")
+                }
+                self.ownedNFTs[tokenType]!.insert(key: token.id, token.id)
+            } else {
+                self.ownedNFTs.insert(key: tokenType, {token.id : token.id})
+            }
+
+            let typeRef = self.typesToCollectionCapabilities[tokenType] ?? panic("NFT type not supported") 
+            let collection = typeRef.borrow() ?? panic("Could not borrow reference to Collection") 
+            collection.deposit(token: <- token)
+            self.totalSupply = self.totalSupply + (1 as UInt64)
+        }
+
+        pub fun borrowNFT(nftTypeIdentifier: String, tokenId: UInt64): &NonFungibleToken.NFT {
+            let typeRef = self.typesToCollectionCapabilities[nftTypeIdentifier] ?? panic("Does not support NFT type") 
+            let collection = typeRef.borrow() ?? panic("Could not borrow reference to NFTCollection") 
+            let nft: &NonFungibleToken.NFT = collection.borrowNFT(id: tokenId)
+            return nft
+        }
+        
+        init (asyncArtworkNFTType: String, blueprintNFTType: String, asyncArtworkEscrowCollectionCap: Capability<&NonFungibleToken.Collection>, blueprintEscrowCollectionCap: Capability<&NonFungibleToken.Collection>) {
+            self.totalSupply = 0
+            self.ownedNFTs = {}
+            self.typesToCollectionCapabilities = {
+                asyncArtworkNFTType: asyncArtworkEscrowCollectionCap,
+                blueprintNFTType: blueprintEscrowCollectionCap
+            }
+            self.typesToStoragePaths = {
+                asyncArtworkNFTType: AsyncArtwork.collectionStoragePath,
+                blueprintNFTType: Blueprint.collectionStoragePath
+            } 
+            self.typesToProviderPaths = {
+                asyncArtworkNFTType: AsyncArtwork.collectionPrivatePath,
+                blueprintNFTType: Blueprint.collectionPrivatePath
+            }
+            self.typesToReceiverPaths = {
+                asyncArtworkNFTType: AsyncArtwork.collectionPublicPath,
+                blueprintNFTType: Blueprint.collectionPublicPath
+            }
+        }
+    }
 
 	init() {
         // TODO: Investigate how to pass args for contract deployment (and is it possible to do with project deploy)
@@ -1353,6 +1438,9 @@ pub contract NFTAuction {
         self.marketplaceClientPublicPath = /public/MarketplaceClient
         self.marketplaceClientPrivatePath = /private/MarketplaceClient
         self.marketplaceClientStoragePath = /storage/MarketplaceClient
+        self.escrowCollectionPrivatePath = /private/EscrowCollectionPrivate
+        self.escrowCollectionPublicPath = /public/escrowCollectionPublic
+        self.escrowCollectionStoragePath = /storage/escrowCollection
         self.flowTokenCurrencyType = flowTokenCurrencyType
 
         self.auctions = {
@@ -1391,10 +1479,45 @@ pub contract NFTAuction {
             )
         }
 
-        self.escrowCollections <- {
-            asyncArtworkNFTType: <- AsyncArtwork.createEmptyCollection(),
-            blueprintNFTType: <- Blueprint.createEmptyCollection()
-        }
+        let asyncArtworkCollection <- AsyncArtwork.createEmptyCollection()
+        self.account.save(<- asyncArtworkCollection, to: AsyncArtwork.collectionStoragePath)
+
+        // does linking this as an NFT Collection instead of an AsyncArtwork collection have any ramifications? I don't think so...
+        let asyncEscrowCollectionCap = self.account.link<&NonFungibleToken.Collection>(
+            AsyncArtwork.collectionPrivatePath,
+            target: AsyncArtwork.collectionStoragePath
+        ) ?? panic("Coud not link private capability to async artwork collection")
+
+        self.account.link<&AsyncArtwork.Collection{NonFungibleToken.CollectionPublic, NonFungibleToken.Receiver, AsyncArtwork.AsyncCollectionPublic}>(
+            AsyncArtwork.collectionPublicPath,
+            target: AsyncArtwork.collectionStoragePath
+        )
+
+        let blueprintCollection <- Blueprint.createEmptyCollection()
+        self.account.save(<- blueprintCollection, to: Blueprint.collectionStoragePath)
+
+        let blueprintEscrowCollectionCap = self.account.link<&NonFungibleToken.Collection>(
+            Blueprint.collectionPrivatePath,
+            target: Blueprint.collectionStoragePath
+        ) ?? panic("Could not link private capability to blueprint collection!")
+
+        self.account.link<&Blueprint.Collection{NonFungibleToken.CollectionPublic, NonFungibleToken.Receiver}>(
+            Blueprint.collectionPublicPath,
+            target: Blueprint.collectionStoragePath
+        )
+
+        let escrow <- create escrowCollection(asyncArtworkNFTType: asyncArtworkNFTType, blueprintNFTType: blueprintNFTType, asyncArtworkEscrowCollectionCap: asyncEscrowCollectionCap, blueprintEscrowCollectionCap: blueprintEscrowCollectionCap)
+        self.account.save(<- escrow, to: self.escrowCollectionStoragePath)
+
+        self.escrowCollectionCap = self.account.link<&escrowCollection>(
+            self.escrowCollectionPrivatePath,
+            target: self.escrowCollectionStoragePath
+        ) ?? panic("Failed to link private capability to NFT Collection escrow resource")
+
+        self.account.link<&escrowCollection{escrowCollectionPublic}>(
+            self.escrowCollectionPublicPath,
+            target: self.escrowCollectionStoragePath
+        )
 
         self.escrowVaults <- {
             flowTokenCurrencyType: <- FlowToken.createEmptyVault(),

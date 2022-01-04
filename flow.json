@@ -48,27 +48,31 @@
     "accounts": {
         "emulator-account": {
             "address": "f8d6e0586b0a20c7",
-            "key": "98550bc0e16393f4093ccee727b7ae80e2e7431bccfc72a03ded4601d6f5eb5e"
+            "key": "fefb1a4ee773ba3b8d6c7cc5fd1ef28818a7373c011113ac3ccbfd7ea4030dd0"
         },
         "AsyncArtAccount": {
             "address": "0x01cf0e2f2f715450",
-            "key": "659adfc8ddf3d72d8fcd073bdda2894d2518bc5288e68a6c89dc684008b2c5fc"
+            "key": "141d76dc4a78d6d4a206f4c74fb98ec410eaf73384d8709ead9c130570aa99e2"
         },
         "User1": {
             "address": "0x179b6b1cb6755e31",
-            "key": "36024472e15a161e6a4a4518ddfd71810a3705ebcdf90325213e80e9124bb9f9"
+            "key": "529e157640409580537b87a27987c98ba6722f5e50693e17431f6a169135b88f"
         },
         "User2": {
             "address": "0xf3fcd2c1a78f5eee",
-            "key": "98037db712dda12d22d601afd497ce67209db442c3b4d0a49b79b5c561f7e55f"
+            "key": "d5b2c7b8014bc4b948fec2eed04ffe9ba5b7f33a7c0906acbfe1871f27608d6d"
         },
         "User3": {
             "address": "0xe03daebed8ca0615",
-            "key": "899e20828a728b153eef40ab10dc1679f658e6c8a447e4ea8ad90ff566e3f5aa"
+            "key": "df7761c79eadeebdb4f1c3dbd17f022c7aec256d12b318dea8c9de190387892f"
         },
         "User4": {
             "address": "0x045a1763c93006ca",
-            "key": "79c829d451d48590e197c52bab3017a5b0537c65f59d9250a882ce9ffabc1288"
+            "key": "7d53f32160cb39b686a620deebfec783b11c936e6f80779857e4e78d71940694"
+        },
+        "AsyncMarketplaceAccount": {
+            "address": "0x120e725050340cab",
+            "key": "f8b052807c9abb6b84b9542febdd89fbfea3e339cc58ec1e155735bd251f4cac"
         }
     },
     "deployments": {
@@ -79,7 +83,9 @@
             ],
             "AsyncArtAccount": [
                 "AsyncArtwork",
-                "Blueprint",
+                "Blueprint"
+            ],
+            "AsyncMarketplaceAccount": [
                 "NFTAuction"
             ]
         }
