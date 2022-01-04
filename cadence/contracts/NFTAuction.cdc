@@ -786,7 +786,7 @@ pub contract NFTAuction {
             )
         }
 
-        // settleAuction
+        // This is very similar to "takeHighestBid" but it can only be called after an auction ends, and is callable by anyone, not just the nftSeller
         pub fun settleAuction(
             nftTypeIdentifier: String,
             tokenId: UInt64
@@ -933,16 +933,12 @@ pub contract NFTAuction {
             NFTAuction.auctions[nftTypeIdentifier] != nil : "Type identifier invalid"
             NFTAuction.auctions[nftTypeIdentifier]![tokenId] != nil : "Auction doesn't exist"
             self.owner != nil : "Cannot perform operation while client in transit"
+            NFTAuction.auctions[nftTypeIdentifier]![tokenId]!.nftSeller != nil : "Auction NFT seller cannot be nil to update min price"
+            NFTAuction.auctions[nftTypeIdentifier]![tokenId]!.nftSeller! == self.owner!.address : "Min price can only be updated by nftSeller"
             newMinPrice > 0.0 : "New min price has to be greater than 0"
           }
 
           let auction: Auction = NFTAuction.auctions[nftTypeIdentifier]![tokenId]!
-
-          if auction.nftSeller == nil {
-            panic("NFT seller must be set")
-          } else if auction.nftSeller! != self.owner!.address {
-            panic("Only NFT seller")
-          }
 
           if auction.minPrice != nil {
             if auction.nftHighestBid != nil {
@@ -970,7 +966,10 @@ pub contract NFTAuction {
 
           if auction.nftHighestBid != nil {
             if auction.nftHighestBid! >= auction.minPrice! {
-              NFTAuction._transferNftToAuctionContract(nftTypeIdentifier: nftTypeIdentifier, tokenId: tokenId)
+              if !NFTAuction.escrowCollectionCap.borrow()!.containsNFT(nftTypeIdentifier: nftTypeIdentifier, tokenId: tokenId) {
+                NFTAuction._transferNftToAuctionContract(nftTypeIdentifier: nftTypeIdentifier, tokenId: tokenId)
+              }
+
               NFTAuction.auctions[nftTypeIdentifier]![tokenId]!.setAuctionEnd()
 
               emit AuctionPeriodUpdated(
@@ -1018,13 +1017,15 @@ pub contract NFTAuction {
 
           if auction.nftHighestBid != nil {
             if auction.nftHighestBid! > auction.buyNowPrice! {
-              NFTAuction._transferNftToAuctionContract(nftTypeIdentifier: nftTypeIdentifier, tokenId: tokenId)
+              if !NFTAuction.escrowCollectionCap.borrow()!.containsNFT(nftTypeIdentifier: nftTypeIdentifier, tokenId: tokenId) {
+                NFTAuction._transferNftToAuctionContract(nftTypeIdentifier: nftTypeIdentifier, tokenId: tokenId)
+              }
               NFTAuction._transferNftAndPaySeller(nftTypeIdentifier: nftTypeIdentifier, tokenId: tokenId)
             }
           }
         }
 
-        // takeHighestBid
+        // Callable by only the nftSeller -> enables them to accept the highest bid for their auction
         pub fun takeHighestBid(
             nftTypeIdentifier: String,
             tokenId: UInt64
@@ -1046,7 +1047,11 @@ pub contract NFTAuction {
           if auction.nftHighestBid == nil {
             panic("Cannot payout 0 bid")
           }
-          NFTAuction._transferNftToAuctionContract(nftTypeIdentifier: nftTypeIdentifier, tokenId: tokenId)
+
+          if !NFTAuction.escrowCollectionCap.borrow()!.containsNFT(nftTypeIdentifier: nftTypeIdentifier, tokenId: tokenId) {
+              NFTAuction._transferNftToAuctionContract(nftTypeIdentifier: nftTypeIdentifier, tokenId: tokenId)
+          }
+
           NFTAuction._transferNftAndPaySeller(nftTypeIdentifier: nftTypeIdentifier, tokenId: tokenId)
 
           emit HighestBidTaken(
@@ -1055,7 +1060,7 @@ pub contract NFTAuction {
           )
         }
 
-        // how do we update the claims mapping?
+
         pub fun claimNFTs(nftTypeIdentifier: String): @[NonFungibleToken.NFT] {
             pre {
                 self.owner != nil : "Cannot perform operation while client in transit"
@@ -1070,6 +1075,9 @@ pub contract NFTAuction {
             for id in ids {
               nfts.append(<- escrowCollection.withdraw(nftTypeIdentifier:nftTypeIdentifier, tokenId: id))
             }
+
+            // Remove user from the claims mapping
+            NFTAuction.nftClaims[nftTypeIdentifier]!.remove(key: self.owner!.address)
 
             return <- nfts
         }
