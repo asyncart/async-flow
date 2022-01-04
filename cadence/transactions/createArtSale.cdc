@@ -5,10 +5,8 @@ import NFTAuction from "../contracts/NFTAuction.cdc"
 transaction(
     tokenId: UInt64,
     currency: String,
-    minPrice: UFix64,
     buyNowPrice: UFix64,
     whitelistedBuyer: Address,
-    auctionBidPeriod: UFix64,
     feeRecipients: [Address],
     feePercentages: [UFix64]
 ) {
@@ -35,10 +33,8 @@ transaction(
             nftTypeIdentifier: nft.getType().identifier,
             tokenId: tokenId,
             currency: currency,
-            minPrice: minPrice,
             buyNowPrice: buyNowPrice,
             whitelistedBuyer: whitelistedBuyer,
-            auctionBidPeriod: auctionBidPeriod,
             feeRecipients: feeRecipients,
             feePercentages: feePercentages,
             nftProviderCapability: self.collectionProviderCapability

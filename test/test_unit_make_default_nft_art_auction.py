@@ -12,7 +12,7 @@ from test_unit_mint_master_token import mint_master_token
 
 # expected args: tokenId, currency, minPrice, buyNowPrice, feeRecipients, feePercentages
 
-def create_default_nft_auction(args, signer, should_succeed, expected_auction_result=None):
+def create_default_nft_art_auction(args, signer, should_succeed, expected_auction_result=None):
   fee_recipients = [["Address", address(user)] for user in args[4]]
   fee_percentages = [["UFix64", percentage] for percentage in args[5]]
   auction_args = [["UInt64", args[0]], ["String", args[1]], ["UFix64", args[2]], ["UFix64", args[3]], ["Array", fee_recipients], ["Array", fee_percentages]]
@@ -31,7 +31,7 @@ def create_default_nft_auction(args, signer, should_succeed, expected_auction_re
     print("Failed to Create Default NFT Auction as expected")
 
 @pytest.mark.core
-def test_make_default_nft_auction():
+def test_make_default_nft_art_auction():
   # Deploy contracts
   main()
 
@@ -55,7 +55,7 @@ def test_make_default_nft_auction():
 
   res = "A.120e725050340cab.NFTAuction.Auction(feeRecipients: [], feePercentages: [], nftHighestBid: nil, nftHighestBidder: nil, nftRecipient: nil, auctionBidPeriod: 86400.00000000, auctionEnd: nil, minPrice: 2.00000000, buyNowPrice: 5.00000000, biddingCurrency: \"A.0ae53cb6e3f42a79.FlowToken.Vault\", whitelistedBuyer: nil, nftSeller: 0x179b6b1cb6755e31, nftProviderCapability: Capability<&AnyResource{A.f8d6e0586b0a20c7.NonFungibleToken.Provider}>(address: 0x179b6b1cb6755e31, path: /private/AsyncArtworkCollection), bidIncreasePercentage: 0.10000000)"
 
-  create_default_nft_auction(
+  create_default_nft_art_auction(
     ["1", "A.0ae53cb6e3f42a79.FlowToken.Vault", "2.0", "5.0", [], []],
     "User1",
     True,
@@ -63,4 +63,4 @@ def test_make_default_nft_auction():
   )
 
 if __name__ == '__main__':
-  test_make_default_nft_auction()
+  test_make_default_nft_art_auction()
