@@ -11,6 +11,7 @@ transaction(
     let marketplaceClient: &NFTAuction.MarketplaceClient
 
     prepare(acct: AuthAccount) {
+        log("AAAA")
         let standardCurrencyVaultPaths = NFTAuction.getCurrencyPaths()[currency]
 
         if standardCurrencyVaultPaths == nil {
@@ -19,9 +20,13 @@ transaction(
 
         self.vaultRef = acct.borrow<&FungibleToken.Vault>(from: standardCurrencyVaultPaths!.storage) ?? panic("Could not borrow Vault resource")
         self.marketplaceClient = acct.borrow<&NFTAuction.MarketplaceClient>(from: NFTAuction.marketplaceClientStoragePath) ?? panic("Could not borrow Marketplace Client resource")
+
+        log("got here")
     }
 
     execute {
+        log("FUSD BALANCE IN TXN")
+        log(self.vaultRef.balance)
         let tokens <- self.vaultRef.withdraw(amount: tokenAmount)
 
         self.marketplaceClient.makeBid(

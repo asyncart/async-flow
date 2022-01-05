@@ -188,6 +188,8 @@ pub contract NFTAuction {
         let vault <- self.escrowVaults.remove(key: auction.biddingCurrency)!
         let bid <- vault.withdraw(amount: auction.nftHighestBid!)
 
+        destroy <- self.escrowVaults.insert(key: auction.biddingCurrency, <- vault)
+
         self.auctions[nftTypeIdentifier]![tokenId]!.resetBids()
 
         self._payFeesAndSeller(
@@ -196,8 +198,6 @@ pub contract NFTAuction {
             seller: auction.nftSeller!, 
             bid: <- bid
         )
-
-        destroy <- self.escrowVaults.insert(key: auction.biddingCurrency, <- vault)
 
         let receiverPath = self.nftTypePaths[nftTypeIdentifier]!.public
         let collection = getAccount(auction.getNFTRecipient()).getCapability<&{NonFungibleToken.CollectionPublic}>(receiverPath).borrow()
@@ -311,7 +311,7 @@ pub contract NFTAuction {
         if auction.nftHighestBid != nil {
             if auction.buyNowPrice != nil {
                 if auction.nftHighestBid! > auction.buyNowPrice! {
-                    // Only pull the NFT into claims if it is not already there
+                    // Only pull the NFT into escrow if it is not already there
                     if !self.escrowCollectionCap.borrow()!.containsNFT(nftTypeIdentifier: nftTypeIdentifier, tokenId: tokenId) {
                         self._transferNftToAuctionContract(nftTypeIdentifier: nftTypeIdentifier, tokenId: tokenId)
                     }
@@ -455,7 +455,7 @@ pub contract NFTAuction {
         pre {
             self.minPriceDoesNotExceedLimit(buyNowPrice: buyNowPrice, minPrice: minPrice) : "MinPrice > 80% of buyNowPrice"
             feeRecipients.length == feeRecipients.length : "Recipients length != percentages length"
-            self.sumPercentages(percentages: feePercentages) <= 10000.0 : "Fee percentages exceed maximum"
+            self.sumPercentages(percentages: feePercentages) <= 100.0 : "Fee percentages exceed maximum"
         }
 
         if self.auctions[nftTypeIdentifier]![tokenId] == nil {
@@ -476,9 +476,6 @@ pub contract NFTAuction {
             )
             self.auctions[nftTypeIdentifier]!.insert(key: tokenId, auction)
         } else {
-         //   let currentCurrency = self.auctions[nftTypeIdentifier]![tokenId]!.biddingCurrency 
-          //  let prevHighestBidder = self.auctions[nftTypeIdentifier]![tokenId]!.nftHighestBidder
-
             self.auctions[nftTypeIdentifier]![tokenId]!.setAuction(
                 auctionBidPeriod: auctionBidPeriod, 
                 minPrice: minPrice, 
@@ -501,6 +498,9 @@ pub contract NFTAuction {
                     destroy <- self.escrowVaults.insert(key: self.flowTokenCurrencyType, <- escrowVault)
 
                     self._payout(recipient: auction.nftHighestBidder!, amount: <- previousBid)
+
+                    // Null out highest bidder, because highest early bid currency does not match auction currency
+                    self.auctions[nftTypeIdentifier]![tokenId]!.nullifyCurrentBidder()
                 }
             }
         }
@@ -534,7 +534,7 @@ pub contract NFTAuction {
     ) {
         pre {
             feeRecipients.length == feePercentages.length : "Recipients and percentages lengths not the same"
-            self.sumPercentages(percentages: feePercentages) <= 10000.0 : "Fee percentages exceed maximum"
+            self.sumPercentages(percentages: feePercentages) <= 100.0 : "Fee percentages exceed maximum"
         }
         var auction: Auction? = nil
 
@@ -1204,6 +1204,11 @@ pub contract NFTAuction {
         pub fun setHigherBid(nftHighestBid: UFix64, nftHighestBidder: Address) {
             self.nftHighestBid = nftHighestBid
             self.nftHighestBidder = nftHighestBidder
+        }
+
+        pub fun nullifyCurrentBidder() {
+            self.nftHighestBid = nil
+            self.nftHighestBidder = nil
         }
 
         pub fun setAuctionEnd() {

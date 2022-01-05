@@ -53,6 +53,48 @@ def test_make_new_art_sale():
     "{}"
   )
 
+  # Attempt to make art sale for AsyncNFT id not owned by creator
+  create_new_art_sale(
+    ["2", "A.0ae53cb6e3f42a79.FlowToken.Vault", "5.0", "0xf3fcd2c1a78f5eee", [], []],
+    "User1",
+    False
+  )
+
+  # Attempt to make art sale with an invalid bidding currency
+  create_new_art_sale(
+    ["1", "A.0ae53cb6e3f42a79.FlowToken.Vau", "5.0", "0xf3fcd2c1a78f5eee", [], []],
+    "User1",
+    False
+  )
+
+  # Attempt to make art sale with an invalid sum of fee percentages (over 100)
+  create_new_art_sale(
+    ["1", "A.0ae53cb6e3f42a79.FlowToken.Vau", "5.0", "0xf3fcd2c1a78f5eee", ["User2"], ["105.0"]],
+    "User1",
+    False
+  )
+
+  # Attempt to make art sale with an invalid sum of fee percentages (over 100)
+  create_new_art_sale(
+    ["1", "A.0ae53cb6e3f42a79.FlowToken.Vau", "5.0", "0xf3fcd2c1a78f5eee", ["User2", "User3"], ["10.0", "95.0"]],
+    "User1",
+    False
+  )
+
+  # Attempt to make art sale with one feeRecipient but multiple percents
+  create_new_art_sale(
+    ["1", "A.0ae53cb6e3f42a79.FlowToken.Vau", "5.0", "0xf3fcd2c1a78f5eee", ["User2"], ["1.0", "95.0"]],
+    "User1",
+    False
+  )
+
+  # Attempt to make art sale with multiple feeRecipient but only one percentage
+  create_new_art_sale(
+    ["1", "A.0ae53cb6e3f42a79.FlowToken.Vau", "5.0", "0xf3fcd2c1a78f5eee", ["User2", "User3"], ["95.0"]],
+    "User1",
+    False
+  )
+
   # We might want to refactor the contract to make "auctionBidPeriod" and "bidIncreasePercentage" optional, nil seems more appropriate here than the default values
   res = "A.120e725050340cab.NFTAuction.Auction(feeRecipients: [], feePercentages: [], nftHighestBid: nil, nftHighestBidder: nil, nftRecipient: nil, auctionBidPeriod: 86400.00000000, auctionEnd: nil, minPrice: nil, buyNowPrice: 10.00000000, biddingCurrency: \"A.0ae53cb6e3f42a79.FlowToken.Vault\", whitelistedBuyer: 0xf3fcd2c1a78f5eee, nftSeller: 0x179b6b1cb6755e31, nftProviderCapability: Capability<&AnyResource{A.f8d6e0586b0a20c7.NonFungibleToken.Provider}>(address: 0x179b6b1cb6755e31, path: /private/AsyncArtworkCollection), bidIncreasePercentage: 0.10000000)"
 
@@ -63,6 +105,13 @@ def test_make_new_art_sale():
     "User1",
     True,
     expected_auction_result = res
+  )
+
+  # Check cannot re-create art sale just created
+  create_new_art_sale(
+    ["1", "A.0ae53cb6e3f42a79.FlowToken.Vault", "10.0", "0xf3fcd2c1a78f5eee", [], []],
+    "User1",
+    False
   )
 
 if __name__ == '__main__':
