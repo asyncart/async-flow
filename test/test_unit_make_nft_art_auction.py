@@ -53,13 +53,83 @@ def test_make_new_nft_art_auction():
     "{}"
   )
 
-  res = "A.120e725050340cab.NFTAuction.Auction(feeRecipients: [], feePercentages: [], nftHighestBid: nil, nftHighestBidder: nil, nftRecipient: nil, auctionBidPeriod: 50000.00000000, auctionEnd: nil, minPrice: 2.00000000, buyNowPrice: 5.00000000, biddingCurrency: \"A.0ae53cb6e3f42a79.FlowToken.Vault\", whitelistedBuyer: nil, nftSeller: 0x179b6b1cb6755e31, nftProviderCapability: Capability<&AnyResource{A.f8d6e0586b0a20c7.NonFungibleToken.Provider}>(address: 0x179b6b1cb6755e31, path: /private/AsyncArtworkCollection), bidIncreasePercentage: 5.00000000)"
+  # Attempt to make art auction for AsyncNFT id not owned by creator
+  create_new_nft_art_auction(
+    ["2", "A.0ae53cb6e3f42a79.FlowToken.Vault", "2.0", "5.0", "50000.0", "5.0", [], []],
+    "User1",
+    False
+  )
 
+  # Attempt to make art auction with a minimum price that is too high
+  create_new_nft_art_auction(
+    ["1", "A.0ae53cb6e3f42a79.FlowToken.Vault", "4.1", "5.0", "50000.0", "5.0", [], []],
+    "User1",
+    False
+  )
+
+  # Attempt to make art auction with a minimum price that is too high
+  create_new_nft_art_auction(
+    ["1", "A.0ae53cb6e3f42a79.FlowToken.Vault", "4.1", "5.0", "50000.0", "5.0", [], []],
+    "User1",
+    False
+  )
+
+  # Attempt to make art auction with bid increase percentage below minium threshold
+  create_new_nft_art_auction(
+    ["1", "A.0ae53cb6e3f42a79.FlowToken.Vault", "2.1", "5.0", "50000.0", "0.01", [], []],
+    "User1",
+    False
+  )
+
+  # Attempt to make art auction with an invalid bidding currency
+  create_new_nft_art_auction(
+    ["1", "A.0ae53cb6e3f42a79.FlowToken.Vau", "2.1", "5.0", "50000.0", "5.0", [], []],
+    "User1",
+    False
+  )
+
+  # Attempt to make art auction with an invalid sum of fee percentages (over 100)
+  create_new_nft_art_auction(
+    ["1", "A.0ae53cb6e3f42a79.FlowToken.Vau", "2.1", "5.0", "50000.0", "5.0", ["User2"], ["105.0"]],
+    "User1",
+    False
+  )
+
+  # Attempt to make art auction with an invalid sum of fee percentages (over 100)
+  create_new_nft_art_auction(
+    ["1", "A.0ae53cb6e3f42a79.FlowToken.Vau", "2.1", "5.0", "50000.0", "5.0", ["User2", "User3"], ["10.0", "95.0"]],
+    "User1",
+    False
+  )
+
+  # Attempt to make art auction with one feeRecipient but multiple percents
+  create_new_nft_art_auction(
+    ["1", "A.0ae53cb6e3f42a79.FlowToken.Vau", "2.1", "5.0", "50000.0", "5.0", ["User2"], ["1.0", "95.0"]],
+    "User1",
+    False
+  )
+
+  # Attempt to make art auction with multiple feeRecipient but only one percentage
+  create_new_nft_art_auction(
+    ["1", "A.0ae53cb6e3f42a79.FlowToken.Vau", "2.1", "5.0", "50000.0", "5.0", ["User2", "User3"], ["95.0"]],
+    "User1",
+    False
+  )
+
+  # Successfully create auction
+  res = "A.120e725050340cab.NFTAuction.Auction(feeRecipients: [], feePercentages: [], nftHighestBid: nil, nftHighestBidder: nil, nftRecipient: nil, auctionBidPeriod: 50000.00000000, auctionEnd: nil, minPrice: 2.00000000, buyNowPrice: 5.00000000, biddingCurrency: \"A.0ae53cb6e3f42a79.FlowToken.Vault\", whitelistedBuyer: nil, nftSeller: 0x179b6b1cb6755e31, nftProviderCapability: Capability<&AnyResource{A.f8d6e0586b0a20c7.NonFungibleToken.Provider}>(address: 0x179b6b1cb6755e31, path: /private/AsyncArtworkCollection), bidIncreasePercentage: 5.00000000)"
   create_new_nft_art_auction(
     ["1", "A.0ae53cb6e3f42a79.FlowToken.Vault", "2.0", "5.0", "50000.0", "5.0", [], []],
     "User1",
     True,
     expected_auction_result = res
+  )
+
+  # Attempt to re-create auction that was just started
+  create_new_nft_art_auction(
+    ["1", "A.0ae53cb6e3f42a79.FlowToken.Vault", "2.0", "5.0", "50000.0", "5.0", [], []],
+    "User1",
+    False
   )
 
 if __name__ == '__main__':

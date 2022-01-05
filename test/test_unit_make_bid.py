@@ -56,9 +56,32 @@ def test_make_bids():
 
   transfer_flow_token("User2", "100.0", "emulator-account")
 
-  res = "A.120e725050340cab.NFTAuction.Auction(feeRecipients: [], feePercentages: [], nftHighestBid: 3.00000000, nftHighestBidder: 0xf3fcd2c1a78f5eee, nftRecipient: nil, auctionBidPeriod: 86400.00000000, auctionEnd: nil, minPrice: nil, buyNowPrice: nil, biddingCurrency: \"A.0ae53cb6e3f42a79.FlowToken.Vault\", whitelistedBuyer: nil, nftSeller: nil, nftProviderCapability: nil, bidIncreasePercentage: 0.10000000)"
+  # Cannot bid with more FTs than currently owned
+  make_bid(
+    ["A.01cf0e2f2f715450.AsyncArtwork.NFT", "1", "A.0ae53cb6e3f42a79.FlowToken.Vault", "102.0"],
+    "User2",
+    False
+  )
+
+  # Cannot bid in non-supported currency
+  make_bid(
+    ["A.01cf0e2f2f715450.AsyncArtwork.NFT", "1", "A.0ae53cb6e3f42a79.FlowToken.Vau", "102.0"],
+    "User2",
+    False
+  )
+
+  assert send_transaction("initializeAccount", signer="User2")
+  assert send_transaction("mintFUSD", args=[["UFix64", "20.0"], ["Address", "0xf3fcd2c1a78f5eee"]])
+
+  # Cannot early bid in non-FlowToken currency
+  make_bid(
+    ["A.01cf0e2f2f715450.AsyncArtwork.NFT", "1", "A.f8d6e0586b0a20c7.FUSD.Vault", "15.0"],
+    "User2",
+    False
+  )
 
   # early bid, should succeed
+  res = "A.120e725050340cab.NFTAuction.Auction(feeRecipients: [], feePercentages: [], nftHighestBid: 3.00000000, nftHighestBidder: 0xf3fcd2c1a78f5eee, nftRecipient: nil, auctionBidPeriod: 86400.00000000, auctionEnd: nil, minPrice: nil, buyNowPrice: nil, biddingCurrency: \"A.0ae53cb6e3f42a79.FlowToken.Vault\", whitelistedBuyer: nil, nftSeller: nil, nftProviderCapability: nil, bidIncreasePercentage: 0.10000000)"
   make_bid(
     ["A.01cf0e2f2f715450.AsyncArtwork.NFT", "1", "A.0ae53cb6e3f42a79.FlowToken.Vault", "3.0"],
     "User2",
@@ -71,20 +94,31 @@ def test_make_bids():
   # Check that NFT is still owned by User1 since they haven't started an auction yet
   assert "[A.01cf0e2f2f715450.AsyncArtwork.NFT(uuid: 57, id: 1)]" == send_script_and_return_result("getNFTs", args=[["Address", address("User1")]])
 
+  # Instantiate auction with different currency
   create_default_nft_art_auction(
-    ["1", "A.0ae53cb6e3f42a79.FlowToken.Vault", "2.0", "5.0", [], []],
+    ["1", "A.f8d6e0586b0a20c7.FUSD.Vault", "2.0", "5.0", [], []],
     "User1",
     True
   )
 
-  # it is difficult to assert on the auction metadata after subsequent bidding due to time error on auctionEndTime
+  # Check that User2 received their flowtoken bid back
+  assert "100.00000000" == send_script_and_return_result("getUsersFlowTokenBalance", args=[["Address", address("User2")]])
+
+  # Confirm that user can no longer bid in flowtoken, after auction instantiated with a different currency
   make_bid(
-    ["A.01cf0e2f2f715450.AsyncArtwork.NFT", "1", "A.0ae53cb6e3f42a79.FlowToken.Vault", "4.0"],
+    ["A.01cf0e2f2f715450.AsyncArtwork.NFT", "1", "A.0ae53cb6e3f42a79.FlowToken.Vault", "3.0"],
+    "User2",
+    False
+  )
+
+  # Confirm that user can bid in FUSD
+  make_bid(
+    ["A.01cf0e2f2f715450.AsyncArtwork.NFT", "1", "A.f8d6e0586b0a20c7.FUSD.Vault", "3.0"],
     "User2",
     True
   )
 
-  assert "96.00000000" == send_script_and_return_result("getUsersFlowTokenBalance", args=[["Address", address("User2")]])
+  assert "17.00000000" == send_script_and_return_result("getUsersFUSDBalance", args=[["Address", address("User2")]])
 
 if __name__ == '__main__':
   test_make_bids()
