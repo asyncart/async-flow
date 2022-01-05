@@ -302,7 +302,7 @@ pub contract NFTAuction {
       destroy <- self.escrowVaults.insert(key: currency, <- escrowVault)
     }
     
-    access(self) fun _updateOngoingAuction(
+    access(self) fun _updateAuctionBasedOnLatestBid(
         nftTypeIdentifier: String,
         tokenId: UInt64
     ) {
@@ -433,7 +433,7 @@ pub contract NFTAuction {
           tokenAmount: tokenAmount
         )
 
-        self._updateOngoingAuction(
+        self._updateAuctionBasedOnLatestBid(
             nftTypeIdentifier: nftTypeIdentifier,
             tokenId: tokenId
         )
@@ -518,7 +518,7 @@ pub contract NFTAuction {
           feePercentages: feePercentages
         )
 
-        self._updateOngoingAuction(nftTypeIdentifier: nftTypeIdentifier, tokenId: tokenId)
+        self._updateAuctionBasedOnLatestBid(nftTypeIdentifier: nftTypeIdentifier, tokenId: tokenId)
     }
 
     access(self) fun _setupSale(
@@ -668,10 +668,8 @@ pub contract NFTAuction {
             nftTypeIdentifier: String,
             tokenId: UInt64,
             currency: String,
-            minPrice: UFix64,
             buyNowPrice: UFix64,
             whitelistedBuyer: Address,
-            auctionBidPeriod: UFix64,
             feeRecipients: [Address],
             feePercentages: [UFix64],
             nftProviderCapability: Capability<&{NonFungibleToken.Provider}>
@@ -788,7 +786,7 @@ pub contract NFTAuction {
             )
         }
 
-        // settleAuction
+        // This is very similar to "takeHighestBid" but it can only be called after an auction ends, and is callable by anyone, not just the nftSeller
         pub fun settleAuction(
             nftTypeIdentifier: String,
             tokenId: UInt64
@@ -796,17 +794,14 @@ pub contract NFTAuction {
             pre {
                 NFTAuction.auctions[nftTypeIdentifier] != nil : "Type identifier invalid"
                 NFTAuction.auctions[nftTypeIdentifier]![tokenId] != nil : "Auction doesn't exist"
+                NFTAuction.auctions[nftTypeIdentifier]![tokenId]!.nftHighestBid != nil : "This auction does not have any valid bids, to cancel auction call: withdrawAuction"
+                NFTAuction.auctions[nftTypeIdentifier]![tokenId]!.nftHighestBidder != nil : "NFT highest bidder is invalid, cannot settle"
+                NFTAuction.auctions[nftTypeIdentifier]![tokenId]!.auctionEnd != nil : "Auction end date not set, cannot settle"
+                getCurrentBlock().timestamp > NFTAuction.auctions[nftTypeIdentifier]![tokenId]!.auctionEnd! : "Cannot settle auction before end time"
                 self.owner != nil : "Cannot perform operation while client in transit"
             }
-            let auction: Auction = NFTAuction.auctions[nftTypeIdentifier]![tokenId]!
 
-            if auction.auctionEnd == nil {
-                panic("Auction's end date should have been set by now")
-            } else {
-                if getCurrentBlock().timestamp < auction.auctionEnd! {
-                    panic("Auction has not ended yet")
-                }
-            }
+            let auction: Auction = NFTAuction.auctions[nftTypeIdentifier]![tokenId]!
 
             NFTAuction._transferNftAndPaySeller(
                 nftTypeIdentifier: nftTypeIdentifier,
@@ -836,7 +831,9 @@ pub contract NFTAuction {
             let collection = getAccount(self.owner!.address).getCapability<&{NonFungibleToken.CollectionPublic}>(collectionPath).borrow()
                 ?? panic("Could not borrow public reference to owner's collection")
 
-            let nft = collection.borrowNFT(id: tokenId) // this should revert if NFT is not in this resource's owner's collection
+            if collection.borrowNFT(id: tokenId).id != tokenId {
+                panic("User does not currently own NFT! If the NFT is in escrow, the auction cannot be withdrawn!") // this should fail if NFT is not in this resource's owner's collection
+            }
             
             NFTAuction.auctions[nftTypeIdentifier]![tokenId]!.reset()
 
@@ -898,18 +895,12 @@ pub contract NFTAuction {
               NFTAuction.auctions[nftTypeIdentifier] != nil : "Type identifier invalid"
               NFTAuction.auctions[nftTypeIdentifier]![tokenId] != nil : "Auction doesn't exist"
               self.owner != nil : "Cannot perform operation while client in transit"
+              NFTAuction.auctions[nftTypeIdentifier]![tokenId]!.nftSeller != nil : "Auction NFT seller must be set"
+              NFTAuction.auctions[nftTypeIdentifier]![tokenId]!.nftSeller! == self.owner!.address : "This function is only callable by the NFT seller"
+              NFTAuction.auctions[nftTypeIdentifier]![tokenId]!.buyNowPrice != nil && NFTAuction.auctions[nftTypeIdentifier]![tokenId]!.minPrice == nil : "The Auction must be a sale to update the whitelisted buyer field"
           }
 
           let auction: Auction = NFTAuction.auctions[nftTypeIdentifier]![tokenId]!
-          if auction.nftSeller == nil {
-            panic("NFT seller must be set")
-          } else if auction.nftSeller! != self.owner!.address {
-            panic("Only NFT seller")
-          }
-
-          if auction.buyNowPrice == nil || auction.minPrice != nil {
-            panic("Not a sale")
-          }
 
           NFTAuction.auctions[nftTypeIdentifier]![tokenId]!.setWhitelistedBuyer(newWhitelistedBuyer: newWhitelistedBuyer)
 
@@ -942,16 +933,12 @@ pub contract NFTAuction {
             NFTAuction.auctions[nftTypeIdentifier] != nil : "Type identifier invalid"
             NFTAuction.auctions[nftTypeIdentifier]![tokenId] != nil : "Auction doesn't exist"
             self.owner != nil : "Cannot perform operation while client in transit"
+            NFTAuction.auctions[nftTypeIdentifier]![tokenId]!.nftSeller != nil : "Auction NFT seller cannot be nil to update min price"
+            NFTAuction.auctions[nftTypeIdentifier]![tokenId]!.nftSeller! == self.owner!.address : "Min price can only be updated by nftSeller"
             newMinPrice > 0.0 : "New min price has to be greater than 0"
           }
 
           let auction: Auction = NFTAuction.auctions[nftTypeIdentifier]![tokenId]!
-
-          if auction.nftSeller == nil {
-            panic("NFT seller must be set")
-          } else if auction.nftSeller! != self.owner!.address {
-            panic("Only NFT seller")
-          }
 
           if auction.minPrice != nil {
             if auction.nftHighestBid != nil {
@@ -979,7 +966,10 @@ pub contract NFTAuction {
 
           if auction.nftHighestBid != nil {
             if auction.nftHighestBid! >= auction.minPrice! {
-              NFTAuction._transferNftToAuctionContract(nftTypeIdentifier: nftTypeIdentifier, tokenId: tokenId)
+              if !NFTAuction.escrowCollectionCap.borrow()!.containsNFT(nftTypeIdentifier: nftTypeIdentifier, tokenId: tokenId) {
+                NFTAuction._transferNftToAuctionContract(nftTypeIdentifier: nftTypeIdentifier, tokenId: tokenId)
+              }
+
               NFTAuction.auctions[nftTypeIdentifier]![tokenId]!.setAuctionEnd()
 
               emit AuctionPeriodUpdated(
@@ -1027,13 +1017,15 @@ pub contract NFTAuction {
 
           if auction.nftHighestBid != nil {
             if auction.nftHighestBid! > auction.buyNowPrice! {
-              NFTAuction._transferNftToAuctionContract(nftTypeIdentifier: nftTypeIdentifier, tokenId: tokenId)
+              if !NFTAuction.escrowCollectionCap.borrow()!.containsNFT(nftTypeIdentifier: nftTypeIdentifier, tokenId: tokenId) {
+                NFTAuction._transferNftToAuctionContract(nftTypeIdentifier: nftTypeIdentifier, tokenId: tokenId)
+              }
               NFTAuction._transferNftAndPaySeller(nftTypeIdentifier: nftTypeIdentifier, tokenId: tokenId)
             }
           }
         }
 
-        // takeHighestBid
+        // Callable by only the nftSeller -> enables them to accept the highest bid for their auction
         pub fun takeHighestBid(
             nftTypeIdentifier: String,
             tokenId: UInt64
@@ -1055,7 +1047,11 @@ pub contract NFTAuction {
           if auction.nftHighestBid == nil {
             panic("Cannot payout 0 bid")
           }
-          NFTAuction._transferNftToAuctionContract(nftTypeIdentifier: nftTypeIdentifier, tokenId: tokenId)
+
+          if !NFTAuction.escrowCollectionCap.borrow()!.containsNFT(nftTypeIdentifier: nftTypeIdentifier, tokenId: tokenId) {
+              NFTAuction._transferNftToAuctionContract(nftTypeIdentifier: nftTypeIdentifier, tokenId: tokenId)
+          }
+
           NFTAuction._transferNftAndPaySeller(nftTypeIdentifier: nftTypeIdentifier, tokenId: tokenId)
 
           emit HighestBidTaken(
@@ -1064,7 +1060,7 @@ pub contract NFTAuction {
           )
         }
 
-        // how do we update the claims mapping?
+
         pub fun claimNFTs(nftTypeIdentifier: String): @[NonFungibleToken.NFT] {
             pre {
                 self.owner != nil : "Cannot perform operation while client in transit"
@@ -1079,6 +1075,9 @@ pub contract NFTAuction {
             for id in ids {
               nfts.append(<- escrowCollection.withdraw(nftTypeIdentifier:nftTypeIdentifier, tokenId: id))
             }
+
+            // Remove user from the claims mapping
+            NFTAuction.nftClaims[nftTypeIdentifier]!.remove(key: self.owner!.address)
 
             return <- nfts
         }
