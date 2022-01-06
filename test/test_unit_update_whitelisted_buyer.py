@@ -67,10 +67,24 @@ def test_update_whitelisted_buyer():
     expected_auction_result = res
   )
 
-  res = "A.120e725050340cab.NFTAuction.Auction(feeRecipients: [], feePercentages: [], nftHighestBid: nil, nftHighestBidder: nil, nftRecipient: nil, auctionBidPeriod: 86400.00000000, auctionEnd: nil, minPrice: nil, buyNowPrice: 10.00000000, biddingCurrency: \"A.0ae53cb6e3f42a79.FlowToken.Vault\", whitelistedBuyer: 0xf3fcd2c1a78f5eee, nftSeller: 0x179b6b1cb6755e31, nftProviderCapability: Capability<&AnyResource{A.f8d6e0586b0a20c7.NonFungibleToken.Provider}>(address: 0x179b6b1cb6755e31, path: /private/AsyncArtworkCollection), bidIncreasePercentage: 0.10000000)"
-  
+  # Cannot update whitelisted buyer on non-existent sale
+  update_whitelisted_buyer(
+    ["A.01cf0e2f2f715450.AsyncArtwork.NFT", "2", "0xf3fcd2c1a78f5eee"],
+    "User1",
+    False
+  )
+
+  # Non-nft seller cannot update whitelisted buyer on sale
   update_whitelisted_buyer(
     ["A.01cf0e2f2f715450.AsyncArtwork.NFT", "1", "0xf3fcd2c1a78f5eee"],
+    "User2",
+    False
+  )
+
+  res = "A.120e725050340cab.NFTAuction.Auction(feeRecipients: [], feePercentages: [], nftHighestBid: nil, nftHighestBidder: nil, nftRecipient: nil, auctionBidPeriod: 86400.00000000, auctionEnd: nil, minPrice: nil, buyNowPrice: 10.00000000, biddingCurrency: \"A.0ae53cb6e3f42a79.FlowToken.Vault\", whitelistedBuyer: 0x179b6b1cb6755e31, nftSeller: 0x179b6b1cb6755e31, nftProviderCapability: Capability<&AnyResource{A.f8d6e0586b0a20c7.NonFungibleToken.Provider}>(address: 0x179b6b1cb6755e31, path: /private/AsyncArtworkCollection), bidIncreasePercentage: 0.10000000)"
+  # NFT seller can set whitelisted buyer to themselves (we should maybe prevent this, because they are not allowed to purchase from themselves)
+  update_whitelisted_buyer(
+    ["A.01cf0e2f2f715450.AsyncArtwork.NFT", "1", "0x179b6b1cb6755e31"],
     "User1",
     True,
     expected_result = res

@@ -17,24 +17,18 @@ import subprocess
 
 # expected args: nftTypeIdentifier: String
 
-def claim_art_nfts(args, signer, should_succeed, expected_result=None):
+def claim_nfts(args, signer, should_succeed, expected_result=None):
   txn_args = [["String", args[0]]]
 
   if should_succeed:
-    assert send_transaction("claimAsyncArtNFTs", args=txn_args, signer=signer)
-    #event = f'A.{address("NFTAuction")[2:]}.NFTAuction.AuctionSettled'
-    #assert check_for_event(event)
-    #result = send_script_and_return_result("getAuction", args=[["String", args[0]], ["UInt64", args[1]]])
-    #print(result)
-    #if expected_result != None:
-    #  assert expected_result == result
+    assert send_transaction("claimNFTs", args=txn_args, signer=signer)
     print("Successfuly Claimed Owed NFTs")
   else:
-    assert not send_transaction("claimAsyncArtNFTs", args=txn_args, signer=signer)
-    print("Failed to Claim Owed NFTs")
+    assert not send_transaction("claimNFTs", args=txn_args, signer=signer)
+    print("Failed to Claim Owed NFTs as Expected")
 
 @pytest.mark.core
-def test_claim_art_nfts():
+def test_claim_nfts():
   # Deploy contracts
   main()
 
@@ -99,14 +93,28 @@ def test_claim_art_nfts():
 
   print("Relinked User2's NFT Receiver")
 
-  claim_art_nfts(
+  # User cannot claim NFTs when not entitled to any
+  claim_nfts(
+    ["A.01cf0e2f2f715450.AsyncArtwork.NFT"],
+    "User1",
+    False
+  )
+
+  # Cannot claim NFTs of invalid type
+  claim_nfts(
+    ["A.01cf0e2f2f715450.AsyncArtwork.NF"],
+    "User2",
+    False
+  )
+
+  claim_nfts(
     ["A.01cf0e2f2f715450.AsyncArtwork.NFT"],
     "User2",
-    True,
+    True
   )
 
   # Confirm that user2 did get the NFT back, after claims
   assert "[A.01cf0e2f2f715450.AsyncArtwork.NFT(uuid: 57, id: 1)]" == send_script_and_return_result("getNFTs", args=[["Address", address("User2")]])
 
 if __name__ == '__main__':
-  test_claim_art_nfts()
+  test_claim_nfts()

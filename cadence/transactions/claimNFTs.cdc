@@ -1,26 +1,25 @@
 import NFTAuction from "../contracts/NFTAuction.cdc"
-import AsyncArtwork from "../contracts/AsyncArtwork.cdc"
 import NonFungibleToken from "../contracts/NonFungibleToken.cdc"
 
 transaction(
     nftTypeIdentifier: String
 ) {
     let marketplaceClient: &NFTAuction.MarketplaceClient
-    let nftReceiverCapability: Capability<&{NonFungibleToken.Receiver}>
+    let nftReceiver: &NonFungibleToken.Collection
 
     prepare(acct: AuthAccount) {
+        let standardPathsForNFT = NFTAuction.getNftTypePaths()[nftTypeIdentifier] ?? panic("Invalid NFT type identifier")
+
         self.marketplaceClient = acct.borrow<&NFTAuction.MarketplaceClient>(from: NFTAuction.marketplaceClientStoragePath) ?? panic("Could not borrow Marketplace Client resource")
-        self.nftReceiverCapability = acct.getCapability<&{NonFungibleToken.Receiver}>(AsyncArtwork.collectionPublicPath)
+        self.nftReceiver = acct.borrow<&NonFungibleToken.Collection>(from: standardPathsForNFT.storage) ?? panic("Could not borrow NFT collection for deposit")
     }
 
     execute {
         let nfts <- self.marketplaceClient.claimNFTs(nftTypeIdentifier: nftTypeIdentifier)
 
-        let receiver = self.nftReceiverCapability.borrow() ?? panic("Invalid NFT Receiver Capability")
-
         while nfts.length > 0 {
             let nft <- nfts.removeFirst()
-            receiver.deposit(token: <- nft)
+            self.nftReceiver.deposit(token: <- nft)
         }
 
         destroy nfts
