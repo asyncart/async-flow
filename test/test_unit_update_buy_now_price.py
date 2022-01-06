@@ -9,10 +9,10 @@ from test_unit_setup_async_user import setup_async_user
 from test_unit_setup_marketplace_client import setup_marketplace_client
 from test_unit_whitelist import whitelist
 from test_unit_mint_master_token import mint_master_token
-from test_unit_make_default_nft_art_auction import create_default_nft_art_auction
-from test_unit_make_nft_art_auction import create_new_nft_art_auction
+from test_unit_make_default_nft_auction import create_default_nft_auction
+from test_unit_make_nft_auction import create_new_nft_auction
 from test_unit_make_bid import make_bid
-from test_unit_create_art_sale import create_new_art_sale
+from test_unit_create_sale import create_new_sale
 
 # expected args: nftTypeIdentifier, tokenId, newBuyNowPrice
 
@@ -58,8 +58,8 @@ def test_update_buy_now_price():
 
   res = "A.120e725050340cab.NFTAuction.Auction(feeRecipients: [], feePercentages: [], nftHighestBid: nil, nftHighestBidder: nil, nftRecipient: nil, auctionBidPeriod: 86400.00000000, auctionEnd: nil, minPrice: 2.00000000, buyNowPrice: 5.00000000, biddingCurrency: \"A.0ae53cb6e3f42a79.FlowToken.Vault\", whitelistedBuyer: nil, nftSeller: 0x179b6b1cb6755e31, nftProviderCapability: Capability<&AnyResource{A.f8d6e0586b0a20c7.NonFungibleToken.Provider}>(address: 0x179b6b1cb6755e31, path: /private/AsyncArtworkCollection), bidIncreasePercentage: 0.10000000)"
 
-  create_default_nft_art_auction(
-    ["1", "A.0ae53cb6e3f42a79.FlowToken.Vault", "2.0", "10.0", [], []],
+  create_default_nft_auction(
+    ["A.01cf0e2f2f715450.AsyncArtwork.NFT", "1", "A.0ae53cb6e3f42a79.FlowToken.Vault", "2.0", "10.0", [], []],
     "User1",
     True
   )
