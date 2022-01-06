@@ -9,7 +9,7 @@ from test_unit_setup_async_user import setup_async_user
 from test_unit_setup_marketplace_client import setup_marketplace_client
 from test_unit_whitelist import whitelist
 from test_unit_mint_master_token import mint_master_token
-from test_unit_make_default_nft_art_auction import create_default_nft_art_auction
+from test_unit_make_default_nft_auction import create_default_nft_auction
 
 # expected args: nftTypeIdentifier: String, tokenId: UInt64, currency: String, tokenAmount: UFix64
 
@@ -95,8 +95,8 @@ def test_make_bids():
   assert "[A.01cf0e2f2f715450.AsyncArtwork.NFT(uuid: 57, id: 1)]" == send_script_and_return_result("getNFTs", args=[["Address", address("User1")]])
 
   # Instantiate auction with different currency
-  create_default_nft_art_auction(
-    ["1", "A.f8d6e0586b0a20c7.FUSD.Vault", "2.0", "5.0", [], []],
+  create_default_nft_auction(
+    ["A.01cf0e2f2f715450.AsyncArtwork.NFT", "1", "A.f8d6e0586b0a20c7.FUSD.Vault", "2.0", "5.0", [], []],
     "User1",
     True
   )

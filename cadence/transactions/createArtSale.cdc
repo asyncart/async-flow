@@ -1,8 +1,8 @@
 import NonFungibleToken from "../contracts/NonFungibleToken.cdc"
-import AsyncArtwork from "../contracts/AsyncArtwork.cdc"
 import NFTAuction from "../contracts/NFTAuction.cdc"
 
 transaction(
+    nftTypeIdentifier: String,
     tokenId: UInt64,
     currency: String,
     buyNowPrice: UFix64,
@@ -16,8 +16,10 @@ transaction(
     let marketplaceClient: &NFTAuction.MarketplaceClient
 
     prepare(acct: AuthAccount) {
-        self.collectionProviderCapability = acct.getCapability<&{NonFungibleToken.Provider}>(AsyncArtwork.collectionPrivatePath)
-        self.collectionPublicCapability = acct.getCapability<&{NonFungibleToken.CollectionPublic}>(AsyncArtwork.collectionPublicPath)
+        let standardPathsForNFT = NFTAuction.getNftTypePaths()[nftTypeIdentifier] ?? panic("NFT type not supported")
+
+        self.collectionProviderCapability = acct.getCapability<&{NonFungibleToken.Provider}>(standardPathsForNFT.private)
+        self.collectionPublicCapability = acct.getCapability<&{NonFungibleToken.CollectionPublic}>(standardPathsForNFT.public)
         self.marketplaceClient = acct.borrow<&NFTAuction.MarketplaceClient>(from: NFTAuction.marketplaceClientStoragePath) ?? panic("Could not borrow Marketplace Client resource")
     }
 
