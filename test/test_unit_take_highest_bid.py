@@ -56,10 +56,24 @@ def test_take_highest_bid():
     "{}"
   )
 
+  # Cannot take highest bid on non-existent auction
+  take_highest_bid(
+    ["A.01cf0e2f2f715450.AsyncArtwork.NFT", "1"],
+    "User1",
+    False
+  )
+
   create_new_nft_art_auction(
     ["1", "A.0ae53cb6e3f42a79.FlowToken.Vault", "2.0", "5.0", "0.00000001", "5.0", [], []],
     "User1",
     True
+  )
+
+  # Cannot take highest bid before one exists
+  take_highest_bid(
+    ["A.01cf0e2f2f715450.AsyncArtwork.NFT", "1"],
+    "User1",
+    False
   )
   
   transfer_flow_token("User2", "100.0", "emulator-account")
@@ -70,8 +84,14 @@ def test_take_highest_bid():
     True
   )
 
-  res = "A.120e725050340cab.NFTAuction.Auction(feeRecipients: [], feePercentages: [], nftHighestBid: nil, nftHighestBidder: nil, nftRecipient: nil, auctionBidPeriod: 86400.00000000, auctionEnd: nil, minPrice: nil, buyNowPrice: nil, biddingCurrency: \"A.0ae53cb6e3f42a79.FlowToken.Vault\", whitelistedBuyer: nil, nftSeller: nil, nftProviderCapability: nil, bidIncreasePercentage: 0.10000000)"
+  # Non nft seller cannot take highest bid
+  take_highest_bid(
+    ["A.01cf0e2f2f715450.AsyncArtwork.NFT", "1"],
+    "User2",
+    False
+  )
 
+  res = "A.120e725050340cab.NFTAuction.Auction(feeRecipients: [], feePercentages: [], nftHighestBid: nil, nftHighestBidder: nil, nftRecipient: nil, auctionBidPeriod: 86400.00000000, auctionEnd: nil, minPrice: nil, buyNowPrice: nil, biddingCurrency: \"A.0ae53cb6e3f42a79.FlowToken.Vault\", whitelistedBuyer: nil, nftSeller: nil, nftProviderCapability: nil, bidIncreasePercentage: 0.10000000)"
   take_highest_bid(
     ["A.01cf0e2f2f715450.AsyncArtwork.NFT", "1"],
     "User1",
@@ -83,6 +103,13 @@ def test_take_highest_bid():
 
   assert "[]" == send_script_and_return_result("getNFTs", args=[["Address", address("User1")]])
   assert "[A.01cf0e2f2f715450.AsyncArtwork.NFT(uuid: 57, id: 1)]" == send_script_and_return_result("getNFTs", args=[["Address", address("User2")]])
+
+  # Cannot take highest bid twice
+  take_highest_bid(
+    ["A.01cf0e2f2f715450.AsyncArtwork.NFT", "1"],
+    "User1",
+    False
+  )
 
 if __name__ == '__main__':
   test_take_highest_bid()

@@ -22,7 +22,7 @@ def claim_payout(args, signer, should_succeed, expected_result=None):
     print("Successfuly Claimed Payout")
   else:
     assert not send_transaction("claimPayout", args=txn_args, signer=signer)
-    print("Failed to Claim Payment")
+    print("Failed to Claim Payment as Expected")
 
 @pytest.mark.core
 def test_make_bids():

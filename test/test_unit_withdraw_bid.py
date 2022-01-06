@@ -64,6 +64,20 @@ def test_withdraw_bid():
 
   transfer_flow_token("User2", "100.0", "emulator-account")
 
+  # Cannot withdraw bid from auction that does not exist
+  withdraw_bid(
+    ["A.01cf0e2f2f715450.AsyncArtwork.NFT", "2"],
+    "User2",
+    False
+  )
+
+  # Cannot withdraw bid that doesn't exist
+  withdraw_bid(
+    ["A.01cf0e2f2f715450.AsyncArtwork.NFT", "1"],
+    "User2",
+    False
+  )
+
   make_bid(
     ["A.01cf0e2f2f715450.AsyncArtwork.NFT", "1", "A.0ae53cb6e3f42a79.FlowToken.Vault", "1.0"],
     "User2",
@@ -72,6 +86,13 @@ def test_withdraw_bid():
 
   assert "99.00000000" == send_script_and_return_result("getUsersFlowTokenBalance", args=[["Address", address("User2")]])
 
+  # Non-bidder cannot withdraw bid
+  withdraw_bid(
+    ["A.01cf0e2f2f715450.AsyncArtwork.NFT", "1"],
+    "User1",
+    False
+  )
+
   withdraw_bid(
     ["A.01cf0e2f2f715450.AsyncArtwork.NFT", "1"],
     "User2",
@@ -79,6 +100,13 @@ def test_withdraw_bid():
   )
 
   assert "100.00000000" == send_script_and_return_result("getUsersFlowTokenBalance", args=[["Address", address("User2")]])
+
+  # Cannot withdraw bid that has already been withdrawn
+  withdraw_bid(
+    ["A.01cf0e2f2f715450.AsyncArtwork.NFT", "1"],
+    "User2",
+    False
+  )
 
 if __name__ == '__main__':
   test_withdraw_bid()

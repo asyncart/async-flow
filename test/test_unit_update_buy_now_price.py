@@ -38,6 +38,7 @@ def test_update_buy_now_price():
   main()
 
   setup_marketplace_client("User1")
+  setup_marketplace_client("User2")
 
   setup_async_user("User1")
 
@@ -63,8 +64,28 @@ def test_update_buy_now_price():
     True
   )
 
+  # Cannot update buy now price on non-existent auction
+  update_buy_now_price(
+    ["A.01cf0e2f2f715450.AsyncArtwork.NFT", "2", "10.0"],
+    "User2",
+    False
+  )
+
+  # Non-nft seller cannot update buy now price
+  update_buy_now_price(
+    ["A.01cf0e2f2f715450.AsyncArtwork.NFT", "1", "10.0"],
+    "User2",
+    False
+  )
+
+  # Cannot update buy now price such that min price is > 80% of the buy now price
+  update_buy_now_price(
+    ["A.01cf0e2f2f715450.AsyncArtwork.NFT", "1", "2.1"],
+    "User1",
+    False
+  )
+
   res = "A.120e725050340cab.NFTAuction.Auction(feeRecipients: [], feePercentages: [], nftHighestBid: nil, nftHighestBidder: nil, nftRecipient: nil, auctionBidPeriod: 86400.00000000, auctionEnd: nil, minPrice: 2.00000000, buyNowPrice: 10.00000000, biddingCurrency: \"A.0ae53cb6e3f42a79.FlowToken.Vault\", whitelistedBuyer: nil, nftSeller: 0x179b6b1cb6755e31, nftProviderCapability: Capability<&AnyResource{A.f8d6e0586b0a20c7.NonFungibleToken.Provider}>(address: 0x179b6b1cb6755e31, path: /private/AsyncArtworkCollection), bidIncreasePercentage: 0.10000000)"
-  
   update_buy_now_price(
     ["A.01cf0e2f2f715450.AsyncArtwork.NFT", "1", "10.0"],
     "User1",

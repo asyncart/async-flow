@@ -55,16 +55,34 @@ def test_update_minimum_price():
     "{}"
   )
 
-  res = "A.120e725050340cab.NFTAuction.Auction(feeRecipients: [], feePercentages: [], nftHighestBid: nil, nftHighestBidder: nil, nftRecipient: nil, auctionBidPeriod: 86400.00000000, auctionEnd: nil, minPrice: 2.00000000, buyNowPrice: 5.00000000, biddingCurrency: \"A.0ae53cb6e3f42a79.FlowToken.Vault\", whitelistedBuyer: nil, nftSeller: 0x179b6b1cb6755e31, nftProviderCapability: Capability<&AnyResource{A.f8d6e0586b0a20c7.NonFungibleToken.Provider}>(address: 0x179b6b1cb6755e31, path: /private/AsyncArtworkCollection), bidIncreasePercentage: 0.10000000)"
-
   create_default_nft_art_auction(
     ["1", "A.0ae53cb6e3f42a79.FlowToken.Vault", "2.0", "5.0", [], []],
     "User1",
     True
   )
 
+  # Cannot update buy now price on non-existent auction
+  update_minimum_price(
+    ["A.01cf0e2f2f715450.AsyncArtwork.NFT", "2", "1.0"],
+    "User2",
+    False
+  )
+
+  # Non-nft seller cannot update buy now price
+  update_minimum_price(
+    ["A.01cf0e2f2f715450.AsyncArtwork.NFT", "1", "1.0"],
+    "User2",
+    False
+  )
+
+  # Cannot update buy now price such that min price is > 80% of the buy now price
+  update_minimum_price(
+    ["A.01cf0e2f2f715450.AsyncArtwork.NFT", "1", "4.1"],
+    "User1",
+    False
+  )
+
   res = "A.120e725050340cab.NFTAuction.Auction(feeRecipients: [], feePercentages: [], nftHighestBid: nil, nftHighestBidder: nil, nftRecipient: nil, auctionBidPeriod: 86400.00000000, auctionEnd: nil, minPrice: 4.00000000, buyNowPrice: 5.00000000, biddingCurrency: \"A.0ae53cb6e3f42a79.FlowToken.Vault\", whitelistedBuyer: nil, nftSeller: 0x179b6b1cb6755e31, nftProviderCapability: Capability<&AnyResource{A.f8d6e0586b0a20c7.NonFungibleToken.Provider}>(address: 0x179b6b1cb6755e31, path: /private/AsyncArtworkCollection), bidIncreasePercentage: 0.10000000)"
-  
   update_minimum_price(
     ["A.01cf0e2f2f715450.AsyncArtwork.NFT", "1", "4.0"],
     "User1",

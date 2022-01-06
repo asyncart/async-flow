@@ -54,20 +54,42 @@ def test_withdraw_auction():
     "{}"
   )
 
+  # Cannot withdraw auction that does not exist
+  withdraw_auction(
+    ["A.01cf0e2f2f715450.AsyncArtwork.NFT", "1"],
+    "User1",
+    False
+  )
+
   create_new_nft_art_auction(
     ["1", "A.0ae53cb6e3f42a79.FlowToken.Vault", "2.0", "5.0", "0.00000001", "5.0", [], []],
     "User1",
     True
   )
 
-  res = "A.120e725050340cab.NFTAuction.Auction(feeRecipients: [], feePercentages: [], nftHighestBid: nil, nftHighestBidder: nil, nftRecipient: nil, auctionBidPeriod: 86400.00000000, auctionEnd: nil, minPrice: nil, buyNowPrice: nil, biddingCurrency: \"A.0ae53cb6e3f42a79.FlowToken.Vault\", whitelistedBuyer: nil, nftSeller: nil, nftProviderCapability: nil, bidIncreasePercentage: 0.10000000)"
+  # Non-nft seller cannot withdraw auction
+  withdraw_auction(
+    ["A.01cf0e2f2f715450.AsyncArtwork.NFT", "1"],
+    "User2",
+    False
+  )
 
+  res = "A.120e725050340cab.NFTAuction.Auction(feeRecipients: [], feePercentages: [], nftHighestBid: nil, nftHighestBidder: nil, nftRecipient: nil, auctionBidPeriod: 86400.00000000, auctionEnd: nil, minPrice: nil, buyNowPrice: nil, biddingCurrency: \"A.0ae53cb6e3f42a79.FlowToken.Vault\", whitelistedBuyer: nil, nftSeller: nil, nftProviderCapability: nil, bidIncreasePercentage: 0.10000000)"
   withdraw_auction(
     ["A.01cf0e2f2f715450.AsyncArtwork.NFT", "1"],
     "User1",
     True,
     expected_result = res
   )
+
+  # Cannot withdraw auction after just withdrawing
+  # WE WOULD PROBABLY EXPECT THIS TO FAIL BUT IT DOESNT BECAUSE WE VALIDATE IF AN AUCTION EXISTS OR NOT VIA ITS PRESENCE IN THE MAPPING
+  # WE SHOULD ADD AN AUCTION ALIVE BOOLEAN, OR JUST REMOVE THE AUCTION FROM THE MAPPING
+  #withdraw_auction(
+  #  ["A.01cf0e2f2f715450.AsyncArtwork.NFT", "1"],
+  #  "User1",
+  #  False
+  #)
 
 if __name__ == '__main__':
   test_withdraw_auction()

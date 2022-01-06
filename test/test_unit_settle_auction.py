@@ -38,6 +38,7 @@ def test_settle_auction():
 
   setup_marketplace_client("User1")
   setup_marketplace_client("User2")
+  setup_marketplace_client("User3")
 
   setup_async_user("User1")
   setup_async_user("User2")
@@ -61,8 +62,29 @@ def test_settle_auction():
     "User1",
     True
   )
+
+  # Cannot settle auction before it has an end time
+  settle_auction(
+    ["A.01cf0e2f2f715450.AsyncArtwork.NFT", "1"],
+    "User1",
+    False
+  )
   
   transfer_flow_token("User2", "100.0", "emulator-account")
+
+  # Bid of less than minimum price should not set the end time for the auction
+  make_bid(
+    ["A.01cf0e2f2f715450.AsyncArtwork.NFT", "1", "A.0ae53cb6e3f42a79.FlowToken.Vault", "1.0"],
+    "User2",
+    True
+  )
+
+  # Cannot settle auction before it has an end time
+  settle_auction(
+    ["A.01cf0e2f2f715450.AsyncArtwork.NFT", "1"],
+    "User1",
+    False
+  )
 
   make_bid(
     ["A.01cf0e2f2f715450.AsyncArtwork.NFT", "1", "A.0ae53cb6e3f42a79.FlowToken.Vault", "4.0"],
@@ -72,8 +94,14 @@ def test_settle_auction():
 
   send_transaction("simulateTimeDelay")
 
-  res = "A.120e725050340cab.NFTAuction.Auction(feeRecipients: [], feePercentages: [], nftHighestBid: nil, nftHighestBidder: nil, nftRecipient: nil, auctionBidPeriod: 86400.00000000, auctionEnd: nil, minPrice: nil, buyNowPrice: nil, biddingCurrency: \"A.0ae53cb6e3f42a79.FlowToken.Vault\", whitelistedBuyer: nil, nftSeller: nil, nftProviderCapability: nil, bidIncreasePercentage: 0.10000000)"
+  # Cannot settle auction that does not exist
+  settle_auction(
+    ["A.01cf0e2f2f715450.AsyncArtwork.NFT", "2"],
+    "User1",
+    False
+  )
 
+  res = "A.120e725050340cab.NFTAuction.Auction(feeRecipients: [], feePercentages: [], nftHighestBid: nil, nftHighestBidder: nil, nftRecipient: nil, auctionBidPeriod: 86400.00000000, auctionEnd: nil, minPrice: nil, buyNowPrice: nil, biddingCurrency: \"A.0ae53cb6e3f42a79.FlowToken.Vault\", whitelistedBuyer: nil, nftSeller: nil, nftProviderCapability: nil, bidIncreasePercentage: 0.10000000)"
   settle_auction(
     ["A.01cf0e2f2f715450.AsyncArtwork.NFT", "1"],
     "User1",
@@ -81,12 +109,44 @@ def test_settle_auction():
     expected_result = res
   )
 
+  # Cannot settle auction after just settled
+  settle_auction(
+    ["A.01cf0e2f2f715450.AsyncArtwork.NFT", "1"],
+    "User1",
+    False
+  )
+
   assert "4.00000000" == send_script_and_return_result("getUsersFlowTokenBalance", args=[["Address", address("User1")]])
   assert "96.00000000" == send_script_and_return_result("getUsersFlowTokenBalance", args=[["Address", address("User2")]])
 
-
   assert "[]" == send_script_and_return_result("getNFTs", args=[["Address", address("User1")]])
-  assert "[A.01cf0e2f2f715450.AsyncArtwork.NFT(uuid: 57, id: 1)]" == send_script_and_return_result("getNFTs", args=[["Address", address("User2")]])
+  assert "[A.01cf0e2f2f715450.AsyncArtwork.NFT(uuid: 58, id: 1)]" == send_script_and_return_result("getNFTs", args=[["Address", address("User2")]])
+
+  create_new_nft_art_auction(
+    ["1", "A.0ae53cb6e3f42a79.FlowToken.Vault", "2.0", "5.0", "0.00000001", "5.0", [], []],
+    "User2",
+    True
+  )
+
+  make_bid(
+    ["A.01cf0e2f2f715450.AsyncArtwork.NFT", "1", "A.0ae53cb6e3f42a79.FlowToken.Vault", "4.0"],
+    "User1",
+    True
+  )
+
+  # Can settle auction as non NFT seller, and as non bidder
+  settle_auction(
+    ["A.01cf0e2f2f715450.AsyncArtwork.NFT", "1"],
+    "User3",
+    True
+  )
+
+  assert "0.00000000" == send_script_and_return_result("getUsersFlowTokenBalance", args=[["Address", address("User1")]])
+  assert "100.00000000" == send_script_and_return_result("getUsersFlowTokenBalance", args=[["Address", address("User2")]])
+
+  assert "[A.01cf0e2f2f715450.AsyncArtwork.NFT(uuid: 58, id: 1)]" == send_script_and_return_result("getNFTs", args=[["Address", address("User1")]])
+  assert "[]" == send_script_and_return_result("getNFTs", args=[["Address", address("User2")]])
+
 
 if __name__ == '__main__':
   test_settle_auction()
