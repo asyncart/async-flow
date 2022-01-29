@@ -1295,8 +1295,8 @@ pub contract NFTAuction {
                 let path: PublicPath = self.nftTypePaths[nftTypeIdentifier]!.public
 
                 let collection = getAccount(sender).getCapability<&{NonFungibleToken.CollectionPublic}>(path).borrow() ?? panic("Could not borrow reference to sender's collection")
-                if collection.borrowNFT(id: tokenId) == nil {
-                    panic("Sender doesn't own NFT")
+                if collection.borrowNFT(id: tokenId) == nil || collection.borrowNFT(id: tokenId).id != tokenId {
+                    panic("Cannot confirm sender owns NFT")
                 }
 
                 self.auctions[nftTypeIdentifier]![tokenId]!.reset()
