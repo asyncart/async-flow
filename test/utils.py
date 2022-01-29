@@ -1,6 +1,13 @@
 import json
 from transaction_handler import send_transaction
 
+def is_json(myjson):
+  try:
+    json.loads(myjson)
+  except Exception as e:
+    return False
+  return True
+
 def address(entity):
     with open("flow.json", "r") as f:
         flow_json = json.load(f)
@@ -11,8 +18,9 @@ def address(entity):
             emulator = flow_json['deployments']['emulator']
             for account in emulator:
                 for contract in emulator[account]:
-                    if entity == contract:
+                    if entity == contract or ("name" in contract and entity == contract["name"]):
                         return flow_json['accounts'][account]["address"]
+                    
         else:
             raise Exception("Entity not an account or contract")
 
