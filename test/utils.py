@@ -1,13 +1,6 @@
 import json
 from transaction_handler import send_transaction
 
-def is_json(myjson):
-  try:
-    json.loads(myjson)
-  except Exception as e:
-    return False
-  return True
-
 def address(entity):
     with open("flow.json", "r") as f:
         flow_json = json.load(f)
