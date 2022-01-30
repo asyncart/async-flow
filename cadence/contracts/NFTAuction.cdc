@@ -351,7 +351,7 @@ pub contract NFTAuction {
         if NFTAuction.auctions[nftTypeIdentifier]![tokenId] == nil {
             // early bid
 
-            // TODO: update this with the nft's fee recipients and fee percentages!
+            // TODO: update this with the nft's fee recipients and fee percentages! (Will be resolved once Bleuprint is fully implemented)
             let feeRecipients: [Address] = []
             let feePercentages: [UFix64] = []
 
@@ -395,7 +395,6 @@ pub contract NFTAuction {
         auction: Auction 
     ) {
         pre {
-            // TODO: exploit here is if it is early bid, then nftSeller is null
             sender != auction.nftSeller : "Owner can't bid on own NFT"
             vault.getType().identifier == auction.biddingCurrency : "Attempted to bid with invalid currency"
             self.doesBidMeetRequirements(auction: auction, amount: vault.balance) : "Bid does not meet amount requirements"
@@ -1295,8 +1294,8 @@ pub contract NFTAuction {
                 let path: PublicPath = self.nftTypePaths[nftTypeIdentifier]!.public
 
                 let collection = getAccount(sender).getCapability<&{NonFungibleToken.CollectionPublic}>(path).borrow() ?? panic("Could not borrow reference to sender's collection")
-                if collection.borrowNFT(id: tokenId) == nil {
-                    panic("Sender doesn't own NFT")
+                if collection.borrowNFT(id: tokenId) == nil || collection.borrowNFT(id: tokenId).id != tokenId {
+                    panic("Cannot confirm sender owns NFT")
                 }
 
                 self.auctions[nftTypeIdentifier]![tokenId]!.reset()
@@ -1428,12 +1427,7 @@ pub contract NFTAuction {
         }
     }
 
-	init() {
-        // TODO: Investigate how to pass args for contract deployment (and is it possible to do with project deploy)
-        let asyncArtworkNFTType = "A.01cf0e2f2f715450.AsyncArtwork.NFT"
-        let blueprintNFTType = "A.01cf0e2f2f715450.Blueprint.NFT"
-        let flowTokenCurrencyType = "A.0ae53cb6e3f42a79.FlowToken.Vault"
-        let fusdCurrencyType = "A.f8d6e0586b0a20c7.FUSD.Vault"
+	init(asyncArtworkNFTType: String, blueprintNFTType: String, flowTokenCurrencyType: String, fusdCurrencyType: String) {
 
         self.defaultBidIncreasePercentage = 0.1
         self.defaultAuctionBidPeriod = 86400.0

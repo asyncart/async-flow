@@ -11,8 +11,9 @@ def address(entity):
             emulator = flow_json['deployments']['emulator']
             for account in emulator:
                 for contract in emulator[account]:
-                    if entity == contract:
+                    if entity == contract or ("name" in contract and entity == contract["name"]):
                         return flow_json['accounts'][account]["address"]
+                    
         else:
             raise Exception("Entity not an account or contract")
 
