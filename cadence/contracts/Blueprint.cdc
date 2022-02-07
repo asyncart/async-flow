@@ -50,6 +50,12 @@ pub contract Blueprints: NonFungibleToken {
         newWhitelist: {Address: Bool}
     )
 
+    pub event SaleStarted(blueprintID: UInt64)
+
+    pub event SalePaused(blueprintID: UInt64)
+
+    pub event SaleUnpaused(blueprintID: UInt64)
+
     pub enum SaleState: UInt8 {
         pub case notPrepared
         pub case notStarted 
@@ -155,6 +161,12 @@ pub contract Blueprints: NonFungibleToken {
             self.primaryFeePercentages = _primaryFeePercentages
             self.secondaryFeeRecipients = _secondaryFeeRecipients
             self.secondaryFeePercentages = _secondaryFeePercentages
+        }
+
+        pub fun setSaleState(
+            state: SaleState
+        )  {
+            self.saleState = state
         }
 
         init(
@@ -459,6 +471,45 @@ pub contract Blueprints: NonFungibleToken {
             )
         }
 
+        pub fun beginSale(_blueprintID: UInt64) {
+            pre {
+                self.owner != nil : "Cannot perform operation while client in transit"
+                self.owner!.address == Blueprints.minterAddress : "Not the minter"
+                Blueprints.blueprints.containsKey(_blueprintID) : "Blueprint doesn't exist"
+                Blueprints.blueprints[_blueprintID]!.saleState == SaleState.notStarted : "Sale not not started"
+            }
+
+            Blueprints.blueprints[_blueprintID]!.setSaleState(state: SaleState.started)
+
+            emit SaleStarted(blueprintID: _blueprintID)
+        }
+
+        pub fun pauseSale(_blueprintID: UInt64) {
+            pre {
+                self.owner != nil : "Cannot perform operation while client in transit"
+                self.owner!.address == Blueprints.minterAddress : "Not the minter"
+                Blueprints.blueprints.containsKey(_blueprintID) : "Blueprint doesn't exist"
+                Blueprints.blueprints[_blueprintID]!.saleState == SaleState.started : "Sale not started"
+            }
+
+            Blueprints.blueprints[_blueprintID]!.setSaleState(state: SaleState.paused)
+
+            emit SalePaused(blueprintID: _blueprintID)
+        }
+
+        pub fun unpauseSale(_blueprintID: UInt64) {
+            pre {
+                self.owner != nil : "Cannot perform operation while client in transit"
+                self.owner!.address == Blueprints.minterAddress : "Not the minter"
+                Blueprints.blueprints.containsKey(_blueprintID) : "Blueprint doesn't exist"
+                Blueprints.blueprints[_blueprintID]!.saleState == SaleState.paused : "Sale not paused"
+            }
+
+            Blueprints.blueprints[_blueprintID]!.setSaleState(state: SaleState.started)
+
+            emit SaleUnpaused(blueprintID: _blueprintID)
+        }
+
         /*
 		// mintNFT mints a new NFT with a new ID
 		// and deposit it in the recipients collection using their collection reference
@@ -507,6 +558,9 @@ pub contract Blueprints: NonFungibleToken {
         self.defaultBlueprintSecondarySalePercentage = 7.5
         self.defaultPlatformSecondarySalePercentage = 2.5
         self.asyncSaleFeesRecipient = self.account.address
+
+        self.blueprints = {}
+        self.tokenToBlueprintID = {}
 
         // Create a Minter resource and save it to storage (even if minter is not deploying account)
         let minter <- create Minter()
