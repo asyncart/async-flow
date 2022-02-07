@@ -1414,15 +1414,15 @@ pub contract NFTAuction {
             }
             self.typesToStoragePaths = {
                 asyncArtworkNFTType: AsyncArtwork.collectionStoragePath,
-                blueprintNFTType: Blueprint.collectionStoragePath
+                blueprintNFTType: Blueprints.collectionStoragePath
             } 
             self.typesToProviderPaths = {
                 asyncArtworkNFTType: AsyncArtwork.collectionPrivatePath,
-                blueprintNFTType: Blueprint.collectionPrivatePath
+                blueprintNFTType: Blueprints.collectionPrivatePath
             }
             self.typesToReceiverPaths = {
                 asyncArtworkNFTType: AsyncArtwork.collectionPublicPath,
-                blueprintNFTType: Blueprint.collectionPublicPath
+                blueprintNFTType: Blueprints.collectionPublicPath
             }
         }
     }
@@ -1458,9 +1458,9 @@ pub contract NFTAuction {
                 AsyncArtwork.collectionStoragePath
             ),
             blueprintNFTType: Paths(
-                Blueprint.collectionPublicPath, 
-                Blueprint.collectionPrivatePath, 
-                Blueprint.collectionStoragePath
+                Blueprints.collectionPublicPath, 
+                Blueprints.collectionPrivatePath, 
+                Blueprints.collectionStoragePath
             )
         }
 
@@ -1491,17 +1491,17 @@ pub contract NFTAuction {
             target: AsyncArtwork.collectionStoragePath
         )
 
-        let blueprintCollection <- Blueprint.createEmptyCollection()
-        self.account.save(<- blueprintCollection, to: Blueprint.collectionStoragePath)
+        let blueprintCollection <- Blueprints.createEmptyCollection()
+        self.account.save(<- blueprintCollection, to: Blueprints.collectionStoragePath)
 
         let blueprintEscrowCollectionCap = self.account.link<&NonFungibleToken.Collection>(
-            Blueprint.collectionPrivatePath,
-            target: Blueprint.collectionStoragePath
+            Blueprints.collectionPrivatePath,
+            target: Blueprints.collectionStoragePath
         ) ?? panic("Could not link private capability to blueprint collection!")
 
-        self.account.link<&Blueprint.Collection{NonFungibleToken.CollectionPublic, NonFungibleToken.Receiver}>(
-            Blueprint.collectionPublicPath,
-            target: Blueprint.collectionStoragePath
+        self.account.link<&Blueprints.Collection{NonFungibleToken.CollectionPublic, NonFungibleToken.Receiver}>(
+            Blueprints.collectionPublicPath,
+            target: Blueprints.collectionStoragePath
         )
 
         let escrow <- create escrowCollection(asyncArtworkNFTType: asyncArtworkNFTType, blueprintNFTType: blueprintNFTType, asyncArtworkEscrowCollectionCap: asyncEscrowCollectionCap, blueprintEscrowCollectionCap: blueprintEscrowCollectionCap)

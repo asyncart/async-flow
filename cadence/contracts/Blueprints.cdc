@@ -25,6 +25,9 @@ pub contract Blueprints: NonFungibleToken {
     access(self) let tokenToBlueprintID: {UInt64: UInt64}
     access(self) let blueprints: {UInt64: Blueprint}
 
+    // A mapping of currency type identifiers to expected paths
+    access(self) let currencyPaths: {String: Paths}
+
     pub event ContractInitialized()
     pub event Withdraw(id: UInt64, from: Address?)
     pub event Deposit(id: UInt64, to: Address?)
@@ -56,6 +59,22 @@ pub contract Blueprints: NonFungibleToken {
     pub event SalePaused(blueprintID: UInt64)
 
     pub event SaleUnpaused(blueprintID: UInt64)
+
+    pub struct Paths {
+        pub var public: PublicPath
+        pub var private: PrivatePath
+        pub var storage: StoragePath
+
+        init(_ _public: PublicPath, _ _private: PrivatePath, _ _storage: StoragePath) {
+            self.public = _public 
+            self.private = _private 
+            self.storage = _storage 
+        }
+    }
+
+    pub fun getCurrencyPaths(): {String: Paths} {
+        return self.currencyPaths
+    }
 
     pub enum SaleState: UInt8 {
         pub case notPrepared
@@ -655,6 +674,20 @@ pub contract Blueprints: NonFungibleToken {
 
         self.blueprints = {}
         self.tokenToBlueprintID = {}
+
+        // whitelist flowToken and fusd to start
+        self.currencyPaths = {
+            flowTokenCurrencyType: Paths(
+                /public/flowTokenReceiver,
+                /private/flowTokenVault, // technically unknown standard
+                /storage/flowTokenVault
+            ),
+            fusdCurrencyType: Paths(
+                /public/fusdReceiver,
+                /private/fusdVault, // technically unknown standard
+                /storage/fusdVault
+            )
+        }
 
         // Create a Minter resource and save it to storage (even if minter is not deploying account)
         let minter <- create Minter()
