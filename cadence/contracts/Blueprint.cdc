@@ -96,7 +96,41 @@ pub contract Blueprints: NonFungibleToken {
         }
     }
 
-    
+    access(self) fun isValidCurrencyFormat(_currency: String): Bool {
+        // valid hex address, will abort otherwise
+        _currency.slice(from: 2, upTo: 18).decodeHex()
+
+        let periodUtf8: UInt8 = 46
+
+        if _currency.slice(from: 0, upTo: 2) != "A." {
+            // does not start with A. 
+            return false 
+        } else if _currency[18] != "." {
+            // 16 chars not in address
+            return false
+        } else if !_currency.slice(from: 19, upTo: _currency.length).utf8.contains(periodUtf8) {
+            // third dot is not present
+            return false 
+        } 
+
+        // check if substring after last dot is "Vault"
+        let contractSpecifier: String = _currency.slice(from: 19, upTo: _currency.length)
+        var typeFirstIndex: Int = 0
+
+        var i: Int = 0
+        while i < contractSpecifier.length {
+            if contractSpecifier[i] == "." {
+                typeFirstIndex = i + 1
+                break
+            }
+            i = i + 1
+        }
+        if contractSpecifier.slice(from: typeFirstIndex, upTo: contractSpecifier.length) != "Vault" {
+            return false
+        }
+        
+        return true 
+    }
 
     pub resource NFT: NonFungibleToken.INFT {
         pub let id: UInt64
