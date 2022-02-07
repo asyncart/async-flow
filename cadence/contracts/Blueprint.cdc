@@ -120,6 +120,43 @@ pub contract Blueprints: NonFungibleToken {
             self.addToWhitelist(_whitelistAdditions: _whitelistedAddresses)
         }
 
+        access(self) fun feesApplicable(_feeRecipients: [Address], _feePercentages: [UFix64]): Bool {
+            if _feeRecipients.length != 0 || _feePercentages.length != 0 {
+                if _feeRecipients.length != _feePercentages.length {
+                    return false 
+                }
+
+                var totalPercent: UFix64 = 0.0 
+                for percentage in _feePercentages {
+                    totalPercent = totalPercent + percentage 
+                }
+                if totalPercent > 100.0 {
+                    return false 
+                }
+
+                return true
+            } 
+
+            return false
+        }
+
+        pub fun setFeeRecipients(
+            _primaryFeeRecipients: [Address],
+            _primaryFeePercentages: [UFix64],
+            _secondaryFeeRecipients: [Address],
+            _secondaryFeePercentages: [UFix64]
+        ) {
+            pre {
+                self.feesApplicable(_feeRecipients: _primaryFeeRecipients, _feePercentages: _primaryFeePercentages) : "Primary fees invalid"
+                self.feesApplicable(_feeRecipients: _secondaryFeeRecipients, _feePercentages: _secondaryFeePercentages) : "Secondary fees invalid"
+            }
+
+            self.primaryFeeRecipients = _primaryFeeRecipients
+            self.primaryFeePercentages = _primaryFeePercentages
+            self.secondaryFeeRecipients = _secondaryFeeRecipients
+            self.secondaryFeePercentages = _secondaryFeePercentages
+        }
+
         init(
             _artist: Address,
             _capacity: UInt64,
@@ -265,7 +302,7 @@ pub contract Blueprints: NonFungibleToken {
     // Resource that an admin or something similar would own to be
     // able to mint new NFTs
     //
-	pub resource NFTMinter {
+	pub resource Minter {
         // setup blueprint
         pub fun prepareBlueprint(
             _artist: Address,
@@ -341,6 +378,7 @@ pub contract Blueprints: NonFungibleToken {
             )
         }
 
+        // add to blueprint whitelist
         pub fun addToBlueprintWhitelist(
             _blueprintID: UInt64,
             _whitelistAdditions: [Address]
@@ -360,6 +398,7 @@ pub contract Blueprints: NonFungibleToken {
             )
         }
 
+        // remove blueprint whitelist
         pub fun removeBlueprintWhitelist(
             _blueprintID: UInt64,
             _whitelistRemovals: [Address]
@@ -379,7 +418,7 @@ pub contract Blueprints: NonFungibleToken {
             )
         }
 
-
+        // overwrite blueprint whitelist
         pub fun overwriteBlueprintWhitelist(
             _blueprintID: UInt64,
             _whitelistedAddresses: [Address]
@@ -396,6 +435,27 @@ pub contract Blueprints: NonFungibleToken {
             emit BlueprintWhitelistUpdated(
                 oldWhitelist: oldWhitelist,
                 newWhitelist: Blueprints.blueprints[_blueprintID]!.whitelist
+            )
+        }
+
+        pub fun setFeeRecipients(
+            _blueprintID: UInt64,
+            _primaryFeeRecipients: [Address],
+            _primaryFeePercentages: [UFix64],
+            _secondaryFeeRecipients: [Address],
+            _secondaryFeePercentages: [UFix64]
+        ) {
+            pre {
+                self.owner != nil : "Cannot perform operation while client in transit"
+                self.owner!.address == Blueprints.minterAddress : "Not the minter"
+                Blueprints.blueprints.containsKey(_blueprintID) : "Blueprint doesn't exist"
+            }
+
+            Blueprints.blueprints[_blueprintID]!.setFeeRecipients(
+                _primaryFeeRecipients: _primaryFeeRecipients, 
+                _primaryFeePercentages: _primaryFeePercentages, 
+                _secondaryFeeRecipients: _secondaryFeeRecipients, 
+                _secondaryFeePercentages: _secondaryFeePercentages
             )
         }
 
@@ -418,8 +478,8 @@ pub contract Blueprints: NonFungibleToken {
         */
 	}
 
-    pub fun createMinter(): @NFTMinter {
-        return <- create NFTMinter()
+    pub fun createMinter(): @Minter {
+        return <- create Minter()
     }
 
     pub resource Platform {
@@ -449,7 +509,7 @@ pub contract Blueprints: NonFungibleToken {
         self.asyncSaleFeesRecipient = self.account.address
 
         // Create a Minter resource and save it to storage (even if minter is not deploying account)
-        let minter <- create NFTMinter()
+        let minter <- create Minter()
         self.account.save(<- minter, to: self.minterStoragePath)
 
         // Create a Platform resource and save it to storage
