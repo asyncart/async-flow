@@ -65,13 +65,54 @@ pub contract Blueprints: NonFungibleToken {
 
         pub var blueprintMetadata: String
 
+        pub fun updateSettings(
+            _price: UFix64,
+            _mintAmountArtist: UInt64,
+            _mintAmountPlatform: UInt64,
+            _newSaleState: SaleState,
+            _newMaxPurchaseAmount: UInt64 
+        ) {
+            self.price = _price
+            self.mintAmountArtist = _mintAmountArtist
+            self.mintAmountPlatform = _mintAmountPlatform
+            self.saleState = _newSaleState
+            self.maxPurchaseAmount = _newMaxPurchaseAmount
+        }
+
+        pub fun addToWhitelist(
+            _whitelistAdditions: [Address]
+        ) {
+            for newAddress in _whitelistAdditions {
+                if !self.whitelist.containsKey(newAddress) {
+                    self.whitelist.insert(key: newAddress, false)
+                }
+            }
+        }
+
+        pub fun removeFromWhitelist(
+            _whitelistRemovals: [Address]
+        ) {
+            for newAddress in _whitelistRemovals {
+                if self.whitelist.containsKey(newAddress) {
+                    self.whitelist.remove(key: newAddress)
+                }
+            }
+        }
+
+        pub fun overwriteWhitelist(
+             _whitelistedAddresses: [Address]
+        ) {
+            self.whitelist = {}
+            self.addToWhitelist(_whitelistAdditions: _whitelistedAddresses)
+        }
+
         init(
             _artist: Address,
             _capacity: UInt64,
             _price: UFix64,
             _currency: String,
             _baseTokenUri: String,
-            _initialWhitelist: {Address: Bool},
+            _initialWhitelist: [Address],
             _mintAmountArtist: UInt64,
             _mintAmountPlatform: UInt64,
             _maxPurchaseAmount: UInt64,
@@ -94,11 +135,13 @@ pub contract Blueprints: NonFungibleToken {
             self.price = _price
             self.currency = _currency
             self.baseTokenUri = _baseTokenUri
-            self.whitelist = _initialWhitelist
             self.mintAmountArtist = _mintAmountArtist
             self.mintAmountPlatform = _mintAmountPlatform
             self.maxPurchaseAmount = _maxPurchaseAmount
             self.blueprintMetadata = _blueprintMetadata
+
+            self.whitelist = {}
+            self.addToWhitelist(_whitelistAdditions: _initialWhitelist)
 
             Blueprints.latestNftIndex = Blueprints.latestNftIndex + _capacity
         }
@@ -217,7 +260,7 @@ pub contract Blueprints: NonFungibleToken {
             _currency: String,
             _blueprintMetadata: String,
             _baseTokenUri: String,
-            _initialWhitelist: {Address: Bool},
+            _initialWhitelist: [Address],
             _mintAmountArtist: UInt64,
             _mintAmountPlatform: UInt64,
             _maxPurchaseAmount: UInt64 
@@ -266,28 +309,53 @@ pub contract Blueprints: NonFungibleToken {
                 Blueprints.blueprints.containsKey(_blueprintID) : "Blueprint doesn't exist"
             }
 
-            Blueprints.blueprints[_blueprintID]!.updateBlueprintSettings(
-                
+            Blueprints.blueprints[_blueprintID]!.updateSettings(
+                _price: _price,
+                _mintAmountArtist: _mintAmountArtist,
+                _mintAmountPlatform: _mintAmountPlatform,
+                _newSaleState: _newSaleState,
+                _newMaxPurchaseAmount: _newMaxPurchaseAmount 
             )
         }
 
         pub fun addToBlueprintWhitelist(
-            
+            _blueprintID: UInt64,
+            _whitelistAdditions: [Address]
         ) {
             pre {
                 self.owner != nil : "Cannot perform operation while client in transit"
                 self.owner!.address == Blueprints.minterAddress : "Not the minter"
+                Blueprints.blueprints.containsKey(_blueprintID) : "Blueprint doesn't exist"
             }
+
+            Blueprints.blueprints[_blueprintID]!.addToWhitelist(_whitelistAdditions: _whitelistAdditions)
         }
 
-        pub fun overwriteBlueprintWhitelist(
-             
+        pub fun removeBlueprintWhitelist(
+            _blueprintID: UInt64,
+            _whitelistRemovals: [Address]
         ) {
             pre {
                 self.owner != nil : "Cannot perform operation while client in transit"
                 self.owner!.address == Blueprints.minterAddress : "Not the minter"
+                Blueprints.blueprints.containsKey(_blueprintID) : "Blueprint doesn't exist"
             }
 
+            Blueprints.blueprints[_blueprintID]!.removeFromWhitelist(_whitelistRemovals: _whitelistRemovals)
+        }
+
+
+        pub fun overwriteBlueprintWhitelist(
+            _blueprintID: UInt64,
+            _whitelistedAddresses: [Address]
+        ) {
+            pre {
+                self.owner != nil : "Cannot perform operation while client in transit"
+                self.owner!.address == Blueprints.minterAddress : "Not the minter"
+                Blueprints.blueprints.containsKey(_blueprintID) : "Blueprint doesn't exist"
+            }
+
+            Blueprints.blueprints[_blueprintID]!.overwriteWhitelist(_whitelistedAddresses: _whitelistedAddresses)
         }
 
         /*
