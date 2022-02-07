@@ -41,6 +41,11 @@ pub contract Blueprints: NonFungibleToken {
     pub event Withdraw(id: UInt64, from: Address?)
     pub event Deposit(id: UInt64, to: Address?)
 
+    pub event BlueprintSeed(
+        blueprintID: UInt64,
+        randomSeed: String
+    )
+
     pub event BlueprintPrepared(
         blueprintID: UInt64,
         artist: Address,
@@ -69,6 +74,11 @@ pub contract Blueprints: NonFungibleToken {
 
     pub event SaleUnpaused(blueprintID: UInt64)
 
+    pub event BlueprintTokenUriUpdated(
+        blueprintID: UInt64,
+        newBaseTokenUri: String
+    )
+
     pub struct Paths {
         pub var public: PublicPath
         pub var private: PrivatePath
@@ -86,7 +96,6 @@ pub contract Blueprints: NonFungibleToken {
     }
 
     pub enum SaleState: UInt8 {
-        pub case notPrepared
         pub case notStarted 
         pub case started 
         pub case paused
@@ -219,6 +228,14 @@ pub contract Blueprints: NonFungibleToken {
             self.artistDecrement = self.artistDecrement - artistDecrement
         }
 
+        pub fun updateBaseTokenUri(newBaseTokenUri: String) {
+            self.baseTokenUri = newBaseTokenUri
+        }
+
+        pub fun lockBlueprintTokenUri() {
+            self.tokenUriLocked = true
+        }
+
         pub fun isUserWhitelisted(user: Address): Bool {
             if !self.whitelist.containsKey(user) {
                 return false
@@ -304,15 +321,43 @@ pub contract Blueprints: NonFungibleToken {
         return true 
     }
 
-    pub resource NFT: NonFungibleToken.INFT {
+    pub resource interface ViewResolver {
+        pub fun getViews() : [Type]
+        pub fun resolveView(_ view:Type): AnyStruct?    
+    }
+
+    pub resource NFT: NonFungibleToken.INFT, ViewResolver {
         pub let id: UInt64
 
-        pub var metadata: {String: String}
+        pub fun getViews() : [Type] {
+            return [
+                Type<String>()
+            ]
+        }
+
+        pub fun resolveView(_ type: Type): AnyStruct {
+            let metadata = AsyncArtwork.getNFTMetadata(tokenId: self.id)
+
+            if type == Type<String>() {
+                return Blueprints.tokenURI(tokenId: self.id)
+            } else {
+                return nil
+            }
+        }
 
         init(initID: UInt64) {
             self.id = initID
-            self.metadata = {}
         }
+    }
+
+    pub fun tokenURI(tokenId: UInt64): String {
+        pre {
+            self.tokenToBlueprintID.containsKey(tokenId) : "Token doesn't exist"
+            self.blueprints.containsKey(self.tokenToBlueprintID[tokenId]!) : "Blueprint for token doesn't exist"
+        }
+
+        let baseURI = self.blueprints[self.tokenToBlueprintID[tokenId]!].baseTokenUri
+        return baseURI.concat("/").concat(tokenId.toSring()).concat("/token.json")
     }
 
     pub resource Collection: NonFungibleToken.Provider, NonFungibleToken.Receiver, NonFungibleToken.CollectionPublic {
@@ -757,7 +802,23 @@ pub contract Blueprints: NonFungibleToken {
         }
 
         // update a blueprint's token uri
-        pub fun updateBlueprintTokenUri()
+        pub fun updateBlueprintTokenUri(
+            blueprintID: UInt64,
+            newBaseTokenUri: String
+        ) {
+            pre {
+                self.owner != nil : "Cannot perform operation while client in transit"
+                self.owner!.address == Blueprints.minterAddress : "Not the minter"
+                Blueprints.blueprints.containsKey(_blueprintID) : "Blueprint doesn't exist"
+                !Blueprints.blueprints[_blueprintID]!.tokenUriLocked : "Blueprint URI locked"
+            }
+
+            Blueprints.blueprints[_blueprintID]!.updateBaseTokenUri(newBaseTokenUri: newBaseTokenUri)
+            emit BlueprintTokenUriUpdated(
+                blueprintID: blueprintID,
+                newBaseTokenUri: newBaseTokenUri
+            )
+        }
 	}
 
     pub fun createMinter(): @Minter {
@@ -770,7 +831,14 @@ pub contract Blueprints: NonFungibleToken {
             Blueprints.minterAddress = newMinter
         }
 
+        pub fun lockBlueprintTokenUri(blueprintID: UInt64) {
+            pre {
+                Blueprints.blueprints.containsKey(_blueprintID) : "Blueprint doesn't exist"
+                !Blueprints.blueprints[_blueprintID]!.tokenUriLocked : "Blueprint URI locked"
+            }
 
+            Blueprints.blueprints[_blueprintID]!.lockTokenUri()
+        }
 
         // whitelist currency
             // do check that the string follows the correct style 
