@@ -36,6 +36,20 @@ pub contract Blueprints: NonFungibleToken {
         baseTokenUri: String
     )
 
+    pub event BlueprintSettingsUpdated(
+        blueprintID: UInt64,
+        price: UFix64,
+        newMintAmountArtist: UInt64,
+        newMintAmountPlatform: UInt64,
+        newSaleState: UInt8,
+        newMaxPurchaseAmount: UInt64 
+    )
+    
+    pub event BlueprintWhitelistUpdated(
+        oldWhitelist: {Address: Bool},
+        newWhitelist: {Address: Bool}
+    )
+
     pub enum SaleState: UInt8 {
         pub case notPrepared
         pub case notStarted 
@@ -316,6 +330,15 @@ pub contract Blueprints: NonFungibleToken {
                 _newSaleState: _newSaleState,
                 _newMaxPurchaseAmount: _newMaxPurchaseAmount 
             )
+
+            emit BlueprintSettingsUpdated(
+                blueprintID: _blueprintID,
+                price: _price,
+                newMintAmountArtist: _mintAmountArtist,
+                newMintAmountPlatform: _mintAmountPlatform,
+                newSaleState: _newSaleState.rawValue,
+                newMaxPurchaseAmount: _newMaxPurchaseAmount 
+            )
         }
 
         pub fun addToBlueprintWhitelist(
@@ -328,7 +351,13 @@ pub contract Blueprints: NonFungibleToken {
                 Blueprints.blueprints.containsKey(_blueprintID) : "Blueprint doesn't exist"
             }
 
+            let oldWhitelist: {Address: Bool} = Blueprints.blueprints[_blueprintID]!.whitelist
             Blueprints.blueprints[_blueprintID]!.addToWhitelist(_whitelistAdditions: _whitelistAdditions)
+        
+            emit BlueprintWhitelistUpdated(
+                oldWhitelist: oldWhitelist,
+                newWhitelist: Blueprints.blueprints[_blueprintID]!.whitelist
+            )
         }
 
         pub fun removeBlueprintWhitelist(
@@ -341,7 +370,13 @@ pub contract Blueprints: NonFungibleToken {
                 Blueprints.blueprints.containsKey(_blueprintID) : "Blueprint doesn't exist"
             }
 
+            let oldWhitelist: {Address: Bool} = Blueprints.blueprints[_blueprintID]!.whitelist
             Blueprints.blueprints[_blueprintID]!.removeFromWhitelist(_whitelistRemovals: _whitelistRemovals)
+        
+            emit BlueprintWhitelistUpdated(
+                oldWhitelist: oldWhitelist,
+                newWhitelist: Blueprints.blueprints[_blueprintID]!.whitelist
+            )
         }
 
 
@@ -355,7 +390,13 @@ pub contract Blueprints: NonFungibleToken {
                 Blueprints.blueprints.containsKey(_blueprintID) : "Blueprint doesn't exist"
             }
 
+            let oldWhitelist: {Address: Bool} = Blueprints.blueprints[_blueprintID]!.whitelist
             Blueprints.blueprints[_blueprintID]!.overwriteWhitelist(_whitelistedAddresses: _whitelistedAddresses)
+        
+            emit BlueprintWhitelistUpdated(
+                oldWhitelist: oldWhitelist,
+                newWhitelist: Blueprints.blueprints[_blueprintID]!.whitelist
+            )
         }
 
         /*
