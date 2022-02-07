@@ -14,7 +14,7 @@ There are seven Cadence smart contracts in this folder.
 
 `Blueprints.cdc` implements the NonFungibleToken standard. It defines Blueprint NFTs which are minted through the Blueprint mechanism. 
 
-`NFTAuction.cdc` is an NFT marketplace based off the `NFTAuction.sol` [contract](https://github.com/avolabs-io/nft-auction) created by AvoLabs. 
+`NFTAuction.cdc` is an NFT marketplace based off the `NFTAuction.sol` [contract](https://github.com/avolabs-io/nft-auction) created by AvoLabs. It currently facilitates selling of `AsyncArtwork` and `Blueprints` NFTs.
 ``
 
 ## AsyncArtwork Design Decisions
