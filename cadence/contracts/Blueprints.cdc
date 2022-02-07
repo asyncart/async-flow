@@ -103,7 +103,25 @@ pub contract Blueprints: NonFungibleToken {
         pub case paused
     }
 
-    pub struct Blueprint {
+    pub struct interface BlueprintPublic {
+        pub var tokenUriLocked: Bool
+        pub var mintAmountArtist: UInt64 
+        pub var mintAmountPlatform: UInt64 
+        pub var capacity: UInt64 
+        pub var nftIndex: UInt64 
+        pub var maxPurchaseAmount: UInt64? 
+        pub var price: UFix64
+        pub var artist: Address
+        pub var currency: String 
+        pub var baseTokenUri: String 
+        pub var saleState: SaleState
+        pub var primaryFeePercentages: [UFix64]
+        pub var secondaryFeePercentages: [UFix64]
+        pub var primaryFeeRecipients: [Address]
+        pub var secondaryFeeRecipients: [Address]
+    }
+
+    pub struct Blueprint: BlueprintPublic {
         pub var tokenUriLocked: Bool
         pub var mintAmountArtist: UInt64 
         pub var mintAmountPlatform: UInt64 
@@ -284,6 +302,27 @@ pub contract Blueprints: NonFungibleToken {
             self.addToWhitelist(_whitelistAdditions: _initialWhitelist)
 
             Blueprints.latestNftIndex = Blueprints.latestNftIndex + _capacity
+        }
+    }
+
+    pub fun getBlueprints(): [Blueprint{BlueprintPublic}] {
+        return self.blueprints.values
+    }
+
+    pub fun getBlueprint(blueprintID: UInt64): Blueprint{BlueprintPublic} {
+        if self.blueprints.containsKey(blueprintID) {
+            return self.blueprints[blueprintID]!
+        } else {
+            return nil
+        }
+    }
+
+    pub fun getBlueprintByTokenId(tokenId: UInt64) Blueprint{BlueprintPublic} {
+        if self.tokenToBlueprintID.containsKey(tokenId) {
+            let blueprintID: UInt64 = self.tokenToBlueprintID[tokenId]!
+            return self.getBlueprint(blueprintID: blueprintID)
+        } else {
+            return nil 
         }
     }
 
