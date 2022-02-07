@@ -1,7 +1,3 @@
-// This is an example implementation of a Flow Non-Fungible Token
-// It is not part of the official standard but it assumed to be
-// very similar to how many NFTs would implement the core functionality.
-
 // Blueprint
 
 import NonFungibleToken from "./NonFungibleToken.cdc"
@@ -10,8 +6,19 @@ pub contract Blueprint: NonFungibleToken {
     pub var collectionStoragePath: StoragePath
     pub var collectionPrivatePath: PrivatePath
     pub var collectionPublicPath: PublicPath
+    pub var minterStoragePath: StoragePath
+    pub var platformStoragePath: StoragePath
 
     pub var totalSupply: UInt64
+
+    pub var defaultPlatformPrimaryFeePercentage: UFix64
+    pub var defaultBlueprintSecondarySalePercentage: UFix64
+    pub var defaultPlatformSecondarySalePercentage: UFix64
+    pub var latestTokenIndex: UInt64
+    pub var blueprintIndex: UInt64
+
+    pub var asyncSaleFeesRecipient: Address
+    access(self) var minterAddress: Address
 
     pub event ContractInitialized()
     pub event Withdraw(id: UInt64, from: Address?)
@@ -90,7 +97,10 @@ pub contract Blueprint: NonFungibleToken {
 		// mintNFT mints a new NFT with a new ID
 		// and deposit it in the recipients collection using their collection reference
 		pub fun mintNFT(recipient: &{NonFungibleToken.CollectionPublic}) {
-
+            pre {
+                self.owner != nil : "Cannot perform operation while client in transit"
+                self.owner!.address == Blueprint.minterAddress : "Not the minter"
+            }
 			// create a new NFT
 			var newNFT <- create NFT(initID: Blueprint.totalSupply)
 
@@ -101,6 +111,17 @@ pub contract Blueprint: NonFungibleToken {
 		}
 	}
 
+    pub fun createMinter(): @NFTMinter {
+        return <- create NFTMinter()
+    }
+
+    pub resource Platform {
+        // change minter
+        pub fun changeMinter(newMinter: Address) {
+            Blueprint.minterAddress = newMinter
+        }
+    }
+
 	init() {
         // Initialize the total supply
         self.totalSupply = 0
@@ -108,6 +129,8 @@ pub contract Blueprint: NonFungibleToken {
         self.collectionStoragePath = /storage/BlueprintCollection
         self.collectionPrivatePath = /private/BlueprintCollection
         self.collectionPublicPath = /public/BlueprintCollection
+        self.minterStoragePath = /storage/BlueprintMinter
+        self.platformStoragePath = /storage/BlueprintPlatform
 
         // Create a Collection resource and save it to storage
         let collection <- create Collection()
@@ -121,7 +144,10 @@ pub contract Blueprint: NonFungibleToken {
 
         // Create a Minter resource and save it to storage
         let minter <- create NFTMinter()
-        self.account.save(<-minter, to: /storage/BlueprintMinter)
+        self.account.save(<-minter, to: Blueprint.minterStoragePath)
+
+        let platform <- create Platform()
+        self.account.save(<-platform, to: Blueprint.platformStoragePath)
 
         emit ContractInitialized()
 	}
