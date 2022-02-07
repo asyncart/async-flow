@@ -28,6 +28,14 @@ pub contract Blueprints: NonFungibleToken {
     pub event Withdraw(id: UInt64, from: Address?)
     pub event Deposit(id: UInt64, to: Address?)
 
+    pub event BlueprintPrepared(
+        blueprintID: UInt64,
+        artist: Address,
+        capacity: UInt64,
+        blueprintMetadata: String,
+        baseTokenUri: String
+    )
+
     pub enum SaleState: UInt8 {
         pub case notPrepared
         pub case notStarted 
@@ -164,7 +172,7 @@ pub contract Blueprints: NonFungibleToken {
         // deposit takes a NFT and adds it to the collections dictionary
         // and adds the ID to the id array
         pub fun deposit(token: @NonFungibleToken.NFT) {
-            let token <- token as! @Blueprint.NFT
+            let token <- token as! @Blueprints.NFT
 
             let id: UInt64 = token.id
 
@@ -220,10 +228,68 @@ pub contract Blueprints: NonFungibleToken {
             }
 
             Blueprints.blueprints[Blueprints.blueprintIndex] = Blueprint(
-
+                _artist: _artist,
+                _capacity: _capacity,
+                _price: _price,
+                _currency: _currency,
+                _baseTokenUri: _baseTokenUri,
+                _initialWhitelist: _initialWhitelist,
+                _mintAmountArtist: _mintAmountArtist,
+                _mintAmountPlatform: _mintAmountPlatform,
+                _maxPurchaseAmount: _maxPurchaseAmount,
+                _blueprintMetadata: _blueprintMetadata
             )
+
+            emit BlueprintPrepared(
+                blueprintID: Blueprints.blueprintIndex,
+                artist: _artist,
+                capacity: _capacity,
+                blueprintMetadata: _blueprintMetadata,
+                baseTokenUri: _baseTokenUri
+            )
+
             Blueprints.blueprintIndex = Blueprints.blueprintIndex + 1
         }
+
+        // update blueprint settings
+        pub fun updateBlueprintSettings(
+            _blueprintID: UInt64,
+            _price: UFix64,
+            _mintAmountArtist: UInt64,
+            _mintAmountPlatform: UInt64,
+            _newSaleState: SaleState,
+            _newMaxPurchaseAmount: UInt64 
+        ) {
+            pre {
+                self.owner != nil : "Cannot perform operation while client in transit"
+                self.owner!.address == Blueprints.minterAddress : "Not the minter"
+                Blueprints.blueprints.containsKey(_blueprintID) : "Blueprint doesn't exist"
+            }
+
+            Blueprints.blueprints[_blueprintID]!.updateBlueprintSettings(
+                
+            )
+        }
+
+        pub fun addToBlueprintWhitelist(
+            
+        ) {
+            pre {
+                self.owner != nil : "Cannot perform operation while client in transit"
+                self.owner!.address == Blueprints.minterAddress : "Not the minter"
+            }
+        }
+
+        pub fun overwriteBlueprintWhitelist(
+             
+        ) {
+            pre {
+                self.owner != nil : "Cannot perform operation while client in transit"
+                self.owner!.address == Blueprints.minterAddress : "Not the minter"
+            }
+
+        }
+
         /*
 		// mintNFT mints a new NFT with a new ID
 		// and deposit it in the recipients collection using their collection reference
@@ -254,7 +320,7 @@ pub contract Blueprints: NonFungibleToken {
         }
     }
 
-	init() {
+	init(minter: Address) {
         // Initialize the total supply
         self.totalSupply = 0
 
@@ -264,26 +330,22 @@ pub contract Blueprints: NonFungibleToken {
         self.minterStoragePath = /storage/BlueprintMinter
         self.platformStoragePath = /storage/BlueprintPlatform
 
-        self.minterAddress = self.account.address
+        self.minterAddress = minter
         self.blueprintIndex = 0
         self.latestNftIndex = 0
 
-        // Create a Collection resource and save it to storage
-        let collection <- create Collection()
-        self.account.save(<-collection, to: /storage/BlueprintCollection)
+        self.defaultPlatformPrimaryFeePercentage = 20.0
+        self.defaultBlueprintSecondarySalePercentage = 7.5
+        self.defaultPlatformSecondarySalePercentage = 2.5
+        self.asyncSaleFeesRecipient = self.account.address
 
-        // create a public capability for the collection
-        self.account.link<&{NonFungibleToken.CollectionPublic}>(
-            /public/BlueprintCollection,
-            target: /storage/BlueprintCollection
-        )
-
-        // Create a Minter resource and save it to storage
+        // Create a Minter resource and save it to storage (even if minter is not deploying account)
         let minter <- create NFTMinter()
-        self.account.save(<-minter, to: Blueprint.minterStoragePath)
+        self.account.save(<- minter, to: self.minterStoragePath)
 
+        // Create a Platform resource and save it to storage
         let platform <- create Platform()
-        self.account.save(<-platform, to: Blueprint.platformStoragePath)
+        self.account.save(<-platform, to: self.platformStoragePath)
 
         emit ContractInitialized()
 	}
