@@ -29,16 +29,13 @@ pub contract Blueprints: NonFungibleToken {
     // A mapping of currency type identifiers to expected paths
     access(self) let currencyPaths: {String: Paths}
 
-    // managing claims on failed payouts and failed nft transfers
+    // managing claims on failed payouts
+
+    // A mapping of currency type identifiers to intermediary claims vaults
     access(self) let claimsVaults: @{String: FungibleToken.Vault}
-    access(self) let escrowCollection: @NonFungibleToken.Collection
 
     // A mapping of currency type identifiers to {User Addresses -> Amounts of currency they are owed}
     access(self) let payoutClaims: {String: {Address: UFix64}}
-
-    // A mapping of addresses to ids of nfts they're owed
-    access(self) let nftClaims: {Address: [UFix64]}
-
 
     pub event ContractInitialized()
     pub event Withdraw(id: UInt64, from: Address?)
@@ -209,6 +206,19 @@ pub contract Blueprints: NonFungibleToken {
             self.whitelist[user] = true
         }
 
+        pub fun updateAfterMint(
+            _nftIndex: UInt64,
+            _capacity: UInt64 
+        ) {
+            self.nftIndex = _nftIndex 
+            self.capacity = _capacity
+        }
+
+        pub fun decrementMintAmountValues(platformDecrement: UInt64, artistDecrement: UInt64) {
+            self.mintPlatformAmount = self.mintAmountPlatform - platformDecrement 
+            self.artistDecrement = self.artistDecrement - artistDecrement
+        }
+
         pub fun isUserWhitelisted(user: Address): Bool {
             if !self.whitelist.containsKey(user) {
                 return false
@@ -374,26 +384,108 @@ pub contract Blueprints: NonFungibleToken {
         access(self) fun confirmPaymentAmountAndSettleSale(
             blueprintID: UInt64,
             quantity: UInt64,
-            tokenAmount: UFix64,
+            payment: @FungibleToken.Vault,
             artist: Address
         ) {
-            
+            pre {
+                UFix64(quantity) * Blueprints.blueprints[blueprintID]!.price == payment.balance : "Purchase amount must match price"
+                Blueprints.currencyPaths.containsKey(payment.getType().identifier) : "Currency not whitelisted"
+                Blueprints.claimsVaults.containsKey(payment.getType().identifier) : "Currency not whitelisted"
+            }
+            let feeRecipients = Blueprints.blueprints[blueprintID]!.primaryFeeRecipients 
+            let feePercentages = Blueprints.blueprints[blueprintID]!.primaryFeePercentages
+            let totalPaymentAmount: UFix64 = payment.balance
+            let currency: String = payment.getType().identifier
+
+            var feesPaid: UFix64 = 0.0 
+            var i: Int = 0
+            while i < feeRecipients.length {
+                let amount: @FungibleToken.Vault <- payment.withdraw(amount: feePercentages[i] * totalPaymentAmount)
+                feesPaid = feesPaid + amount.balance 
+                payout(feeRecipients[i], amount, currency)
+
+                i = i + 1
+            }
+        }
+
+        access(self) fun payout(
+            recipient: Address,
+            amount: @FungibleToken.Vault,
+            currency: String
+        ) {
+            let receiverPath = self.currencyPaths[currency]!.public
+            let vaultReceiver = getAccount(recipient).getCapability<&{FungibleToken.Receiver}>(receiverPath).borrow()
+
+            if vaultReceiver != nil {
+                vaultReceiver!.deposit(from: <- amount)
+            } else {
+                self.payClaims(recipient: recipient, amount: <- amount, currency: currency)
+            }
+        }
+
+        access(self) fun payClaims(
+            recipient: Address, 
+            amount: @FungibleToken.Vault,
+            currency: String
+        ) {
+            var newClaim: UFix64 = 0.0
+            if self.payoutClaims[currency]![recipient] == nil {
+                newClaim = amount.balance
+            } else {
+                newClaim = self.payoutClaims[currency]![recipient]! + amount.balance
+            }
+            self.payoutClaims[currency]!.insert(key: recipient, newClaim)
+
+            let claimsVault <- self.claimsVaults.remove(key: currency)!
+            claimsVault.deposit(from: <- amount)
+
+            destroy <- self.claimsVaults.insert(key: currency, <- claimsVault)
         }
 
         access(self) fun mintQuantity(
             blueprintID: UInt64,
             quantity: UInt64,
-            nftRecipient: Address
+            nftRecipient: &{NonFungibleToken.CollectionPublic}
         ) {
+            pre {
+                Blueprints.blueprints[blueprintID]!.capacity >= quantity : "Not enough capacity to mint quantity"
+            }
+            let newTokenId: UInt64 = Blueprints.blueprints[blueprintID]!.nftIndex 
+            var newCap: UInt64 = Blueprints.blueprints[blueprintID]!.capacity 
 
+            var i: Int = 0
+            while i < quantity {
+                mint(recipient: nftRecipient, tokenId: newTokenId + i)
+                Blueprints.tokenToBlueprintID[newTokenId + i] = blueprintID 
+
+                // generate prefixHash
+                // emit event
+
+                newCap = newCap - 1
+                i = i + 1
+            }
+
+            Blueprints.blueprints[blueprintID]!.updateAfterMint(_nftIndex: newTokenId + quantity, _capacity: newCap)
         }
 
-        // purchases blueprints, optionally to a recipient
+        access(self) fun mint(
+            recipient: &{NonFungibleToken.CollectionPublic},
+            tokenId: UInt64
+        ) {
+			// create a new NFT
+			var newNFT <- create NFT(initID: tokenId)
+
+			// deposit it in the recipient's account using their reference
+            // this will fail if the reference isn't to a Blueprint collection
+			recipient.deposit(token: <-newNFT)
+        }
+
+        // purchases blueprints, optionally to a recipient other than resource owner
         pub fun purchaseBlueprints(
             blueprintID: UInt64,
             quantity: UInt64,
-            tokenAmount: UFix64,
-            _nftRecipient: Address?
+            payment: @FungibleToken.Vault,
+            nftRecipient: &{NonFungibleToken.CollectionPublic}
         ) {
             pre {
                 self.owner != nil : "Cannot perform operation while client in transit"
@@ -401,15 +493,13 @@ pub contract Blueprints: NonFungibleToken {
                 self.buyerWhitelistedOrSaleStarted(blueprintID: blueprintID, quantity: quantity, sender: self.owner!.address) : "Cannot purchase blueprints"
                 Blueprints.blueprints[blueprintID]!.capacity >= quantity : "Quantity exceeds capacity"
                 Blueprints.blueprints[blueprintID]!.maxPurchaseAmount == nil || Blueprints.blueprints[blueprintID]!.maxPurchaseAmount! >= quantity 
-                    : "Cannot buy > maxPurchaseAmount in single tx"  
+                    : "Cannot buy > maxPurchaseAmount in single tx" 
             }
-
-            let nftRecipient = _nftRecipient != nil ? _nftRecipient : self.owner!.address
 
             self.confirmPaymentAmountAndSettleSale(
                 blueprintID: blueprintID,
                 quantity: quantity,
-                tokenAmount: tokenAmount,
+                payment: <- payment,
                 artist: Blueprints.blueprints[blueprintID]!.artist
             )
 
@@ -425,10 +515,42 @@ pub contract Blueprints: NonFungibleToken {
         }
 
         // presale mint
+        pub fun presaleMint(
+            blueprintID: UInt64,
+            quantity: UInt64
+        ) {
+            pre {
+                self.owner != nil : "Cannot perform operation while client in transit"
+                Blueprints.blueprints.containsKey(blueprintID) : "Blueprint doesn't exist"
+                Blueprints.blueprints[blueprintID]!.saleState == SaleState.notStarted : "Must be prepared and not started"
+                Blueprints.minterAddress == self.owner!.address || Blueprints.blueprints[blueprintID]!.artist == self.owner!.address : "User cannot mint presale"
+            }
+            let sender: Address = self.owner!.address
+            let blueprint: Blueprint = Blueprints.blueprints[blueprintID]!
 
-        // claim nft 
+            if Blueprints.minterAddress == sender {
+                if quantity > blueprint.mintAmountPlatform {
+                    panic("Cannot mint quantity")
+                }
 
-        // claim currency
+                Blueprints.blueprints[blueprintID]!.decrementMintAmountValues(platformDecrement: quantity, artistDecrement: 0)
+            } else if blueprint.artist == sender {
+                if quantity > blueprint.mintAmountArtist {
+                    panic("Cannot mint quantity")
+                }
+
+                Blueprints.blueprints[blueprintID]!.decrementMintAmountValues(platformDecrement: 0, artistDecrement: quantity)
+            }
+
+            let nftRecipient: &{NonFungibleToken.CollectionPublic} = getAccount(sender).getCapability<&{NonFungibleToken.CollectionPublic}>(Blueprints.collectionPublicPath).borrow()
+            mintQuantity(
+                blueprintID: blueprintID,
+                quantity: quantity,
+                nftRecipient: nftRecipient
+            )
+        }
+
+        // claim amount
     }
 
     pub fun createBlueprintsClient(): @BlueprintsClient {
@@ -634,23 +756,8 @@ pub contract Blueprints: NonFungibleToken {
             emit SaleUnpaused(blueprintID: _blueprintID)
         }
 
-        /*
-		// mintNFT mints a new NFT with a new ID
-		// and deposit it in the recipients collection using their collection reference
-		pub fun mintNFT(recipient: &{NonFungibleToken.CollectionPublic}) {
-            pre {
-                self.owner != nil : "Cannot perform operation while client in transit"
-                self.owner!.address == Blueprint.minterAddress : "Not the minter"
-            }
-			// create a new NFT
-			var newNFT <- create NFT(initID: Blueprint.totalSupply)
-
-			// deposit it in the recipient's account using their reference
-			recipient.deposit(token: <-newNFT)
-
-            Blueprint.totalSupply = Blueprint.totalSupply + (1 as UInt64)
-		}
-        */
+        // update a blueprint's token uri
+        pub fun updateBlueprintTokenUri()
 	}
 
     pub fun createMinter(): @Minter {
@@ -662,6 +769,11 @@ pub contract Blueprints: NonFungibleToken {
         pub fun changeMinter(newMinter: Address) {
             Blueprints.minterAddress = newMinter
         }
+
+
+
+        // whitelist currency
+            // do check that the string follows the correct style 
     }
 
 	init(minter: Address, flowTokenCurrencyType: String, fusdCurrencyType: String) {
@@ -706,7 +818,7 @@ pub contract Blueprints: NonFungibleToken {
             )
         }
 
-        self.escrowCollection <- create Collection()
+        self.claimsCollection <- create Collection()
         self.payoutClaims = {}
         self.nftClaims = {}
 
