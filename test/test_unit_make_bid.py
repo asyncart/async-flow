@@ -92,7 +92,7 @@ def test_make_bids():
   assert "97.00000000" == send_script_and_return_result("getUsersFlowTokenBalance", args=[["Address", address("User2")]])
 
   # Check that NFT is still owned by User1 since they haven't started an auction yet
-  assert "[A.01cf0e2f2f715450.AsyncArtwork.NFT(uuid: 57, id: 1)]" == send_script_and_return_result("getNFTs", args=[["Address", address("User1")]])
+  assert "[A.01cf0e2f2f715450.AsyncArtwork.NFT(uuid: 60, id: 1)]" == send_script_and_return_result("getNFTs", args=[["Address", address("User1")]])
 
   # Instantiate auction with different currency
   create_default_nft_auction(
