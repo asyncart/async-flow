@@ -2,7 +2,7 @@
 
 import NonFungibleToken from "./NonFungibleToken.cdc"
 
-pub contract Blueprint: NonFungibleToken {
+pub contract Blueprints: NonFungibleToken {
     pub var collectionStoragePath: StoragePath
     pub var collectionPrivatePath: PrivatePath
     pub var collectionPublicPath: PublicPath
@@ -14,15 +14,89 @@ pub contract Blueprint: NonFungibleToken {
     pub var defaultPlatformPrimaryFeePercentage: UFix64
     pub var defaultBlueprintSecondarySalePercentage: UFix64
     pub var defaultPlatformSecondarySalePercentage: UFix64
-    pub var latestTokenIndex: UInt64
+    pub var latestNftIndex: UInt64
     pub var blueprintIndex: UInt64
 
     pub var asyncSaleFeesRecipient: Address
     access(self) var minterAddress: Address
 
+    // token id to blueprint id
+    access(self) let tokenToBlueprintID: {UInt64: UInt64}
+    access(self) let blueprints: {UInt64: Blueprint}
+
     pub event ContractInitialized()
     pub event Withdraw(id: UInt64, from: Address?)
     pub event Deposit(id: UInt64, to: Address?)
+
+    pub enum SaleState: UInt8 {
+        pub case notPrepared
+        pub case notStarted 
+        pub case started 
+        pub case paused
+    }
+
+    pub struct Blueprint {
+        pub var tokenUriLocked: Bool
+        pub var mintAmountArtist: UInt64 
+        pub var mintAmountPlatform: UInt64 
+        pub var capacity: UInt64 
+        pub var nftIndex: UInt64 
+        pub var maxPurchaseAmount: UInt64 
+        pub var price: UFix64
+        pub var artist: Address
+        pub var currency: String 
+        pub var baseTokenUri: String 
+        pub var saleState: SaleState
+        pub var primaryFeePercentages: [UFix64]
+        pub var secondaryFeePercentages: [UFix64]
+        pub var primaryFeeRecipients: [Address]
+        pub var secondaryFeeRecipients: [Address]
+
+        // maps whitelisted addresses to if they've claimed
+        pub var whitelist: {Address: Bool}
+
+        pub var blueprintMetadata: String
+
+        init(
+            _artist: Address,
+            _capacity: UInt64,
+            _price: UFix64,
+            _currency: String,
+            _baseTokenUri: String,
+            _initialWhitelist: {Address: Bool},
+            _mintAmountArtist: UInt64,
+            _mintAmountPlatform: UInt64,
+            _maxPurchaseAmount: UInt64,
+            _blueprintMetadata: String
+        ) {
+            pre {
+                Blueprints.isValidCurrencyFormat(_currency: _currency) : "Currency type is invalid"
+            }
+
+            self.tokenUriLocked = false
+            self.saleState = SaleState.notStarted
+            self.nftIndex = Blueprints.latestNftIndex
+            self.primaryFeePercentages = []
+            self.secondaryFeePercentages = []
+            self.primaryFeeRecipients = []
+            self.secondaryFeeRecipients = []
+
+            self.artist = _artist
+            self.capacity = _capacity
+            self.price = _price
+            self.currency = _currency
+            self.baseTokenUri = _baseTokenUri
+            self.whitelist = _initialWhitelist
+            self.mintAmountArtist = _mintAmountArtist
+            self.mintAmountPlatform = _mintAmountPlatform
+            self.maxPurchaseAmount = _maxPurchaseAmount
+            self.blueprintMetadata = _blueprintMetadata
+
+            Blueprints.latestNftIndex = Blueprints.latestNftIndex + _capacity
+        }
+    }
+
+    
 
     pub resource NFT: NonFungibleToken.INFT {
         pub let id: UInt64
@@ -93,7 +167,30 @@ pub contract Blueprint: NonFungibleToken {
     // able to mint new NFTs
     //
 	pub resource NFTMinter {
+        // setup blueprint
+        pub fun prepareBlueprint(
+            _artist: Address,
+            _capacity: UInt64,
+            _price: UFix64,
+            _currency: String,
+            _blueprintMetadata: String,
+            _baseTokenUri: String,
+            _initialWhitelist: {Address: Bool},
+            _mintAmountArtist: UInt64,
+            _mintAmountPlatform: UInt64,
+            _maxPurchaseAmount: UInt64 
+        ) {
+            pre {
+                self.owner != nil : "Cannot perform operation while client in transit"
+                self.owner!.address == Blueprints.minterAddress : "Not the minter"
+            }
 
+            Blueprints.blueprints[Blueprints.blueprintIndex] = Blueprint(
+
+            )
+            Blueprints.blueprintIndex = Blueprints.blueprintIndex + 1
+        }
+        /*
 		// mintNFT mints a new NFT with a new ID
 		// and deposit it in the recipients collection using their collection reference
 		pub fun mintNFT(recipient: &{NonFungibleToken.CollectionPublic}) {
@@ -109,6 +206,7 @@ pub contract Blueprint: NonFungibleToken {
 
             Blueprint.totalSupply = Blueprint.totalSupply + (1 as UInt64)
 		}
+        */
 	}
 
     pub fun createMinter(): @NFTMinter {
@@ -118,7 +216,7 @@ pub contract Blueprint: NonFungibleToken {
     pub resource Platform {
         // change minter
         pub fun changeMinter(newMinter: Address) {
-            Blueprint.minterAddress = newMinter
+            Blueprints.minterAddress = newMinter
         }
     }
 
@@ -131,6 +229,10 @@ pub contract Blueprint: NonFungibleToken {
         self.collectionPublicPath = /public/BlueprintCollection
         self.minterStoragePath = /storage/BlueprintMinter
         self.platformStoragePath = /storage/BlueprintPlatform
+
+        self.minterAddress = self.account.address
+        self.blueprintIndex = 0
+        self.latestNftIndex = 0
 
         // Create a Collection resource and save it to storage
         let collection <- create Collection()
