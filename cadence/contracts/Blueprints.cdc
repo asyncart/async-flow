@@ -1,6 +1,7 @@
-// Blueprint
-
 import NonFungibleToken from "./NonFungibleToken.cdc"
+import FungibleToken from "./FungibleToken.cdc"
+import FlowToken from "./FlowToken.cdc"
+import FUSD from "./FUSD.cdc"
 
 pub contract Blueprints: NonFungibleToken {
     pub var collectionStoragePath: StoragePath
@@ -27,6 +28,17 @@ pub contract Blueprints: NonFungibleToken {
 
     // A mapping of currency type identifiers to expected paths
     access(self) let currencyPaths: {String: Paths}
+
+    // managing claims on failed payouts and failed nft transfers
+    access(self) let claimsVaults: @{String: FungibleToken.Vault}
+    access(self) let escrowCollection: @NonFungibleToken.Collection
+
+    // A mapping of currency type identifiers to {User Addresses -> Amounts of currency they are owed}
+    access(self) let payoutClaims: {String: {Address: UFix64}}
+
+    // A mapping of addresses to ids of nfts they're owed
+    access(self) let nftClaims: {Address: [UFix64]}
+
 
     pub event ContractInitialized()
     pub event Withdraw(id: UInt64, from: Address?)
@@ -652,7 +664,7 @@ pub contract Blueprints: NonFungibleToken {
         }
     }
 
-	init(minter: Address) {
+	init(minter: Address, flowTokenCurrencyType: String, fusdCurrencyType: String) {
         // Initialize the total supply
         self.totalSupply = 0
 
@@ -674,8 +686,13 @@ pub contract Blueprints: NonFungibleToken {
 
         self.blueprints = {}
         self.tokenToBlueprintID = {}
+        self.currencyPaths = {}
 
         // whitelist flowToken and fusd to start
+        self.claimsVaults <- {
+            flowTokenCurrencyType: <- FlowToken.createEmptyVault(),
+            fusdCurrencyType: <- FUSD.createEmptyVault()
+        }
         self.currencyPaths = {
             flowTokenCurrencyType: Paths(
                 /public/flowTokenReceiver,
@@ -688,6 +705,10 @@ pub contract Blueprints: NonFungibleToken {
                 /storage/fusdVault
             )
         }
+
+        self.escrowCollection <- create Collection()
+        self.payoutClaims = {}
+        self.nftClaims = {}
 
         // Create a Minter resource and save it to storage (even if minter is not deploying account)
         let minter <- create Minter()
