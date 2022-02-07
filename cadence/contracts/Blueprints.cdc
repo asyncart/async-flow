@@ -70,7 +70,7 @@ pub contract Blueprints: NonFungibleToken {
         pub var mintAmountPlatform: UInt64 
         pub var capacity: UInt64 
         pub var nftIndex: UInt64 
-        pub var maxPurchaseAmount: UInt64 
+        pub var maxPurchaseAmount: UInt64? 
         pub var price: UFix64
         pub var artist: Address
         pub var currency: String 
@@ -91,13 +91,13 @@ pub contract Blueprints: NonFungibleToken {
             _mintAmountArtist: UInt64,
             _mintAmountPlatform: UInt64,
             _newSaleState: SaleState,
-            _newMaxPurchaseAmount: UInt64 
+            _newMaxPurchaseAmount: UInt64?
         ) {
             self.price = _price
             self.mintAmountArtist = _mintAmountArtist
             self.mintAmountPlatform = _mintAmountPlatform
             self.saleState = _newSaleState
-            self.maxPurchaseAmount = _newMaxPurchaseAmount
+            self.maxPurchaseAmount = _newMaxPurchaseAmount != nil ? _newMaxPurchaseAmount : self.maxPurchaseAmount
         }
 
         pub fun addToWhitelist(
@@ -170,6 +170,14 @@ pub contract Blueprints: NonFungibleToken {
             self.saleState = state
         }
 
+        pub fun claimWhitelistPiece(user: Address) {
+            pre {
+                self.whitelist.containsKey(user) : "User not in whitelist, code execution should have never reached here"
+            }
+
+            self.whitelist[user] = true
+        }
+
         pub fun isUserWhitelisted(user: Address): Bool {
             if !self.whitelist.containsKey(user) {
                 return false
@@ -187,8 +195,8 @@ pub contract Blueprints: NonFungibleToken {
             _initialWhitelist: [Address],
             _mintAmountArtist: UInt64,
             _mintAmountPlatform: UInt64,
-            _maxPurchaseAmount: UInt64,
-            _blueprintMetadata: String
+            _blueprintMetadata: String,
+            _maxPurchaseAmount: UInt64?
         ) {
             pre {
                 Blueprints.isValidCurrencyFormat(_currency: _currency) : "Currency type is invalid"
@@ -209,7 +217,7 @@ pub contract Blueprints: NonFungibleToken {
             self.baseTokenUri = _baseTokenUri
             self.mintAmountArtist = _mintAmountArtist
             self.mintAmountPlatform = _mintAmountPlatform
-            self.maxPurchaseAmount = _maxPurchaseAmount
+            self.maxPurchaseAmount = _maxPurchaseAmount != nil ? _maxPurchaseAmount : nil
             self.blueprintMetadata = _blueprintMetadata
 
             self.whitelist = {}
@@ -332,19 +340,64 @@ pub contract Blueprints: NonFungibleToken {
                 (Blueprints.blueprints[blueprintID]!.saleState == SaleState.notStarted && Blueprints.blueprints[blueprintID]!.isUserWhitelisted(user: sender))
         }
 
-        // purchases blueprints to a recipient
-        pub fun purchaseBlueprintsTo(
+        access(self) fun confirmPaymentAmountAndSettleSale(
             blueprintID: UInt64,
             quantity: UInt64,
             tokenAmount: UFix64,
+            artist: Address
+        ) {
+            
+        }
+
+        access(self) fun mintQuantity(
+            blueprintID: UInt64,
+            quantity: UInt64,
             nftRecipient: Address
+        ) {
+
+        }
+
+        // purchases blueprints, optionally to a recipient
+        pub fun purchaseBlueprints(
+            blueprintID: UInt64,
+            quantity: UInt64,
+            tokenAmount: UFix64,
+            _nftRecipient: Address?
         ) {
             pre {
                 self.owner != nil : "Cannot perform operation while client in transit"
                 Blueprints.blueprints.containsKey(blueprintID) : "Blueprint doesn't exist"
                 self.buyerWhitelistedOrSaleStarted(blueprintID: blueprintID, quantity: quantity, sender: self.owner!.address) : "Cannot purchase blueprints"
+                Blueprints.blueprints[blueprintID]!.capacity >= quantity : "Quantity exceeds capacity"
+                Blueprints.blueprints[blueprintID]!.maxPurchaseAmount == nil || Blueprints.blueprints[blueprintID]!.maxPurchaseAmount! >= quantity 
+                    : "Cannot buy > maxPurchaseAmount in single tx"  
             }
+
+            let nftRecipient = _nftRecipient != nil ? _nftRecipient : self.owner!.address
+
+            self.confirmPaymentAmountAndSettleSale(
+                blueprintID: blueprintID,
+                quantity: quantity,
+                tokenAmount: tokenAmount,
+                artist: Blueprints.blueprints[blueprintID]!.artist
+            )
+
+            if Blueprints.blueprints[blueprintID]!.saleState == SaleState.notStarted {
+                Blueprints.blueprints[blueprintID]!.claimWhitelistPiece(user: self.owner!.address)
+            }
+
+            self.mintQuantity(
+                blueprintID: blueprintID,
+                quantity: quantity,
+                nftRecipient: nftRecipient!
+            )
         }
+
+        // presale mint
+
+        // claim nft 
+
+        // claim currency
     }
 
     pub fun createBlueprintsClient(): @BlueprintsClient {
@@ -366,7 +419,7 @@ pub contract Blueprints: NonFungibleToken {
             _initialWhitelist: [Address],
             _mintAmountArtist: UInt64,
             _mintAmountPlatform: UInt64,
-            _maxPurchaseAmount: UInt64 
+            _maxPurchaseAmount: UInt64? 
         ) {
             pre {
                 self.owner != nil : "Cannot perform operation while client in transit"
@@ -382,8 +435,8 @@ pub contract Blueprints: NonFungibleToken {
                 _initialWhitelist: _initialWhitelist,
                 _mintAmountArtist: _mintAmountArtist,
                 _mintAmountPlatform: _mintAmountPlatform,
-                _maxPurchaseAmount: _maxPurchaseAmount,
-                _blueprintMetadata: _blueprintMetadata
+                _blueprintMetadata: _blueprintMetadata,
+                _maxPurchaseAmount: _maxPurchaseAmount
             )
 
             emit BlueprintPrepared(
@@ -613,7 +666,7 @@ pub contract Blueprints: NonFungibleToken {
 
         // Create a BlueprintsClient resource and save it to storage
         let blueprintsClient <- create BlueprintsClient()
-        self.account.save(<-blueprintsClient, to: self.blueprintsClientStoragePaths)
+        self.account.save(<-blueprintsClient, to: self.blueprintsClientStoragePath)
 
         emit ContractInitialized()
 	}

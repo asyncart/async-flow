@@ -3,7 +3,7 @@ import FungibleToken from "./FungibleToken.cdc"
 import FlowToken from "./FlowToken.cdc"
 import FUSD from "./FUSD.cdc"
 import AsyncArtwork from "./AsyncArtwork.cdc"
-import Blueprint from "./Blueprint.cdc"
+import Blueprints from "./Blueprints.cdc"
 
 pub contract NFTAuction {
     pub var marketplaceClientPublicPath: PublicPath
