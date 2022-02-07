@@ -819,6 +819,20 @@ pub contract Blueprints: NonFungibleToken {
                 newBaseTokenUri: newBaseTokenUri
             )
         }
+
+        pub fun revealBlueprintSeed(
+            blueprintID: UInt64,
+            randomSeed: String
+        ) {
+            pre {
+                Blueprints.blueprints.containsKey(_blueprintID) : "Blueprint doesn't exist"
+            }
+
+            emit BlueprintSeed(
+                blueprintID: blueprintID,
+                randomSeed: randomSeed
+            )
+        }
 	}
 
     pub fun createMinter(): @Minter {
@@ -826,7 +840,6 @@ pub contract Blueprints: NonFungibleToken {
     }
 
     pub resource Platform {
-        // change minter
         pub fun changeMinter(newMinter: Address) {
             Blueprints.minterAddress = newMinter
         }
@@ -840,6 +853,31 @@ pub contract Blueprints: NonFungibleToken {
             Blueprints.blueprints[_blueprintID]!.lockTokenUri()
         }
 
+        pub fun setAsyncFeeRecipient(_asyncSalesFeeRecipient: Address) {
+            Blueprints.asyncSaleFeesRecipient = _asyncSalesFeeRecipient
+        }
+
+        pub fun changeDefaultPlatformPrimaryFeePercentage(newFee: UFix64) {
+            pre {
+                newFee <= 100.0 : "Invalid fee"
+            }
+            Blueprints.defaultPlatformPrimaryFeePercentage = newFee
+        }
+
+        pub fun changeDefaultPlatformSecondaryFeePercentage(newFee: UFix64) {
+            pre {
+                newFee + Blueprints.defaultBlueprintSecondarySalePercentage <= 100.0 : "Invalid fee"
+            }
+            Blueprints.defaultPlatformSecondarySalePercentage = newFee
+        }
+
+        pub fun changeDefaultBlueprintSecondaryFeePercentage(newFee: UFix64) {
+            pre {
+                newFee + Blueprints.defaultPlatformSecondarySalePercentage <= 100.0 : "Invalid fee"
+            }
+            Blueprints.defaultBlueprintSecondarySalePercentage = newFee
+        }
+        
         // whitelist currency
             // do check that the string follows the correct style 
     }
