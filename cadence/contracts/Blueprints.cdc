@@ -244,15 +244,15 @@ pub contract Blueprints: NonFungibleToken {
         }
 
         pub fun decrementMintAmountValues(platformDecrement: UInt64, artistDecrement: UInt64) {
-            self.mintPlatformAmount = self.mintAmountPlatform - platformDecrement 
-            self.artistDecrement = self.artistDecrement - artistDecrement
+            self.mintAmountPlatform = self.mintAmountPlatform - platformDecrement 
+            self.mintAmountArtist = self.mintAmountArtist - artistDecrement
         }
 
         pub fun updateBaseTokenUri(newBaseTokenUri: String) {
             self.baseTokenUri = newBaseTokenUri
         }
 
-        pub fun lockBlueprintTokenUri() {
+        pub fun lockTokenUri() {
             self.tokenUriLocked = true
         }
 
@@ -309,7 +309,7 @@ pub contract Blueprints: NonFungibleToken {
         return self.blueprints.values
     }
 
-    pub fun getBlueprint(blueprintID: UInt64): Blueprint{BlueprintPublic} {
+    pub fun getBlueprint(blueprintID: UInt64): Blueprint{BlueprintPublic}? {
         if self.blueprints.containsKey(blueprintID) {
             return self.blueprints[blueprintID]!
         } else {
@@ -317,7 +317,7 @@ pub contract Blueprints: NonFungibleToken {
         }
     }
 
-    pub fun getBlueprintByTokenId(tokenId: UInt64) Blueprint{BlueprintPublic} {
+    pub fun getBlueprintByTokenId(tokenId: UInt64): Blueprint{BlueprintPublic}? {
         if self.tokenToBlueprintID.containsKey(tokenId) {
             let blueprintID: UInt64 = self.tokenToBlueprintID[tokenId]!
             return self.getBlueprint(blueprintID: blueprintID)
@@ -377,8 +377,6 @@ pub contract Blueprints: NonFungibleToken {
         }
 
         pub fun resolveView(_ type: Type): AnyStruct {
-            let metadata = AsyncArtwork.getNFTMetadata(tokenId: self.id)
-
             if type == Type<String>() {
                 return Blueprints.tokenURI(tokenId: self.id)
             } else {
@@ -397,8 +395,8 @@ pub contract Blueprints: NonFungibleToken {
             self.blueprints.containsKey(self.tokenToBlueprintID[tokenId]!) : "Blueprint for token doesn't exist"
         }
 
-        let baseURI = self.blueprints[self.tokenToBlueprintID[tokenId]!].baseTokenUri
-        return baseURI.concat("/").concat(tokenId.toSring()).concat("/token.json")
+        let baseURI = self.blueprints[self.tokenToBlueprintID[tokenId]!]!.baseTokenUri
+        return baseURI.concat("/").concat(tokenId.toString()).concat("/token.json")
     }
 
     pub resource Collection: NonFungibleToken.Provider, NonFungibleToken.Receiver, NonFungibleToken.CollectionPublic {
@@ -488,9 +486,15 @@ pub contract Blueprints: NonFungibleToken {
             while i < feeRecipients.length {
                 let amount: @FungibleToken.Vault <- payment.withdraw(amount: feePercentages[i] * totalPaymentAmount)
                 feesPaid = feesPaid + amount.balance 
-                payout(feeRecipients[i], amount, currency)
+                self.payout(recipient: feeRecipients[i], amount: <- amount, currency: currency)
 
                 i = i + 1
+            }
+
+            if totalPaymentAmount - feesPaid > 0.0 {
+                self.payout(recipient: artist, amount: <- payment, currency: currency)
+            } else {
+                destroy payment
             }
         }
 
@@ -499,7 +503,7 @@ pub contract Blueprints: NonFungibleToken {
             amount: @FungibleToken.Vault,
             currency: String
         ) {
-            let receiverPath = self.currencyPaths[currency]!.public
+            let receiverPath = Blueprints.currencyPaths[currency]!.public
             let vaultReceiver = getAccount(recipient).getCapability<&{FungibleToken.Receiver}>(receiverPath).borrow()
 
             if vaultReceiver != nil {
@@ -515,17 +519,17 @@ pub contract Blueprints: NonFungibleToken {
             currency: String
         ) {
             var newClaim: UFix64 = 0.0
-            if self.payoutClaims[currency]![recipient] == nil {
+            if Blueprints.payoutClaims[currency]![recipient] == nil {
                 newClaim = amount.balance
             } else {
-                newClaim = self.payoutClaims[currency]![recipient]! + amount.balance
+                newClaim = Blueprints.payoutClaims[currency]![recipient]! + amount.balance
             }
-            self.payoutClaims[currency]!.insert(key: recipient, newClaim)
+            Blueprints.payoutClaims[currency]!.insert(key: recipient, newClaim)
 
-            let claimsVault <- self.claimsVaults.remove(key: currency)!
+            let claimsVault <- Blueprints.claimsVaults.remove(key: currency)!
             claimsVault.deposit(from: <- amount)
 
-            destroy <- self.claimsVaults.insert(key: currency, <- claimsVault)
+            destroy <- Blueprints.claimsVaults.insert(key: currency, <- claimsVault)
         }
 
         access(self) fun mintQuantity(
@@ -539,9 +543,9 @@ pub contract Blueprints: NonFungibleToken {
             let newTokenId: UInt64 = Blueprints.blueprints[blueprintID]!.nftIndex 
             var newCap: UInt64 = Blueprints.blueprints[blueprintID]!.capacity 
 
-            var i: Int = 0
+            var i: UInt64 = 0
             while i < quantity {
-                mint(recipient: nftRecipient, tokenId: newTokenId + i)
+                self.mint(recipient: nftRecipient, tokenId: newTokenId + i)
                 Blueprints.tokenToBlueprintID[newTokenId + i] = blueprintID 
 
                 // generate prefixHash
@@ -628,8 +632,9 @@ pub contract Blueprints: NonFungibleToken {
                 Blueprints.blueprints[blueprintID]!.decrementMintAmountValues(platformDecrement: 0, artistDecrement: quantity)
             }
 
-            let nftRecipient: &{NonFungibleToken.CollectionPublic} = getAccount(sender).getCapability<&{NonFungibleToken.CollectionPublic}>(Blueprints.collectionPublicPath).borrow()
-            mintQuantity(
+            let nftRecipient: &{NonFungibleToken.CollectionPublic} = getAccount(sender).getCapability<&{NonFungibleToken.CollectionPublic}>(Blueprints.collectionPublicPath).borrow() 
+                ?? panic("Sender doesn't have a public receiver for a  Blueprint collection")
+            self.mintQuantity(
                 blueprintID: blueprintID,
                 quantity: quantity,
                 nftRecipient: nftRecipient
@@ -865,11 +870,11 @@ pub contract Blueprints: NonFungibleToken {
             pre {
                 self.owner != nil : "Cannot perform operation while client in transit"
                 self.owner!.address == Blueprints.minterAddress : "Not the minter"
-                Blueprints.blueprints.containsKey(_blueprintID) : "Blueprint doesn't exist"
-                !Blueprints.blueprints[_blueprintID]!.tokenUriLocked : "Blueprint URI locked"
+                Blueprints.blueprints.containsKey(blueprintID) : "Blueprint doesn't exist"
+                !Blueprints.blueprints[blueprintID]!.tokenUriLocked : "Blueprint URI locked"
             }
 
-            Blueprints.blueprints[_blueprintID]!.updateBaseTokenUri(newBaseTokenUri: newBaseTokenUri)
+            Blueprints.blueprints[blueprintID]!.updateBaseTokenUri(newBaseTokenUri: newBaseTokenUri)
             emit BlueprintTokenUriUpdated(
                 blueprintID: blueprintID,
                 newBaseTokenUri: newBaseTokenUri
@@ -881,7 +886,7 @@ pub contract Blueprints: NonFungibleToken {
             randomSeed: String
         ) {
             pre {
-                Blueprints.blueprints.containsKey(_blueprintID) : "Blueprint doesn't exist"
+                Blueprints.blueprints.containsKey(blueprintID) : "Blueprint doesn't exist"
             }
 
             emit BlueprintSeed(
@@ -902,11 +907,11 @@ pub contract Blueprints: NonFungibleToken {
 
         pub fun lockBlueprintTokenUri(blueprintID: UInt64) {
             pre {
-                Blueprints.blueprints.containsKey(_blueprintID) : "Blueprint doesn't exist"
-                !Blueprints.blueprints[_blueprintID]!.tokenUriLocked : "Blueprint URI locked"
+                Blueprints.blueprints.containsKey(blueprintID) : "Blueprint doesn't exist"
+                !Blueprints.blueprints[blueprintID]!.tokenUriLocked : "Blueprint URI locked"
             }
 
-            Blueprints.blueprints[_blueprintID]!.lockTokenUri()
+            Blueprints.blueprints[blueprintID]!.lockTokenUri()
         }
 
         pub fun setAsyncFeeRecipient(_asyncSalesFeeRecipient: Address) {
@@ -955,7 +960,7 @@ pub contract Blueprints: NonFungibleToken {
                 currencyStoragePath
             )
             Blueprints.payoutClaims.insert(key: currency, {})
-            Blueprints.claimsVaults.insert(key: currency, <- vault)
+            destroy <- Blueprints.claimsVaults.insert(key: currency, <- vault)
 
             emit CurrencyWhitelisted(currency: currency)
         }
@@ -983,7 +988,6 @@ pub contract Blueprints: NonFungibleToken {
 
         self.blueprints = {}
         self.tokenToBlueprintID = {}
-        self.currencyPaths = {}
 
         // whitelist flowToken and fusd to start
         self.claimsVaults <- {
@@ -1002,13 +1006,10 @@ pub contract Blueprints: NonFungibleToken {
                 /storage/fusdVault
             )
         }
-
-        self.claimsCollection <- create Collection()
         self.payoutClaims = {
             flowTokenCurrencyType: {},
             fusdCurrencyType: {}
         }
-        self.nftClaims = {}
 
         // Create a Minter resource and save it to storage (even if minter is not deploying account)
         let minter <- create Minter()
