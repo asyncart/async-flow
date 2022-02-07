@@ -46,6 +46,15 @@ pub contract Blueprints: NonFungibleToken {
         randomSeed: String
     )
 
+    pub event BlueprintMinted(
+        blueprintID: UInt64,
+        artist: Address,
+        purchaser: Address,
+        tokenId: UInt64,
+        newCapacity: UInt64,
+        seedPrefix: [UInt8]
+    )
+
     pub event BlueprintPrepared(
         blueprintID: UInt64,
         artist: Address,
@@ -548,8 +557,23 @@ pub contract Blueprints: NonFungibleToken {
                 self.mint(recipient: nftRecipient, tokenId: newTokenId + i)
                 Blueprints.tokenToBlueprintID[newTokenId + i] = blueprintID 
 
-                // generate prefixHash
-                // emit event
+                let block: Block = getCurrentBlock()
+                let blockHeightData: [UInt8] = block.height.toBigEndianBytes()
+                let blockTimestampData: [UInt8] = block.timestamp.toBigEndianBytes()
+                let blockViewData: [UInt8] = block.view.toBigEndianBytes()
+                let newCapData: [UInt8] = newCap.toBigEndianBytes()
+                let randomNumData: [UInt8] = unsafeRandom().toBigEndianBytes()
+                let data: [UInt8] = blockHeightData.concat(blockTimestampData).concat(blockViewData).concat(newCapData).concat(randomNumData)
+                let digest = HashAlgorithm.SHA3_256.hash(data)
+                
+                emit BlueprintMinted(
+                    blueprintID: blueprintID,
+                    artist: Blueprints.blueprints[blueprintID]!.artist,
+                    purchaser: nftRecipient.owner!.address,
+                    tokenId: newTokenId + i,
+                    newCapacity: newCap,
+                    seedPrefix: digest
+                )
 
                 newCap = newCap - 1
                 i = i + 1

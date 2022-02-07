@@ -37,7 +37,7 @@
             }
         },
         "AsyncArtwork": "./cadence/contracts/AsyncArtwork.cdc",
-        "Blueprint": "./cadence/contracts/Blueprint.cdc",
+        "Blueprints": "./cadence/contracts/Blueprints.cdc",
         "NFTAuction": "./cadence/contracts/NFTAuction.cdc"
     },
     "networks": {
@@ -48,31 +48,31 @@
     "accounts": {
         "emulator-account": {
             "address": "f8d6e0586b0a20c7",
-            "key": "d512181af068d009b4ad892917a61f64d0d49004027c900131d13bba26ebb20d"
+            "key": "075f61c10b5af4db243e3a33fca6767839f11721808d386bb977cacf693b8c88"
         },
         "AsyncArtAccount": {
             "address": "0x01cf0e2f2f715450",
-            "key": "8abb288df85b0eec229733c217cde298eec0a51028a0e22de0d6b5b3257e2508"
+            "key": "4612af2aadabbace3dba4f535bdc6e318c72762a5a70c43f4716ea6694727345"
         },
         "User1": {
             "address": "0x179b6b1cb6755e31",
-            "key": "b25398cf78e3fe7c24a4a07e3e88632239d6fe1165bfc905e57fcd9b57ac468a"
+            "key": "153a28159b9195276fad32937a9cbf01bd6821e4e784e29b4f990e40d7345b5d"
         },
         "User2": {
             "address": "0xf3fcd2c1a78f5eee",
-            "key": "c523777518c35f2827ba7aa84ba993704957b97cdd40f3270fbdf469afc430a2"
+            "key": "53b1304163fdfafd051d8d6d5b39342905d17b1575d5207b8b90d70456261acb"
         },
         "User3": {
             "address": "0xe03daebed8ca0615",
-            "key": "e1a5de9ea68d861a1a5a398ccec6be59e4d6296ac036c885fa0a44432a8a3cfe"
+            "key": "bc40059066b06b65a78dc8f040295887d438773e8f2d8bb0982ed0ba14a58b45"
         },
         "User4": {
             "address": "0x045a1763c93006ca",
-            "key": "8dc45ded986893e566e001eb3d1924a06407f4de1d046f8a48d09d63c6e88af6"
+            "key": "5156cf3393f406d87cc8e98c52eed4aa0fd8bc807bf346894e6f49c1c316388e"
         },
         "AsyncMarketplaceAccount": {
             "address": "0x120e725050340cab",
-            "key": "5d073a2dc771974087cbf42c2ffe66b75cd44454b49610f82d77f83a36d0049b"
+            "key": "e23b50622518c8d749fd564e2958f6ebc5e6e7a3923acd6ec1bf63974a9c971c"
         }
     },
     "deployments": {
@@ -83,7 +83,23 @@
             ],
             "AsyncArtAccount": [
                 "AsyncArtwork",
-                "Blueprint"
+                {
+                    "name": "Blueprints",
+                    "args": [
+                        {
+                            "type": "Address",
+                            "value": "0x01cf0e2f2f715450"
+                        },
+                        {
+                            "type": "String",
+                            "value": "A.0ae53cb6e3f42a79.FlowToken.Vault"
+                        },
+                        {
+                            "type": "String",
+                            "value": "A.f8d6e0586b0a20c7.FUSD.Vault"
+                        }
+                    ]
+                }
             ],
             "AsyncMarketplaceAccount": [
                 {
