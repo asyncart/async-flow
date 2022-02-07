@@ -79,6 +79,8 @@ pub contract Blueprints: NonFungibleToken {
         newBaseTokenUri: String
     )
 
+    pub event CurrencyWhitelisted(currency: String)
+
     pub struct Paths {
         pub var public: PublicPath
         pub var private: PrivatePath
@@ -596,6 +598,21 @@ pub contract Blueprints: NonFungibleToken {
         }
 
         // claim amount
+        pub fun claimPayout(currency: String): @FungibleToken.Vault {
+            pre {
+                self.owner != nil : "Cannot perform operation while client in transit"
+                Blueprints.payoutClaims[currency] != nil : "Currency type is not supported"
+                Blueprints.payoutClaims[currency]![self.owner!.address] != nil : "Sender does not have any payouts to claim for this currency"
+            }
+
+            let withdrawAmount: UFix64 = Blueprints.payoutClaims[currency]![self.owner!.address]!
+            let claimsVault <- Blueprints.claimsVaults.remove(key: currency)!
+            let payout: @FungibleToken.Vault <- claimsVault.withdraw(amount: withdrawAmount)
+
+            destroy <- Blueprints.claimsVaults.insert(key: currency, <- claimsVault)
+
+            return <- payout
+        }
     }
 
     pub fun createBlueprintsClient(): @BlueprintsClient {
@@ -877,9 +894,32 @@ pub contract Blueprints: NonFungibleToken {
             }
             Blueprints.defaultBlueprintSecondarySalePercentage = newFee
         }
-        
+
         // whitelist currency
-            // do check that the string follows the correct style 
+        pub fun whitelistCurrency(
+            currency: String,
+            currencyPublicPath: PublicPath,
+            currencyPrivatePath: PrivatePath,
+            currencyStoragePath: StoragePath,
+            vault: @FungibleToken.Vault
+        ) {
+            pre {
+                Blueprints.isValidCurrencyFormat(_currency: currency) : "Currency identifier is invalid"
+                !Blueprints.currencyPaths.containsKey(currency) : "Currency already whitelisted"
+                !Blueprints.claimsVaults.containsKey(currency) : "Currency already whitelisted"
+                !Blueprints.payoutClaims.containsKey(currency) : "Currency already whitelisted"
+            }
+
+            Blueprints.currencyPaths[currency] = Paths(
+                currencyPublicPath,
+                currencyPrivatePath,
+                currencyStoragePath
+            )
+            Blueprints.payoutClaims.insert(key: currency, {})
+            Blueprints.claimsVaults.insert(key: currency, <- vault)
+
+            emit CurrencyWhitelisted(currency: currency)
+        }
     }
 
 	init(minter: Address, flowTokenCurrencyType: String, fusdCurrencyType: String) {
@@ -925,7 +965,10 @@ pub contract Blueprints: NonFungibleToken {
         }
 
         self.claimsCollection <- create Collection()
-        self.payoutClaims = {}
+        self.payoutClaims = {
+            flowTokenCurrencyType: {},
+            fusdCurrencyType: {}
+        }
         self.nftClaims = {}
 
         // Create a Minter resource and save it to storage (even if minter is not deploying account)
