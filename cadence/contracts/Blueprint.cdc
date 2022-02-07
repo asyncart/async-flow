@@ -8,6 +8,7 @@ pub contract Blueprints: NonFungibleToken {
     pub var collectionPublicPath: PublicPath
     pub var minterStoragePath: StoragePath
     pub var platformStoragePath: StoragePath
+    pub var blueprintsClientStoragePath: StoragePath
 
     pub var totalSupply: UInt64
 
@@ -169,6 +170,14 @@ pub contract Blueprints: NonFungibleToken {
             self.saleState = state
         }
 
+        pub fun isUserWhitelisted(user: Address): Bool {
+            if !self.whitelist.containsKey(user) {
+                return false
+            } else {
+                return !self.whitelist[user]! 
+            }
+        }
+
         init(
             _artist: Address,
             _capacity: UInt64,
@@ -309,6 +318,37 @@ pub contract Blueprints: NonFungibleToken {
     // public function that anyone can call to create a new empty collection
     pub fun createEmptyCollection(): @NonFungibleToken.Collection {
         return <- create Collection()
+    }
+
+    pub resource BlueprintsClient {
+        // checks if the buyer is whitelisted or the sale has started
+        access(self) fun buyerWhitelistedOrSaleStarted(
+            blueprintID: UInt64,
+            quantity: UInt64,
+            sender: Address
+        ): Bool {
+            // assumes blueprint with blueprintID exists by this point
+            return Blueprints.blueprints[blueprintID]!.saleState == SaleState.started || 
+                (Blueprints.blueprints[blueprintID]!.saleState == SaleState.notStarted && Blueprints.blueprints[blueprintID]!.isUserWhitelisted(user: sender))
+        }
+
+        // purchases blueprints to a recipient
+        pub fun purchaseBlueprintsTo(
+            blueprintID: UInt64,
+            quantity: UInt64,
+            tokenAmount: UFix64,
+            nftRecipient: Address
+        ) {
+            pre {
+                self.owner != nil : "Cannot perform operation while client in transit"
+                Blueprints.blueprints.containsKey(blueprintID) : "Blueprint doesn't exist"
+                self.buyerWhitelistedOrSaleStarted(blueprintID: blueprintID, quantity: quantity, sender: self.owner!.address) : "Cannot purchase blueprints"
+            }
+        }
+    }
+
+    pub fun createBlueprintsClient(): @BlueprintsClient {
+        return <- create BlueprintsClient()
     }
 
     // Resource that an admin or something similar would own to be
@@ -549,6 +589,7 @@ pub contract Blueprints: NonFungibleToken {
         self.collectionPublicPath = /public/BlueprintCollection
         self.minterStoragePath = /storage/BlueprintMinter
         self.platformStoragePath = /storage/BlueprintPlatform
+        self.blueprintsClientStoragePath = /storage/BlueprintClient
 
         self.minterAddress = minter
         self.blueprintIndex = 0
@@ -569,6 +610,10 @@ pub contract Blueprints: NonFungibleToken {
         // Create a Platform resource and save it to storage
         let platform <- create Platform()
         self.account.save(<-platform, to: self.platformStoragePath)
+
+        // Create a BlueprintsClient resource and save it to storage
+        let blueprintsClient <- create BlueprintsClient()
+        self.account.save(<-blueprintsClient, to: self.blueprintsClientStoragePaths)
 
         emit ContractInitialized()
 	}
