@@ -1,5 +1,5 @@
 from initialize_testing_environment import main
-from transaction_handler import send_transaction
+from transaction_handler import send_transaction, send_nft_auction_transaction, send_async_artwork_transaction
 from script_handler import send_script, send_script_and_return_result
 from event_handler import check_for_event
 from utils import address, transfer_flow_token
@@ -21,10 +21,10 @@ def claim_nfts(args, signer, should_succeed, expected_result=None):
   txn_args = [["String", args[0]]]
 
   if should_succeed:
-    assert send_transaction("claimNFTs", args=txn_args, signer=signer)
+    assert send_nft_auction_transaction("claimNFTs", args=txn_args, signer=signer)
     print("Successfuly Claimed Owed NFTs")
   else:
-    assert not send_transaction("claimNFTs", args=txn_args, signer=signer)
+    assert not send_nft_auction_transaction("claimNFTs", args=txn_args, signer=signer)
     print("Failed to Claim Owed NFTs as Expected")
 
 @pytest.mark.core
@@ -69,7 +69,7 @@ def test_claim_nfts():
   send_transaction("simulateTimeDelay")
 
   # User2 unlinks their NFT receiver capability
-  send_transaction("unlinkAsyncArtworkNFTCollectionPublicCapability", signer="User2")
+  send_async_artwork_transaction("unlinkAsyncArtworkNFTCollectionPublicCapability", signer="User2")
 
   settle_auction(
     ["A.01cf0e2f2f715450.AsyncArtwork.NFT", "1"],
@@ -89,7 +89,7 @@ def test_claim_nfts():
     print("Unable to check find User2's owned NFTs as expected")
 
   # User2 relinks their NFT receiver capability before claiming their NFT back
-  send_transaction("linkAsyncArtworkNFTCollectionPublicCapability", signer="User2")
+  send_async_artwork_transaction("linkAsyncArtworkNFTCollectionPublicCapability", signer="User2")
 
   print("Relinked User2's NFT Receiver")
 

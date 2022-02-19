@@ -1,4 +1,4 @@
-import AsyncArtwork from "../contracts/AsyncArtwork.cdc"
+import AsyncArtwork from "../../contracts/AsyncArtwork.cdc"
 
 transaction(
     id: UInt64,

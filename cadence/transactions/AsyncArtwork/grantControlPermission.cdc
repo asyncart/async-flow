@@ -1,7 +1,9 @@
-import AsyncArtwork from "../contracts/AsyncArtwork.cdc"
+import AsyncArtwork from "../../contracts/AsyncArtwork.cdc"
 
 transaction(
-    id: UInt64
+    id: UInt64,
+    permissionedUser: Address,
+    grant: Bool
 ) {
     let collection: &AsyncArtwork.Collection
 
@@ -10,6 +12,10 @@ transaction(
     }
 
     execute {
-        self.collection.ownedNFTs[1] <-> self.collection.ownedNFTs[99]
+        self.collection.grantControlPermission(
+            id: id,
+            permissionedUser: permissionedUser,
+            grant: grant
+        )
     }
 }

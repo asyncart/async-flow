@@ -1,9 +1,8 @@
-import NFTAuction from "../contracts/NFTAuction.cdc"
+import NFTAuction from "../../contracts/NFTAuction.cdc"
 
 transaction(
     nftTypeIdentifier: String,
     tokenId: UInt64,
-    newMinPrice: UFix64
 ) {
     let marketplaceClient: &NFTAuction.MarketplaceClient
 
@@ -12,10 +11,9 @@ transaction(
     }
 
     execute {
-        self.marketplaceClient.updateMinimumPrice(
+        self.marketplaceClient.takeHighestBid(
             nftTypeIdentifier: nftTypeIdentifier,
-            tokenId: tokenId,
-            newMinPrice: newMinPrice
+            tokenId: tokenId
         )
     }
 }

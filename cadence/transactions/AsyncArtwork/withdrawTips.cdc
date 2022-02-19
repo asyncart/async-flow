@@ -1,5 +1,5 @@
-import AsyncArtwork from "../contracts/AsyncArtwork.cdc"
-import FungibleToken from "../contracts/FungibleToken.cdc"
+import AsyncArtwork from "../../contracts/AsyncArtwork.cdc"
+import FungibleToken from "../../contracts/FungibleToken.cdc"
 
 transaction(recipient: Address) {
     let admin: &AsyncArtwork.Admin

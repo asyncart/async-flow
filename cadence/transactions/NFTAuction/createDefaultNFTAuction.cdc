@@ -1,5 +1,5 @@
-import NonFungibleToken from "../contracts/NonFungibleToken.cdc"
-import NFTAuction from "../contracts/NFTAuction.cdc"
+import NonFungibleToken from "../../contracts/NonFungibleToken.cdc"
+import NFTAuction from "../../contracts/NFTAuction.cdc"
 
 transaction(
     nftTypeIdentifier: String,
@@ -7,10 +7,8 @@ transaction(
     currency: String,
     minPrice: UFix64,
     buyNowPrice: UFix64,
-    auctionBidPeriod: UFix64, // this is the time that the auction lasts until another bid occurs
-    bidIncreasePercentage: UFix64,
     feeRecipients: [Address],
-    feePercentages: [UFix64],
+    feePercentages: [UFix64]
 ) {
     let collectionProviderCapability: Capability<&{NonFungibleToken.Provider}>
     let collectionPublicCapability: Capability<&{NonFungibleToken.CollectionPublic}>
@@ -33,14 +31,16 @@ transaction(
             panic("Lister does not own nft")
         }
 
-        self.marketplaceClient.createNewNftAuction(
+        if nft.id != tokenId {
+            panic("User has altered their ownedNFTs mapping")
+        }
+
+        self.marketplaceClient.createDefaultNftAuction(
             nftTypeIdentifier: nft.getType().identifier,
             tokenId: tokenId,
             currency: currency,
             minPrice: minPrice,
             buyNowPrice: buyNowPrice,
-            auctionBidPeriod: auctionBidPeriod,
-            bidIncreasePercentage: bidIncreasePercentage,
             feeRecipients: feeRecipients,
             feePercentages: feePercentages,
             nftProviderCapability: self.collectionProviderCapability

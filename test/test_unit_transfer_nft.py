@@ -1,5 +1,5 @@
 from initialize_testing_environment import main
-from transaction_handler import send_transaction
+from transaction_handler import send_async_artwork_transaction
 from script_handler import send_script, send_script_and_return_result
 from event_handler import check_for_event
 from utils import address
@@ -21,14 +21,14 @@ def transfer_nft(args, signer, should_succeed):
   assert send_script("getNFT", args=[["Address", address(signer)], ["UInt64", args[0]]])
 
   if should_succeed:
-    assert send_transaction("transferNFT", args=transfer_args, signer=signer)
+    assert send_async_artwork_transaction("transferNFT", args=transfer_args, signer=signer)
     assert send_script("getNFT", args=[["Address", address(args[1])], ["UInt64", args[0]]])
     event = f'A.{address("AsyncArtwork")[2:]}.AsyncArtwork.Deposit'
     assert check_for_event(event)
     
     print("Successfully Transferred NFT")
   else:
-    assert not send_transaction("transferNFT", args=transfer_args, signer=signer)
+    assert not send_async_artwork_transaction("transferNFT", args=transfer_args, signer=signer)
     print("Transferring NFT Failed as Expected")
 
 @pytest.mark.core

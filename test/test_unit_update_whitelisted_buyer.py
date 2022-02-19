@@ -1,5 +1,5 @@
 from initialize_testing_environment import main
-from transaction_handler import send_transaction
+from transaction_handler import send_nft_auction_transaction
 from script_handler import send_script, send_script_and_return_result
 from event_handler import check_for_event
 from utils import address
@@ -20,7 +20,7 @@ def update_whitelisted_buyer(args, signer, should_succeed, expected_result=None)
   txn_args = [["String", args[0]], ["UInt64", args[1]], ["Address", args[2]]]
 
   if should_succeed:
-    assert send_transaction("updateWhitelistedBuyer", args=txn_args, signer=signer)
+    assert send_nft_auction_transaction("updateWhitelistedBuyer", args=txn_args, signer=signer)
     event = f'A.{address("NFTAuction")[2:]}.NFTAuction.WhitelistedBuyerUpdated'
     assert check_for_event(event)
     res = send_script_and_return_result("getAuction", args=[["String", args[0]], ["UInt64", args[1]]])
@@ -29,7 +29,7 @@ def update_whitelisted_buyer(args, signer, should_succeed, expected_result=None)
       assert expected_result == res
     print("Successfuly Updated Whitelisted Buyer for Sale")
   else:
-    assert not send_transaction("updateWhitelistedBuyer", args=txn_args, signer=signer)
+    assert not send_nft_auction_transaction("updateWhitelistedBuyer", args=txn_args, signer=signer)
     print("Failed to Update Whitelisted Buer For Sale as Expected")
 
 @pytest.mark.core

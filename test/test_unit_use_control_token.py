@@ -1,5 +1,5 @@
 from initialize_testing_environment import main
-from transaction_handler import send_transaction
+from transaction_handler import send_async_artwork_transaction
 from script_handler import send_script, send_script_and_return_result
 from event_handler import check_for_event
 from utils import address
@@ -26,7 +26,7 @@ def use_control_token(args, signer, should_succeed, expected_metadata="", assert
   ]
 
   if should_succeed:
-    assert send_transaction("useControlToken", args=use_args, signer=signer)
+    assert send_async_artwork_transaction("useControlToken", args=use_args, signer=signer)
     event = f'A.{address("AsyncArtwork")[2:]}.AsyncArtwork.ControlLeverUpdated'
     assert check_for_event(event)
     metadata = send_script_and_return_result("getMetadata", args=[["UInt64", args[0]]])
@@ -37,7 +37,7 @@ def use_control_token(args, signer, should_succeed, expected_metadata="", assert
     
     print("Successfully Updated Control Token")
   else:
-    assert not send_transaction("useControlToken", args=use_args, signer=signer)
+    assert not send_async_artwork_transaction("useControlToken", args=use_args, signer=signer)
     print("Updating Control Token Failed as Expected")
 
 @pytest.mark.core

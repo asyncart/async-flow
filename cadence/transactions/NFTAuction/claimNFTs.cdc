@@ -1,5 +1,5 @@
-import NFTAuction from "../contracts/NFTAuction.cdc"
-import NonFungibleToken from "../contracts/NonFungibleToken.cdc"
+import NFTAuction from "../../contracts/NFTAuction.cdc"
+import NonFungibleToken from "../../contracts/NonFungibleToken.cdc"
 
 transaction(
     nftTypeIdentifier: String

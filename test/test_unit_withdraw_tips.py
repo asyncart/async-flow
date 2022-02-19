@@ -1,5 +1,5 @@
 from initialize_testing_environment import main
-from transaction_handler import send_transaction
+from transaction_handler import send_async_artwork_transaction
 from script_handler import send_script, send_script_and_return_result
 from event_handler import check_for_event
 from utils import address, transfer_flow_token
@@ -21,7 +21,7 @@ def withdraw_tips(args, signer, should_succeed):
   if should_succeed:
     original_tip_balance = send_script_and_return_result("getTipBalance")
     original_recipient_balance = send_script_and_return_result("getFlowTokenVaultBalance", args=args)
-    assert send_transaction("withdrawTips", args=args, signer=signer)
+    assert send_async_artwork_transaction("withdrawTips", args=args, signer=signer)
     assert 0.0 == float(send_script_and_return_result("getTipBalance"))
     assert float(original_recipient_balance) + float(original_tip_balance) == float(send_script_and_return_result("getFlowTokenVaultBalance", args=args))
 
@@ -30,7 +30,7 @@ def withdraw_tips(args, signer, should_succeed):
     assert check_for_event('A.0ae53cb6e3f42a79.FlowToken.TokensWithdrawn')
     print("Successfully Withdrew Tips")
   else:
-    assert not send_transaction("withdrawTips", args=args, signer=signer)
+    assert not send_async_artwork_transaction("withdrawTips", args=args, signer=signer)
     print("Withdrawing Tips Failed as Expected")
 
 @pytest.mark.core

@@ -1,5 +1,5 @@
 from initialize_testing_environment import main
-from transaction_handler import send_transaction
+from transaction_handler import send_transaction, send_nft_auction_transaction
 from script_handler import send_script, send_script_and_return_result
 from event_handler import check_for_event
 from utils import address, transfer_flow_token
@@ -19,7 +19,7 @@ def settle_auction(args, signer, should_succeed, expected_result=None):
   txn_args = [["String", args[0]], ["UInt64", args[1]]]
 
   if should_succeed:
-    assert send_transaction("settleAuction", args=txn_args, signer=signer)
+    assert send_nft_auction_transaction("settleAuction", args=txn_args, signer=signer)
     event = f'A.{address("NFTAuction")[2:]}.NFTAuction.AuctionSettled'
     assert check_for_event(event)
     result = send_script_and_return_result("getAuction", args=[["String", args[0]], ["UInt64", args[1]]])
@@ -28,7 +28,7 @@ def settle_auction(args, signer, should_succeed, expected_result=None):
       assert expected_result == result
     print("Successfuly Settled Auction")
   else:
-    assert not send_transaction("settleAuction", args=txn_args, signer=signer)
+    assert not send_nft_auction_transaction("settleAuction", args=txn_args, signer=signer)
     print("Failed to Settle Auction as Expected")
 
 @pytest.mark.core

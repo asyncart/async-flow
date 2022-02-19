@@ -1,5 +1,5 @@
 from initialize_testing_environment import main
-from transaction_handler import send_transaction
+from transaction_handler import send_nft_auction_transaction
 from script_handler import send_script, send_script_and_return_result
 from event_handler import check_for_event
 from utils import address
@@ -18,7 +18,7 @@ def create_new_nft_auction(args, signer, should_succeed, expected_auction_result
   auction_args = [["String", args[0]], ["UInt64", args[1]], ["String", args[2]], ["UFix64", args[3]], ["UFix64", args[4]], ["UFix64", args[5]], ["UFix64", args[6]], ["Array", fee_recipients], ["Array", fee_percentages]]
 
   if should_succeed:
-    assert send_transaction("createNewArtAuction", args=auction_args, signer=signer)
+    assert send_nft_auction_transaction("createNewArtAuction", args=auction_args, signer=signer)
     event = f'A.{address("NFTAuction")[2:]}.NFTAuction.NftAuctionCreated'
     assert check_for_event(event)
     auction_result = send_script_and_return_result("getAuction", args=[["String", args[0]], ["UInt64", args[1]]])
@@ -27,7 +27,7 @@ def create_new_nft_auction(args, signer, should_succeed, expected_auction_result
       assert expected_auction_result == auction_result
     print("Successfuly Created NFT Auction")
   else:
-    assert not send_transaction("createNewArtAuction", args=auction_args, signer=signer)
+    assert not send_nft_auction_transaction("createNewArtAuction", args=auction_args, signer=signer)
     print("Failed to Create NFT Auction as expected")
 
 @pytest.mark.core

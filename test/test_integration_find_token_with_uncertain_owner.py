@@ -1,5 +1,5 @@
 from initialize_testing_environment import main
-from transaction_handler import send_transaction
+from transaction_handler import send_transaction, send_async_artwork_transaction
 from script_handler import send_script, send_script_and_return_result
 from event_handler import check_for_event
 from utils import address
@@ -19,7 +19,7 @@ def mint_master_token(args, signer, should_succeed, expected_master_mint_res, ex
   mint_args = [["UInt64", args[0]], ["String", args[1]], ["Array", control_token_artists], ["Array", unique_artists]]
 
   if should_succeed:
-    assert send_transaction("mintMasterToken", args=mint_args, signer=signer)
+    assert send_async_artwork_transaction("mintMasterToken", args=mint_args, signer=signer)
     event = f'A.{address("AsyncArtwork")[2:]}.AsyncArtwork.Deposit'
     assert check_for_event(event)
     assert expected_master_mint_res == send_script_and_return_result("getMasterMintReservation", args=[["Address", address(signer)]])
@@ -30,7 +30,7 @@ def mint_master_token(args, signer, should_succeed, expected_master_mint_res, ex
     # Maybe add an asertion about the on-contract metadata
     print("Successfuly Minted Master NFT to Creator")
   else:
-    assert not send_transaction("mintMasterToken", args=mint_args, signer=signer)
+    assert not send_async_artwork_transaction("mintMasterToken", args=mint_args, signer=signer)
     print("Minting Master Token Failed as Expected")
 
 def test_mint_master_token():
@@ -58,7 +58,7 @@ def test_mint_master_token():
     assert_metadata=True
   )
 
-  send_transaction("hideNFT", args=[["UInt64", "1"]], signer="User1")
+  send_async_artwork_transaction("hideNFT", args=[["UInt64", "1"]], signer="User1")
 
   print(send_script_and_return_result("getNFTsWithUncertainOwner"))
 

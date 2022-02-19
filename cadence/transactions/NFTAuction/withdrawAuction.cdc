@@ -1,4 +1,4 @@
-import NFTAuction from "../contracts/NFTAuction.cdc"
+import NFTAuction from "../../contracts/NFTAuction.cdc"
 
 transaction(
     nftTypeIdentifier: String,
@@ -11,7 +11,7 @@ transaction(
     }
 
     execute {
-        self.marketplaceClient.withdrawBid(
+        self.marketplaceClient.withdrawAuction(
             nftTypeIdentifier: nftTypeIdentifier,
             tokenId: tokenId
         )

@@ -1,8 +1,9 @@
-import NFTAuction from "../contracts/NFTAuction.cdc"
+import NFTAuction from "../../contracts/NFTAuction.cdc"
 
 transaction(
     nftTypeIdentifier: String,
     tokenId: UInt64,
+    newBuyNowPrice: UFix64
 ) {
     let marketplaceClient: &NFTAuction.MarketplaceClient
 
@@ -11,9 +12,10 @@ transaction(
     }
 
     execute {
-        self.marketplaceClient.settleAuction(
+        self.marketplaceClient.updateBuyNowPrice(
             nftTypeIdentifier: nftTypeIdentifier,
-            tokenId: tokenId
+            tokenId: tokenId,
+            newBuyNowPrice: newBuyNowPrice
         )
     }
 }

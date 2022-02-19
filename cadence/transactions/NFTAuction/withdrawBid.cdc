@@ -1,9 +1,8 @@
-import NFTAuction from "../contracts/NFTAuction.cdc"
+import NFTAuction from "../../contracts/NFTAuction.cdc"
 
 transaction(
     nftTypeIdentifier: String,
     tokenId: UInt64,
-    newWhitelistedBuyer: Address
 ) {
     let marketplaceClient: &NFTAuction.MarketplaceClient
 
@@ -12,10 +11,9 @@ transaction(
     }
 
     execute {
-        self.marketplaceClient.updateWhitelistedBuyer(
+        self.marketplaceClient.withdrawBid(
             nftTypeIdentifier: nftTypeIdentifier,
-            tokenId: tokenId,
-            newWhitelistedBuyer: newWhitelistedBuyer
+            tokenId: tokenId
         )
     }
 }

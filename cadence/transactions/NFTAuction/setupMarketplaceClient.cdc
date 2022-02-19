@@ -1,4 +1,4 @@
-import NFTAuction from "../contracts/NFTAuction.cdc"
+import NFTAuction from "../../contracts/NFTAuction.cdc"
 
 transaction() {
     prepare(acct: AuthAccount) {

@@ -1,9 +1,9 @@
-import NFTAuction from "../contracts/NFTAuction.cdc"
+import NFTAuction from "../../contracts/NFTAuction.cdc"
 
 transaction(
     nftTypeIdentifier: String,
     tokenId: UInt64,
-    newBuyNowPrice: UFix64
+    newWhitelistedBuyer: Address
 ) {
     let marketplaceClient: &NFTAuction.MarketplaceClient
 
@@ -12,10 +12,10 @@ transaction(
     }
 
     execute {
-        self.marketplaceClient.updateBuyNowPrice(
+        self.marketplaceClient.updateWhitelistedBuyer(
             nftTypeIdentifier: nftTypeIdentifier,
             tokenId: tokenId,
-            newBuyNowPrice: newBuyNowPrice
+            newWhitelistedBuyer: newWhitelistedBuyer
         )
     }
 }

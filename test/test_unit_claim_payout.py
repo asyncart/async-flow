@@ -1,5 +1,5 @@
 from initialize_testing_environment import main
-from transaction_handler import send_transaction
+from transaction_handler import send_transaction, send_nft_auction_transaction
 from script_handler import send_script, send_script_and_return_result
 from event_handler import check_for_event
 from utils import address, transfer_flow_token
@@ -18,10 +18,10 @@ def claim_payout(args, signer, should_succeed, expected_result=None):
   txn_args = [["String", args[0]]]
 
   if should_succeed:
-    assert send_transaction("claimPayout", args=txn_args, signer=signer)
+    assert send_nft_auction_transaction("claimPayout", args=txn_args, signer=signer)
     print("Successfuly Claimed Payout")
   else:
-    assert not send_transaction("claimPayout", args=txn_args, signer=signer)
+    assert not send_nft_auction_transaction("claimPayout", args=txn_args, signer=signer)
     print("Failed to Claim Payment as Expected")
 
 @pytest.mark.core

@@ -1,5 +1,5 @@
 from initialize_testing_environment import main
-from transaction_handler import send_transaction
+from transaction_handler import send_transaction, send_nft_auction_transaction
 from script_handler import send_script, send_script_and_return_result
 from event_handler import check_for_event
 from utils import address, transfer_flow_token
@@ -17,7 +17,7 @@ def make_custom_bid(args, signer, should_succeed, expected_result=None):
   txn_args = [["String", args[0]], ["UInt64", args[1]], ["String", args[2]], ["UFix64", args[3]], ["Address", args[4]]]
 
   if should_succeed:
-    assert send_transaction("makeCustomBid", args=txn_args, signer=signer)
+    assert send_nft_auction_transaction("makeCustomBid", args=txn_args, signer=signer)
     event = f'A.{address("NFTAuction")[2:]}.NFTAuction.BidMade'
     assert check_for_event(event)
     result = send_script_and_return_result("getAuction", args=[["String", args[0]], ["UInt64", args[1]]])
@@ -26,7 +26,7 @@ def make_custom_bid(args, signer, should_succeed, expected_result=None):
       assert expected_result == result
     print("Successfuly Placed Custom Bid")
   else:
-    assert not send_transaction("makeCustomBid", args=txn_args, signer=signer)
+    assert not send_nft_auction_transaction("makeCustomBid", args=txn_args, signer=signer)
     print("Failed to Make Custom Bid as expected")
 
 @pytest.mark.core

@@ -1,5 +1,5 @@
 from initialize_testing_environment import main
-from transaction_handler import send_transaction
+from transaction_handler import send_async_artwork_transaction
 from script_handler import send_script, send_script_and_return_result
 from event_handler import check_for_event
 from utils import address
@@ -29,7 +29,7 @@ def mint_control_token(args, signer, should_succeed, expected_control_mint_reser
   ]
 
   if should_succeed:
-    assert send_transaction("mintControlToken", args=mint_args, signer=signer)
+    assert send_async_artwork_transaction("mintControlToken", args=mint_args, signer=signer)
     event = f'A.{address("AsyncArtwork")[2:]}.AsyncArtwork.Deposit'
     assert check_for_event(event)
     assert expected_control_mint_reservation == send_script_and_return_result("getControlMintReservation", args=[["Address", address(signer)]])
@@ -40,7 +40,7 @@ def mint_control_token(args, signer, should_succeed, expected_control_mint_reser
     
     print("Successfully Minted Control Token")
   else:
-    assert not send_transaction("mintControlToken", args=mint_args, signer=signer)
+    assert not send_async_artwork_transaction("mintControlToken", args=mint_args, signer=signer)
     print("Minting Control Token Failed as Expected")
 
 

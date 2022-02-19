@@ -1,11 +1,11 @@
 from initialize_testing_environment import main
-from transaction_handler import send_transaction
+from transaction_handler import send_async_artwork_transaction
 from script_handler import send_script, send_script_and_return_result
 from event_handler import check_for_event
 import pytest
 
 def setup_async_user(signer):
-  assert send_transaction("setupAsyncUser", signer=signer)
+  assert send_async_artwork_transaction("setupAsyncUser", signer=signer)
   print("Successfully Created Collection")
 
 @pytest.mark.core

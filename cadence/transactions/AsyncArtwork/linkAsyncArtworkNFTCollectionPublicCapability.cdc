@@ -1,5 +1,5 @@
-import NonFungibleToken from "../contracts/NonFungibleToken.cdc"
-import AsyncArtwork from "../contracts/AsyncArtwork.cdc"
+import NonFungibleToken from "../../contracts/NonFungibleToken.cdc"
+import AsyncArtwork from "../../contracts/AsyncArtwork.cdc"
 
 transaction() {
     prepare(acct: AuthAccount) {

@@ -1,5 +1,5 @@
-import FungibleToken from "../contracts/FungibleToken.cdc"
-import NFTAuction from "../contracts/NFTAuction.cdc"
+import FungibleToken from "../../contracts/FungibleToken.cdc"
+import NFTAuction from "../../contracts/NFTAuction.cdc"
 
 transaction(
     currency: String

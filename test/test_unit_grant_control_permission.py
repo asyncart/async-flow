@@ -1,5 +1,5 @@
 from initialize_testing_environment import main
-from transaction_handler import send_transaction
+from transaction_handler import send_async_artwork_transaction
 from script_handler import send_script, send_script_and_return_result
 from event_handler import check_for_event
 from utils import address
@@ -17,13 +17,13 @@ def grant_control_permission(args, signer, should_succeed, expected_control_upda
   grant_args = [["UInt64", args[0]], ["Address", address(args[1])], ["Bool", args[2]]]
 
   if should_succeed:
-    assert send_transaction("grantControlPermission", args=grant_args, signer=signer)
+    assert send_async_artwork_transaction("grantControlPermission", args=grant_args, signer=signer)
     event = f'A.{address("AsyncArtwork")[2:]}.AsyncArtwork.PermissionUpdated'
     assert check_for_event(event)
     assert expected_control_update == send_script_and_return_result("getControlUpdate", args=[["Address", address(args[1])]])
     print("Successfuly Updated Control Permission for User")
   else:
-    assert not send_transaction("grantControlPermission", args=grant_args, signer=signer)
+    assert not send_async_artwork_transaction("grantControlPermission", args=grant_args, signer=signer)
     print("Updating Control Permission Failed as Expected")
 
 @pytest.mark.core
