@@ -25,6 +25,11 @@ jobs:
       run: |
         # stop the build if there are Python syntax errors or undefined names
         flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
+    - name: Setup Testing Env
+      run: |
+        # Configure python path for test suite
+        chmod +x setup_testing_env.sh
+        source ./setup_testing_env.sh
     - name: Test with pytest
       run: |
         pytest -m core --disable-warnings
@@ -47,6 +52,11 @@ jobs:
       run: |
         # stop the build if there are Python syntax errors or undefined names
         flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
+    - name: Setup Testing Env
+      run: |
+        # Configure python path for test suite
+        chmod +x setup_testing_env.sh
+        source ./setup_testing_env.sh
     - name: Test with pytest
       run: |
         pytest -v -m "not core"
