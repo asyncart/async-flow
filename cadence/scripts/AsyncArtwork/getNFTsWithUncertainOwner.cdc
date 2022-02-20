@@ -1,5 +1,5 @@
-import AsyncArtwork from "../contracts/AsyncArtwork.cdc"
-import NonFungibleToken from "../contracts/NonFungibleToken.cdc"
+import AsyncArtwork from "../../contracts/AsyncArtwork.cdc"
+import NonFungibleToken from "../../contracts/NonFungibleToken.cdc"
 
 pub fun main(): [UInt64] {
   let allNFTs = AsyncArtwork.getAllNFTs()

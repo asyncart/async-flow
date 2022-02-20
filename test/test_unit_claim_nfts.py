@@ -1,6 +1,6 @@
 from initialize_testing_environment import main
 from transaction_handler import send_transaction, send_nft_auction_transaction, send_async_artwork_transaction
-from script_handler import send_script, send_script_and_return_result
+from script_handler import send_script, send_script_and_return_result, send_async_artwork_script_and_return_result
 from event_handler import check_for_event
 from utils import address, transfer_flow_token
 import pytest
@@ -80,11 +80,11 @@ def test_claim_nfts():
   assert "4.00000000" == send_script_and_return_result("getUsersFlowTokenBalance", args=[["Address", address("User1")]])
   assert "96.00000000" == send_script_and_return_result("getUsersFlowTokenBalance", args=[["Address", address("User2")]])
 
-  assert "[]" == send_script_and_return_result("getNFTs", args=[["Address", address("User1")]])
+  assert "[]" == send_async_artwork_script_and_return_result("getNFTs", args=[["Address", address("User1")]])
   
   # Confirm that user2 did not recieve the NFT back
   try:
-    send_script_and_return_result("getNFTs", args=[["Address", address("User2")]])
+    send_async_artwork_script_and_return_result("getNFTs", args=[["Address", address("User2")]])
   except subprocess.CalledProcessError:
     print("Unable to check find User2's owned NFTs as expected")
 
@@ -114,7 +114,7 @@ def test_claim_nfts():
   )
 
   # Confirm that user2 did get the NFT back, after claims
-  assert "[A.01cf0e2f2f715450.AsyncArtwork.NFT(uuid: 60, id: 1)]" == send_script_and_return_result("getNFTs", args=[["Address", address("User2")]])
+  assert "[A.01cf0e2f2f715450.AsyncArtwork.NFT(uuid: 60, id: 1)]" == send_async_artwork_script_and_return_result("getNFTs", args=[["Address", address("User2")]])
 
 if __name__ == '__main__':
   test_claim_nfts()

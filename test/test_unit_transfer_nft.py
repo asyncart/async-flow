@@ -1,6 +1,6 @@
 from initialize_testing_environment import main
 from transaction_handler import send_async_artwork_transaction
-from script_handler import send_script, send_script_and_return_result
+from script_handler import send_async_artwork_script_and_return_result
 from event_handler import check_for_event
 from utils import address
 import json
@@ -18,11 +18,11 @@ from test_unit_use_control_token import use_control_token
 def transfer_nft(args, signer, should_succeed):
   transfer_args = [["UInt64", args[0]], ["Address", address(args[1])]]
 
-  assert send_script("getNFT", args=[["Address", address(signer)], ["UInt64", args[0]]])
+  assert send_async_artwork_script_and_return_result("getNFT", args=[["Address", address(signer)], ["UInt64", args[0]]])
 
   if should_succeed:
     assert send_async_artwork_transaction("transferNFT", args=transfer_args, signer=signer)
-    assert send_script("getNFT", args=[["Address", address(args[1])], ["UInt64", args[0]]])
+    assert send_async_artwork_script_and_return_result("getNFT", args=[["Address", address(args[1])], ["UInt64", args[0]]])
     event = f'A.{address("AsyncArtwork")[2:]}.AsyncArtwork.Deposit'
     assert check_for_event(event)
     

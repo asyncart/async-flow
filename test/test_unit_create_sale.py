@@ -1,6 +1,6 @@
 from initialize_testing_environment import main
 from transaction_handler import send_nft_auction_transaction
-from script_handler import send_script, send_script_and_return_result
+from script_handler import send_nft_auction_script_and_return_result
 from event_handler import check_for_event
 from utils import address
 import pytest
@@ -21,7 +21,7 @@ def create_new_sale(args, signer, should_succeed, expected_auction_result=None):
     assert send_nft_auction_transaction("createArtSale", args=auction_args, signer=signer)
     event = f'A.{address("NFTAuction")[2:]}.NFTAuction.SaleCreated'
     assert check_for_event(event)
-    auction_result = send_script_and_return_result("getAuction", args=[["String", args[0]], ["UInt64", args[1]]])
+    auction_result = send_nft_auction_script_and_return_result("getAuction", args=[["String", args[0]], ["UInt64", args[1]]])
     print(auction_result)
     if expected_auction_result != None:
       assert expected_auction_result == auction_result

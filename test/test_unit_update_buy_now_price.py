@@ -1,6 +1,6 @@
 from initialize_testing_environment import main
 from transaction_handler import send_nft_auction_transaction
-from script_handler import send_script, send_script_and_return_result
+from script_handler import send_nft_auction_script_and_return_result
 from event_handler import check_for_event
 from utils import address
 import pytest
@@ -23,7 +23,7 @@ def update_buy_now_price(args, signer, should_succeed, expected_result=None):
     assert send_nft_auction_transaction("updateBuyNowPrice", args=txn_args, signer=signer)
     event = f'A.{address("NFTAuction")[2:]}.NFTAuction.BuyNowPriceUpdated'
     assert check_for_event(event)
-    res = send_script_and_return_result("getAuction", args=[["String", args[0]], ["UInt64", args[1]]])
+    res = send_nft_auction_script_and_return_result("getAuction", args=[["String", args[0]], ["UInt64", args[1]]])
     print(res)
     if expected_result != None:
       assert expected_result == res

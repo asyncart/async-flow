@@ -1,6 +1,6 @@
 from initialize_testing_environment import main
 from transaction_handler import send_transaction, send_nft_auction_transaction
-from script_handler import send_script, send_script_and_return_result
+from script_handler import send_script, send_script_and_return_result, send_async_artwork_script_and_return_result, send_nft_auction_script_and_return_result
 from event_handler import check_for_event
 from utils import address, transfer_flow_token
 import pytest
@@ -20,7 +20,7 @@ def make_custom_bid(args, signer, should_succeed, expected_result=None):
     assert send_nft_auction_transaction("makeCustomBid", args=txn_args, signer=signer)
     event = f'A.{address("NFTAuction")[2:]}.NFTAuction.BidMade'
     assert check_for_event(event)
-    result = send_script_and_return_result("getAuction", args=[["String", args[0]], ["UInt64", args[1]]])
+    result = send_nft_auction_script_and_return_result("getAuction", args=[["String", args[0]], ["UInt64", args[1]]])
     print(result)
     if expected_result != None:
       assert expected_result == result
@@ -92,7 +92,7 @@ def test_make_custom_bids():
   assert "97.00000000" == send_script_and_return_result("getUsersFlowTokenBalance", args=[["Address", address("User2")]])
 
   # Check that NFT is still owned by User1 since they haven't started an auction yet
-  assert "[A.01cf0e2f2f715450.AsyncArtwork.NFT(uuid: 60, id: 1)]" == send_script_and_return_result("getNFTs", args=[["Address", address("User1")]])
+  assert "[A.01cf0e2f2f715450.AsyncArtwork.NFT(uuid: 60, id: 1)]" == send_async_artwork_script_and_return_result("getNFTs", args=[["Address", address("User1")]])
 
   create_default_nft_auction(
     ["A.01cf0e2f2f715450.AsyncArtwork.NFT", "1", "A.0ae53cb6e3f42a79.FlowToken.Vault", "2.0", "5.0", [], []],

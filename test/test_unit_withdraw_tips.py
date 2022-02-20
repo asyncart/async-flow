@@ -1,6 +1,6 @@
 from initialize_testing_environment import main
 from transaction_handler import send_async_artwork_transaction
-from script_handler import send_script, send_script_and_return_result
+from script_handler import send_script, send_script_and_return_result, send_async_artwork_script_and_return_result
 from event_handler import check_for_event
 from utils import address, transfer_flow_token
 import json
@@ -19,10 +19,10 @@ from test_unit_use_control_token import use_control_token
 def withdraw_tips(args, signer, should_succeed):
   args = [["Address", address(args[0])]]
   if should_succeed:
-    original_tip_balance = send_script_and_return_result("getTipBalance")
+    original_tip_balance = send_async_artwork_script_and_return_result("getTipBalance")
     original_recipient_balance = send_script_and_return_result("getFlowTokenVaultBalance", args=args)
     assert send_async_artwork_transaction("withdrawTips", args=args, signer=signer)
-    assert 0.0 == float(send_script_and_return_result("getTipBalance"))
+    assert 0.0 == float(send_async_artwork_script_and_return_result("getTipBalance"))
     assert float(original_recipient_balance) + float(original_tip_balance) == float(send_script_and_return_result("getFlowTokenVaultBalance", args=args))
 
     # FlowToken always deployed to hardcoded address on emulator

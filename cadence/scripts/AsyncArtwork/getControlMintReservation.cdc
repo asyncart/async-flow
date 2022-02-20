@@ -1,4 +1,4 @@
-import AsyncArtwork from "../contracts/AsyncArtwork.cdc"
+import AsyncArtwork from "../../contracts/AsyncArtwork.cdc"
 
 pub fun main(user: Address): {UInt64: UInt64} {
     let account = getAccount(user)

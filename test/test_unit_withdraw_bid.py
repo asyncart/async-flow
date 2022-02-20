@@ -1,6 +1,6 @@
 from initialize_testing_environment import main
 from transaction_handler import send_nft_auction_transaction
-from script_handler import send_script, send_script_and_return_result
+from script_handler import send_script, send_script_and_return_result, send_nft_auction_script_and_return_result
 from event_handler import check_for_event
 from utils import address, transfer_flow_token
 import pytest
@@ -22,7 +22,7 @@ def withdraw_bid(args, signer, should_succeed, expected_result=None):
     assert send_nft_auction_transaction("withdrawBid", args=txn_args, signer=signer)
     event = f'A.{address("NFTAuction")[2:]}.NFTAuction.BidWithdrawn'
     assert check_for_event(event)
-    result = send_script_and_return_result("getAuction", args=[["String", args[0]], ["UInt64", args[1]]])
+    result = send_nft_auction_script_and_return_result("getAuction", args=[["String", args[0]], ["UInt64", args[1]]])
     print(result)
     if expected_result != None:
       assert expected_result == result

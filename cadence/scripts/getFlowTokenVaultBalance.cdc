@@ -1,4 +1,3 @@
-import AsyncArtwork from "../contracts/AsyncArtwork.cdc"
 import FungibleToken from "../contracts/FungibleToken.cdc"
 
 pub fun main(user: Address): UFix64 {

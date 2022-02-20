@@ -1,5 +1,5 @@
-import AsyncArtwork from "../contracts/AsyncArtwork.cdc"
-import NonFungibleToken from "../contracts/NonFungibleToken.cdc"
+import AsyncArtwork from "../../contracts/AsyncArtwork.cdc"
+import NonFungibleToken from "../../contracts/NonFungibleToken.cdc"
 
 pub fun main(user: Address): [&NonFungibleToken.NFT] {
     let account = getAccount(user)

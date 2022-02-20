@@ -1,6 +1,6 @@
 from initialize_testing_environment import main
 from transaction_handler import send_async_artwork_transaction
-from script_handler import send_script, send_script_and_return_result
+from script_handler import send_async_artwork_script_and_return_result
 from event_handler import check_for_event
 from utils import address
 import json
@@ -20,7 +20,7 @@ def grant_control_permission(args, signer, should_succeed, expected_control_upda
     assert send_async_artwork_transaction("grantControlPermission", args=grant_args, signer=signer)
     event = f'A.{address("AsyncArtwork")[2:]}.AsyncArtwork.PermissionUpdated'
     assert check_for_event(event)
-    assert expected_control_update == send_script_and_return_result("getControlUpdate", args=[["Address", address(args[1])]])
+    assert expected_control_update == send_async_artwork_script_and_return_result("getControlUpdate", args=[["Address", address(args[1])]])
     print("Successfuly Updated Control Permission for User")
   else:
     assert not send_async_artwork_transaction("grantControlPermission", args=grant_args, signer=signer)

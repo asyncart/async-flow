@@ -1,6 +1,6 @@
 from initialize_testing_environment import main
 from transaction_handler import send_async_artwork_transaction
-from script_handler import send_script, send_script_and_return_result
+from script_handler import send_async_artwork_script_and_return_result
 from event_handler import check_for_event
 from utils import address
 import pytest
@@ -11,8 +11,8 @@ def update_platform_default_sales_percentages(args, signer, should_succeed):
   newPlatformFeePercentages = [["UFix64", args[0]], ["UFix64", args[1]]]
   if should_succeed:
     assert send_async_artwork_transaction("updatePlatformFeePercentages", args=newPlatformFeePercentages, signer=signer)
-    assert float(args[0]) == float(send_script_and_return_result("getDefaultPlatformFirstSalePercentage"))
-    assert float(args[1])== float(send_script_and_return_result("getDefaultPlatformSecondSalePercentage"))
+    assert float(args[0]) == float(send_async_artwork_script_and_return_result("getDefaultPlatformFirstSalePercentage"))
+    assert float(args[1])== float(send_async_artwork_script_and_return_result("getDefaultPlatformSecondSalePercentage"))
     assert check_for_event(f'A.{address("AsyncArtwork")[2:]}.AsyncArtwork.DefaultPlatformSalePercentageUpdated')
     print("Successfully Updated Default Platform Sales Percentages")
   else:

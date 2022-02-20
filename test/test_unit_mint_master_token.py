@@ -1,6 +1,6 @@
 from initialize_testing_environment import main
 from transaction_handler import send_async_artwork_transaction
-from script_handler import send_script, send_script_and_return_result
+from script_handler import send_async_artwork_script_and_return_result
 from event_handler import check_for_event
 from utils import address
 import json
@@ -21,8 +21,8 @@ def mint_master_token(args, signer, should_succeed, expected_master_mint_res, ex
     assert send_async_artwork_transaction("mintMasterToken", args=mint_args, signer=signer)
     event = f'A.{address("AsyncArtwork")[2:]}.AsyncArtwork.Deposit'
     assert check_for_event(event)
-    assert expected_master_mint_res == send_script_and_return_result("getMasterMintReservation", args=[["Address", address(signer)]])
-    metadata = send_script_and_return_result("getMetadata", args=[["UInt64", args[0]]])
+    assert expected_master_mint_res == send_async_artwork_script_and_return_result("getMasterMintReservation", args=[["Address", address(signer)]])
+    metadata = send_async_artwork_script_and_return_result("getMetadata", args=[["UInt64", args[0]]])
     print(metadata)
     if assert_metadata:
       assert metadata == expected_metadata

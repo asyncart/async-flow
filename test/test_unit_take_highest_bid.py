@@ -1,6 +1,6 @@
 from initialize_testing_environment import main
 from transaction_handler import send_nft_auction_transaction
-from script_handler import send_script, send_script_and_return_result
+from script_handler import send_script, send_script_and_return_result, send_async_artwork_script_and_return_result, send_nft_auction_script_and_return_result
 from event_handler import check_for_event
 from utils import address, transfer_flow_token
 import pytest
@@ -22,7 +22,7 @@ def take_highest_bid(args, signer, should_succeed, expected_result=None):
     assert send_nft_auction_transaction("takeHighestBid", args=txn_args, signer=signer)
     event = f'A.{address("NFTAuction")[2:]}.NFTAuction.HighestBidTaken'
     assert check_for_event(event)
-    result = send_script_and_return_result("getAuction", args=[["String", args[0]], ["UInt64", args[1]]])
+    result = send_nft_auction_script_and_return_result("getAuction", args=[["String", args[0]], ["UInt64", args[1]]])
     print(result)
     if expected_result != None:
       assert expected_result == result
@@ -101,8 +101,8 @@ def test_take_highest_bid():
   assert "4.00000000" == send_script_and_return_result("getUsersFlowTokenBalance", args=[["Address", address("User1")]])
   assert "96.00000000" == send_script_and_return_result("getUsersFlowTokenBalance", args=[["Address", address("User2")]])
 
-  assert "[]" == send_script_and_return_result("getNFTs", args=[["Address", address("User1")]])
-  assert "[A.01cf0e2f2f715450.AsyncArtwork.NFT(uuid: 60, id: 1)]" == send_script_and_return_result("getNFTs", args=[["Address", address("User2")]])
+  assert "[]" == send_async_artwork_script_and_return_result("getNFTs", args=[["Address", address("User1")]])
+  assert "[A.01cf0e2f2f715450.AsyncArtwork.NFT(uuid: 60, id: 1)]" == send_async_artwork_script_and_return_result("getNFTs", args=[["Address", address("User2")]])
 
   # Cannot take highest bid twice
   take_highest_bid(
