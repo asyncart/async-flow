@@ -30,8 +30,10 @@ jobs:
         # Configure python path for test suite
         chmod +x setup_testing_env.sh
         source ./setup_testing_env.sh
+        env | grep PYTHONPATH
     - name: Test with pytest
       run: |
+        env | grep PYTHONPATH
         pytest -m core --disable-warnings
   
   fullsuite:
