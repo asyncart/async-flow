@@ -124,7 +124,7 @@ pub contract Blueprints: NonFungibleToken {
         pub var currency: String 
         pub var baseTokenUri: String 
         pub var saleState: SaleState
-        // I think making these public is trouble... 
+        // These should be safe because our getters return copies?
         pub var primaryFeePercentages: [UFix64]
         pub var secondaryFeePercentages: [UFix64]
         pub var primaryFeeRecipients: [Address]
@@ -170,7 +170,7 @@ pub contract Blueprints: NonFungibleToken {
         pub fun addToWhitelist(
             _whitelistAdditions: [Address]
         ) {
-            // unbounded loop will be flagged by auditor
+            // unbounded loop may be flagged by auditor
             for newAddress in _whitelistAdditions {
                 if !self.whitelist.containsKey(newAddress) {
                     self.whitelist.insert(key: newAddress, false)
@@ -181,7 +181,7 @@ pub contract Blueprints: NonFungibleToken {
         pub fun removeFromWhitelist(
             _whitelistRemovals: [Address]
         ) {
-            // unbounded loop will be flagged by auditor
+            // unbounded loop may be flagged by auditor
             for newAddress in _whitelistRemovals {
                 if self.whitelist.containsKey(newAddress) {
                     self.whitelist.remove(key: newAddress)
@@ -238,7 +238,7 @@ pub contract Blueprints: NonFungibleToken {
 
         pub fun claimWhitelistPiece(user: Address) {
             pre {
-                // good for audit but should be cleaned up later
+                // good for audit but error message should be cleaned up later
                 self.whitelist.containsKey(user) : "User not in whitelist, code execution should have never reached here"
             }
 
@@ -551,8 +551,7 @@ pub contract Blueprints: NonFungibleToken {
             nftRecipient: &{NonFungibleToken.CollectionPublic}
         ) {
             pre {
-                // Wrong way I think...made change lmk if wrong
-                Blueprints.blueprints[blueprintID]!.capacity < quantity : "Not enough capacity to mint quantity"
+                Blueprints.blueprints[blueprintID]!.capacity >= quantity : "Not enough capacity to mint quantity"
             }
             let newTokenId: UInt64 = Blueprints.blueprints[blueprintID]!.nftIndex 
             var newCap: UInt64 = Blueprints.blueprints[blueprintID]!.capacity 
@@ -610,10 +609,8 @@ pub contract Blueprints: NonFungibleToken {
                 self.owner != nil : "Cannot perform operation while client in transit"
                 Blueprints.blueprints.containsKey(blueprintID) : "Blueprint doesn't exist"
                 self.buyerWhitelistedOrSaleStarted(blueprintID: blueprintID, quantity: quantity, sender: self.owner!.address) : "Cannot purchase blueprints"
-                // same thing I think inequality wrong way...fixed
-                Blueprints.blueprints[blueprintID]!.capacity < quantity : "Quantity exceeds capacity"
-                // same here
-                Blueprints.blueprints[blueprintID]!.maxPurchaseAmount == nil || Blueprints.blueprints[blueprintID]!.maxPurchaseAmount! < quantity 
+                Blueprints.blueprints[blueprintID]!.capacity >= quantity : "Quantity exceeds capacity"
+                Blueprints.blueprints[blueprintID]!.maxPurchaseAmount == nil || Blueprints.blueprints[blueprintID]!.maxPurchaseAmount! >= quantity 
                     : "Cannot buy > maxPurchaseAmount in single tx" 
             }
 
