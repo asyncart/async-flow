@@ -3,8 +3,6 @@ from transaction_handler import send_nft_auction_transaction
 from event_handler import check_for_event
 import pytest
 
-from test_unit_setup_async_user import setup_async_user
-
 def setup_marketplace_client(signer):
   assert send_nft_auction_transaction("setupMarketplaceClient", signer=signer)
   print("Successfully Created Marketplace Client")
