@@ -27,12 +27,27 @@ def encode_args(args):
     res = json.dumps(deet)
     return res
 
+def send_nft_auction_transaction(txname, args=None, signer='emulator-account', show=False):
+    txfile = f"cadence/transactions/NFTAuction/{txname}.cdc"
+    return send_transaction_driver(txfile, args, signer, show)
+
+def send_async_artwork_transaction(txname, args=None, signer='emulator-account', show=False):
+    txfile = f"cadence/transactions/AsyncArtwork/{txname}.cdc"
+    return send_transaction_driver(txfile, args, signer, show)
+
+def send_blueprints_transaction(txname, args=None, signer='emulator-account', show=False):
+    txfile = f"cadence/transactions/Blueprints/{txname}.cdc"
+    return send_transaction_driver(txfile, args, signer, show)
+
 def send_transaction(txname, args=None, signer='emulator-account', show=False):
     txfile = f"cadence/transactions/{txname}.cdc"
+    return send_transaction_driver(txfile, args, signer, show)
+
+def send_transaction_driver(txfilepath, args, signer,show):
     if args:
-        deet = check_output(["flow", "transactions", "send", "--args-json", encode_args(args), '--signer', signer, txfile])
+        deet = check_output(["flow", "transactions", "send", "--args-json", encode_args(args), '--signer', signer, txfilepath])
     else:
-        deet = check_output(["flow", "transactions", "send", '-l', 'debug', '--signer', signer, txfile])
+        deet = check_output(["flow", "transactions", "send", '-l', 'debug', '--signer', signer, txfilepath])
 
     if show:
         print(deet.decode())
