@@ -27,6 +27,10 @@ jobs:
         flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
     - name: Test with pytest
       run: |
+        # Configure python path for test suite
+        chmod +x setup_testing_env.sh
+        source ./setup_testing_env.sh
+        # Run tests
         pytest -m core --disable-warnings
   
   fullsuite:
@@ -49,4 +53,8 @@ jobs:
         flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
     - name: Test with pytest
       run: |
+        # Configure python path for test suite
+        chmod +x setup_testing_env.sh
+        source ./setup_testing_env.sh
+        # Run tests
         pytest -v -m "not core"

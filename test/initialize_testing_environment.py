@@ -3,6 +3,8 @@ import os
 import json
 from subprocess import check_output, run
 import time
+import sys
+sys.path.append("./AsyncArtwork")
 
 current_flow = {}
 

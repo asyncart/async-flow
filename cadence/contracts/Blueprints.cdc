@@ -124,6 +124,7 @@ pub contract Blueprints: NonFungibleToken {
         pub var currency: String 
         pub var baseTokenUri: String 
         pub var saleState: SaleState
+        // These should be safe because our getters return copies?
         pub var primaryFeePercentages: [UFix64]
         pub var secondaryFeePercentages: [UFix64]
         pub var primaryFeeRecipients: [Address]
@@ -169,6 +170,7 @@ pub contract Blueprints: NonFungibleToken {
         pub fun addToWhitelist(
             _whitelistAdditions: [Address]
         ) {
+            // unbounded loop may be flagged by auditor
             for newAddress in _whitelistAdditions {
                 if !self.whitelist.containsKey(newAddress) {
                     self.whitelist.insert(key: newAddress, false)
@@ -179,6 +181,7 @@ pub contract Blueprints: NonFungibleToken {
         pub fun removeFromWhitelist(
             _whitelistRemovals: [Address]
         ) {
+            // unbounded loop may be flagged by auditor
             for newAddress in _whitelistRemovals {
                 if self.whitelist.containsKey(newAddress) {
                     self.whitelist.remove(key: newAddress)
@@ -194,10 +197,7 @@ pub contract Blueprints: NonFungibleToken {
         }
 
         access(self) fun feesApplicable(_feeRecipients: [Address], _feePercentages: [UFix64]): Bool {
-            if _feeRecipients.length != 0 || _feePercentages.length != 0 {
-                if _feeRecipients.length != _feePercentages.length {
-                    return false 
-                }
+            if _feeRecipients.length == _feePercentages.length &&  _feeRecipients.length > 0 {
 
                 var totalPercent: UFix64 = 0.0 
                 for percentage in _feePercentages {
@@ -238,6 +238,7 @@ pub contract Blueprints: NonFungibleToken {
 
         pub fun claimWhitelistPiece(user: Address) {
             pre {
+                // good for audit but error message should be cleaned up later
                 self.whitelist.containsKey(user) : "User not in whitelist, code execution should have never reached here"
             }
 
@@ -304,7 +305,7 @@ pub contract Blueprints: NonFungibleToken {
             self.baseTokenUri = _baseTokenUri
             self.mintAmountArtist = _mintAmountArtist
             self.mintAmountPlatform = _mintAmountPlatform
-            self.maxPurchaseAmount = _maxPurchaseAmount != nil ? _maxPurchaseAmount : nil
+            self.maxPurchaseAmount = _maxPurchaseAmount
             self.blueprintMetadata = _blueprintMetadata
 
             self.whitelist = {}
@@ -335,6 +336,7 @@ pub contract Blueprints: NonFungibleToken {
         }
     }
 
+    // not sure if we need this
     access(self) fun isValidCurrencyFormat(_currency: String): Bool {
         // valid hex address, will abort otherwise
         _currency.slice(from: 2, upTo: 18).decodeHex()
@@ -482,6 +484,7 @@ pub contract Blueprints: NonFungibleToken {
         ) {
             pre {
                 UFix64(quantity) * Blueprints.blueprints[blueprintID]!.price == payment.balance : "Purchase amount must match price"
+                // coalesce into a pub fun isCurrencySupported at the contract level
                 Blueprints.currencyPaths.containsKey(payment.getType().identifier) : "Currency not whitelisted"
                 Blueprints.claimsVaults.containsKey(payment.getType().identifier) : "Currency not whitelisted"
             }
@@ -538,6 +541,7 @@ pub contract Blueprints: NonFungibleToken {
             let claimsVault <- Blueprints.claimsVaults.remove(key: currency)!
             claimsVault.deposit(from: <- amount)
 
+            // This should always destroy an empty resource
             destroy <- Blueprints.claimsVaults.insert(key: currency, <- claimsVault)
         }
 
@@ -990,7 +994,7 @@ pub contract Blueprints: NonFungibleToken {
         }
     }
 
-	init(minter: Address, flowTokenCurrencyType: String, fusdCurrencyType: String) {
+	init(minterAddress: Address, flowTokenCurrencyType: String, fusdCurrencyType: String) {
         // Initialize the total supply
         self.totalSupply = 0
 
@@ -1001,7 +1005,7 @@ pub contract Blueprints: NonFungibleToken {
         self.platformStoragePath = /storage/BlueprintPlatform
         self.blueprintsClientStoragePath = /storage/BlueprintClient
 
-        self.minterAddress = minter
+        self.minterAddress = minterAddress
         self.blueprintIndex = 0
         self.latestNftIndex = 0
 

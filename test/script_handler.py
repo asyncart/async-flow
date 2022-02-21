@@ -19,8 +19,19 @@ def encode_args(args):
         deet.append(cur)
     return json.dumps(deet)
 
+def send_async_artwork_script(scriptname, args=None, show=False):
+    scriptfile = f"cadence/scripts/AsyncArtwork/{scriptname}.cdc"
+    return send_script_driver(scriptfile, args, show)
+
+def send_nft_auction_script(scriptname, args=None, show=False):
+    scriptfile = f"cadence/scripts/NFTAuction/{scriptname}.cdc"
+    return send_script_driver(scriptfile, args, show)
+
 def send_script(scriptname, args=None, show=False):
     scriptfile = f"cadence/scripts/{scriptname}.cdc"
+    return send_script_driver(scriptfile, args, show)
+
+def send_script_driver(scriptfile, args, show):
     if args:
         deet = check_output(["flow", "scripts", "execute", scriptfile, "--args-json", encode_args(args)])
     else:
@@ -32,8 +43,19 @@ def send_script(scriptname, args=None, show=False):
         return False
     return True
 
+def send_async_artwork_script_and_return_result(scriptname, args=None, show=False):
+    scriptfile = f"cadence/scripts/AsyncArtwork/{scriptname}.cdc"
+    return send_script_and_return_result_driver(scriptfile, args, show)
+
+def send_nft_auction_script_and_return_result(scriptname, args=None, show=False):
+    scriptfile = f"cadence/scripts/NFTAuction/{scriptname}.cdc"
+    return send_script_and_return_result_driver(scriptfile, args, show)
+
 def send_script_and_return_result(scriptname, args=None, show=False):
     scriptfile = f"cadence/scripts/{scriptname}.cdc"
+    return send_script_and_return_result_driver(scriptfile, args, show)
+
+def send_script_and_return_result_driver(scriptfile, args, show):
     if args:
         deet = check_output(["flow", "scripts", "execute", scriptfile, "--args-json", encode_args(args)])
     else:

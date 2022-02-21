@@ -1,5 +1,7 @@
 __pycache__/**
 test/__pycache__/**
+test/AsyncArtwork/__pycache__/**
+test/NFTAuction/__pycache__/**
 *.fixed.cdc
 emulator.log
 built.rlp
