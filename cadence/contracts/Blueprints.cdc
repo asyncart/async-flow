@@ -487,6 +487,7 @@ pub contract Blueprints: NonFungibleToken {
                 // coalesce into a pub fun isCurrencySupported at the contract level
                 Blueprints.currencyPaths.containsKey(payment.getType().identifier) : "Currency not whitelisted"
                 Blueprints.claimsVaults.containsKey(payment.getType().identifier) : "Currency not whitelisted"
+                payment.getType().identifier == Blueprints.blueprints[blueprintID]!.currency : "Incorrect currency"
             }
             let feeRecipients = Blueprints.blueprints[blueprintID]!.primaryFeeRecipients 
             let feePercentages = Blueprints.blueprints[blueprintID]!.primaryFeePercentages
@@ -603,7 +604,7 @@ pub contract Blueprints: NonFungibleToken {
             blueprintID: UInt64,
             quantity: UInt64,
             payment: @FungibleToken.Vault,
-            nftRecipient: &{NonFungibleToken.CollectionPublic}
+            nftRecipient: Address
         ) {
             pre {
                 self.owner != nil : "Cannot perform operation while client in transit"
@@ -612,7 +613,10 @@ pub contract Blueprints: NonFungibleToken {
                 Blueprints.blueprints[blueprintID]!.capacity >= quantity : "Quantity exceeds capacity"
                 Blueprints.blueprints[blueprintID]!.maxPurchaseAmount == nil || Blueprints.blueprints[blueprintID]!.maxPurchaseAmount! >= quantity 
                     : "Cannot buy > maxPurchaseAmount in single tx" 
+                getAccount(nftRecipient).getCapability<&{NonFungibleToken.CollectionPublic}>(Blueprints.collectionPublicPath).check() : "Specified receiver does not have valid public receiver collection"
             }
+
+            let nftRecipientColRef: &{NonFungibleToken.CollectionPublic} = getAccount(nftRecipient).getCapability<&{NonFungibleToken.CollectionPublic}>(Blueprints.collectionPublicPath).borrow()!
 
             self.confirmPaymentAmountAndSettleSale(
                 blueprintID: blueprintID,
@@ -628,7 +632,7 @@ pub contract Blueprints: NonFungibleToken {
             self.mintQuantity(
                 blueprintID: blueprintID,
                 quantity: quantity,
-                nftRecipient: nftRecipient!
+                nftRecipient: nftRecipientColRef
             )
         }
 
@@ -1040,7 +1044,7 @@ pub contract Blueprints: NonFungibleToken {
         }
 
         // Create a Minter resource and save it to storage (even if minter is not deploying account)
-        let minter <- create Minter()
+        let minter <- createMinter()
         self.account.save(<- minter, to: self.minterStoragePath)
 
         // Create a Platform resource and save it to storage
