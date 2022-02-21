@@ -1044,7 +1044,7 @@ pub contract Blueprints: NonFungibleToken {
         }
 
         // Create a Minter resource and save it to storage (even if minter is not deploying account)
-        let minter <- createMinter()
+        let minter <- self.createMinter()
         self.account.save(<- minter, to: self.minterStoragePath)
 
         // Create a Platform resource and save it to storage
