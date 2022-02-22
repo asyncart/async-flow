@@ -918,6 +918,8 @@ pub contract Blueprints: NonFungibleToken {
             randomSeed: String
         ) {
             pre {
+                self.owner != nil : "Cannot perform operation while client in transit"
+                self.owner!.address == Blueprints.minterAddress : "Not the minter"
                 Blueprints.blueprints.containsKey(blueprintID) : "Blueprint doesn't exist"
             }
 

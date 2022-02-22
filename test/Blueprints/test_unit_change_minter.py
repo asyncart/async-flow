@@ -8,6 +8,9 @@ import pytest
 from test_unit_setup_blueprints_user import setup_blueprints_user
 from test_unit_acquire_minter import acquire_minter
 from test_unit_prepare_blueprint import prepare_blueprint
+from test_unit_presale_mint import presale_mint
+from test_unit_begin_sale import begin_sale 
+from test_unit_update_blueprint_settings import update_blueprint_settings
 
 ### Args is an array representing the following values in order (types just for info)
 # newMinter: Address
@@ -46,6 +49,33 @@ def test_prepare_blueprint():
     True
   )
 
+  # Async art account should not be able to prepare blueprints anymore
+  prepare_blueprint(
+    ["User1", "5", "10.0", "A.0ae53cb6e3f42a79.FlowToken.Vault", "metadata", "https://token-uri.com", ["User2"], "1", "2", "2"],
+    "AsyncArtAccount",
+    False
+  )
+
+  # Async art account should not be able to presale mint anymore
+  presale_mint(
+    ["0", "1"],
+    "AsyncArtAccount",
+    False
+  )
+
+  # Async art account should not be able to begin sale anymore
+  begin_sale(
+    "0",
+    "AsyncArtAccount",
+    False
+  )
+
+  # Async art account should not be able to update blueprint settings anymore
+  update_blueprint_settings(
+    ["0", "11.0", "3", "1", "1", "3"],
+    "AsyncArtAccount",
+    False
+  )
 
 if __name__ == '__main__':
   test_prepare_blueprint()
