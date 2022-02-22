@@ -31,5 +31,8 @@ def test_change_default_platform_primary_fee_percentage():
   # Confirm that the new default platform primary fee percentage is 10.0
   assert 10.0 == float(send_blueprints_script_and_return_result("getDefaultPlatformPrimaryFeePercentage"))
 
+  # Changing to a percentage higher than allowed should fail
+  change_default_platform_primary_fee_percentage("100.1", "AsyncArtAccount", False)
+
 if __name__ == '__main__':
   test_change_default_platform_primary_fee_percentage()

@@ -31,5 +31,8 @@ def test_change_default_platform_secondary_fee_percentage():
   # Confirm that the new default platform secondary fee percentage is 5.0
   assert 5.0 == float(send_blueprints_script_and_return_result("getDefaultPlatformSecondaryFeePercentage"))
 
+  # Changing to a percentage higher than allowed should fail (this will fail because defaultBlueprintSecondaryFeePercentage is 7.5)
+  change_default_platform_secondary_fee_percentage("93.0", "AsyncArtAccount", False)
+
 if __name__ == '__main__':
   test_change_default_platform_secondary_fee_percentage()
