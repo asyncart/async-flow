@@ -51,5 +51,24 @@ def test_add_to_whitelist():
   expected_blueprint = 'A.01cf0e2f2f715450.Blueprints.Blueprint(tokenUriLocked: false, mintAmountArtist: 1, mintAmountPlatform: 2, capacity: 5, nftIndex: 0, maxPurchaseAmount: 2, price: 10.00000000, artist: 0x179b6b1cb6755e31, currency: "A.0ae53cb6e3f42a79.FlowToken.Vault", baseTokenUri: "https://token-uri.com", saleState: A.01cf0e2f2f715450.Blueprints.SaleState(rawValue: 0), primaryFeePercentages: [], secondaryFeePercentages: [], primaryFeeRecipients: [], secondaryFeeRecipients: [], whitelist: {0x45a1763c93006ca: false, 0xe03daebed8ca0615: false, 0xf3fcd2c1a78f5eee: false}, blueprintMetadata: "metadata")'
   assert expected_blueprint == send_blueprints_script_and_return_result("getBlueprint", args=[["UInt64", "0"]])
 
+  # should fail since blueprint doesn't exist
+  add_to_whitelist(
+    "1",
+    ["User3", "User4"],
+    "AsyncArtAccount",
+    False
+  )
+
+  acquire_minter("User1")
+
+  # should fail since signer is not designated minter
+  add_to_whitelist(
+    "0",
+    ["AsyncMarketplaceAccount"],
+    "User1",
+    False
+  )
+
+
 if __name__ == '__main__':
   test_add_to_whitelist()
