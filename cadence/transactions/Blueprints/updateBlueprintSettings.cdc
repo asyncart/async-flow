@@ -11,14 +11,11 @@ transaction(
 ) {
 
     prepare(acct: AuthAccount) {
-        let senderMinterRef: &Blueprints.Minter = acct.borrow<&Blueprints.Minter>(from: Blueprints.minterStoragePath)
-        if senderMinterRef == nil {
-            panic("Coulf not borrow reference to blueprints minter resource")
-        }
+        let senderMinterRef: &Blueprints.Minter = acct.borrow<&Blueprints.Minter>(from: Blueprints.minterStoragePath) ?? panic("Could not borrow minter resource")
 
-        let newBlueprintState: Blueprints.SaleState = Blueprints.SaleState(rawValue: newSaleState)
+        let newBlueprintState: Blueprints.SaleState = Blueprints.SaleState(rawValue: _newSaleState) ?? panic("Invalid sale state provided")
 
-        senderMinterRef.updateBlueprintSettings(
+        senderMinterRef!.updateBlueprintSettings(
             _blueprintID: _blueprintID,
             _price: _price,
             _mintAmountArtist: _mintAmountArtist,

@@ -16,12 +16,10 @@ transaction(
 ) {
 
     prepare(acct: AuthAccount) {
-        let senderMinterRef: &Blueprints.Minter = acct.borrow<&Blueprints.Minter>(from: Blueprints.minterStoragePath)
-        if senderMinterRef == nil {
-            panic("Coulf not borrow reference to blueprints minter resource")
-        }
+        let senderMinterRef: &Blueprints.Minter = acct.borrow<&Blueprints.Minter>(from: Blueprints.minterStoragePath) ?? panic("Could not borrow minter!")
 
-        senderMinterRef.prepareBlueprint(
+        senderMinterRef!
+        .prepareBlueprint(
             _artist: artist,
             _capacity: capacity,
             _price: price,

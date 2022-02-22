@@ -5,28 +5,16 @@ import FungibleToken from "../../contracts/FungibleToken.cdc"
 transaction(blueprintID: UInt64, quantity: UInt64, recipient: Address) {
 
     prepare(acct: AuthAccount) {
-        let blueprint: Blueprints.Blueprint = Blueprints.getBlueprint(blueprintID: blueprintID)
-        if blueprint == nil {
-            panic("Blueprint being purchased does not exist!")
-        }
-
-        let currencyInfo: Blueprints.Paths = Blueprints.getCurrencyPaths()[blueprint!.currency]
-        if currencyInfo == nil {
-            panic("Blueprint currency is no longer supported!")
-        }
-
+        let blueprint: Blueprints.Blueprint{Blueprints.BlueprintPublic} = Blueprints.getBlueprint(blueprintID: blueprintID) ?? panic("Blueprint being purchased does not exist")
+        let currencyInfo: Blueprints.Paths = Blueprints.getCurrencyPaths()[blueprint!.currency] ?? panic("Blueprint's currency no longer supported!")
         let paymentProviderRef: &{FungibleToken.Provider} = acct.borrow<&{FungibleToken.Provider}>(from: currencyInfo.storage) ?? panic("Could not borrow Vault resource")
-        let payment: @FungibleToken.Vault = paymentProviderRef.withdraw(amount: blueprint!.price * UFix64(quantity))
-
-        let senderClientRef: &Blueprints.BlueprintClient = acct.borrow<&Blueprints.BlueprintClient>(from: Blueprints.blueprintsClientStoragePath)
-        if senderClientRef == nil {
-            panic("Cannot borrow reference to blueprints client resource")
-        }
+        let payment: @FungibleToken.Vault <- paymentProviderRef.withdraw(amount: blueprint!.price * UFix64(quantity))
+        let senderClientRef: &Blueprints.BlueprintsClient = acct.borrow<&Blueprints.BlueprintsClient>(from: Blueprints.blueprintsClientStoragePath) ?? panic("Could not borrow client resource")
 
         senderClientRef.purchaseBlueprints(
             blueprintID: blueprintID,
             quantity: quantity,
-            payment: payment,
+            payment: <-payment,
             nftRecipient: recipient
         )
     }

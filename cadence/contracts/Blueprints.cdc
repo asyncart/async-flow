@@ -665,7 +665,7 @@ pub contract Blueprints: NonFungibleToken {
             }
 
             let nftRecipient: &{NonFungibleToken.CollectionPublic} = getAccount(sender).getCapability<&{NonFungibleToken.CollectionPublic}>(Blueprints.collectionPublicPath).borrow() 
-                ?? panic("Sender doesn't have a public receiver for a  Blueprint collection")
+                ?? panic("Sender doesn't have a public receiver for a Blueprint collection")
             self.mintQuantity(
                 blueprintID: blueprintID,
                 quantity: quantity,
@@ -1042,6 +1042,19 @@ pub contract Blueprints: NonFungibleToken {
             flowTokenCurrencyType: {},
             fusdCurrencyType: {}
         }
+
+        let collection <- self.createEmptyCollection()
+        self.account.save(<- collection, to: self.collectionStoragePath)
+
+        self.account.link<&Blueprints.Collection{NonFungibleToken.Provider}>(
+            self.collectionPrivatePath,
+            target: self.collectionStoragePath
+        )
+
+        self.account.link<&Blueprints.Collection{NonFungibleToken.CollectionPublic, NonFungibleToken.Receiver}>(
+            Blueprints.collectionPublicPath,
+            target: Blueprints.collectionStoragePath
+        )
 
         // Create a Minter resource and save it to storage (even if minter is not deploying account)
         let minter <- self.createMinter()
