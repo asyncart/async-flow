@@ -40,7 +40,6 @@ def test_purchase_blueprints():
 
   # User2 acquires tokens to purchase blueprints
   transfer_flow_token("User2", "100.0", "emulator-account")
-
   setup_blueprints_user("User2")
 
   purchase_blueprints(

@@ -52,5 +52,20 @@ def test_update_blueprint_settings():
   expected_blueprint = 'A.01cf0e2f2f715450.Blueprints.Blueprint(tokenUriLocked: false, mintAmountArtist: 3, mintAmountPlatform: 1, capacity: 5, nftIndex: 0, maxPurchaseAmount: 3, price: 11.00000000, artist: 0x179b6b1cb6755e31, currency: "A.0ae53cb6e3f42a79.FlowToken.Vault", baseTokenUri: "https://token-uri.com", saleState: A.01cf0e2f2f715450.Blueprints.SaleState(rawValue: 1), primaryFeePercentages: [], secondaryFeePercentages: [], primaryFeeRecipients: [], secondaryFeeRecipients: [], whitelist: {0xf3fcd2c1a78f5eee: false}, blueprintMetadata: "metadata")'
   assert expected_blueprint == send_blueprints_script_and_return_result("getBlueprint", args=[["UInt64", "0"]])
 
+  # Non-minter account cannot update blueprint settings
+  update_blueprint_settings(
+    ["0", "11.0", "3", "1", "1", "3"],
+    "User1",
+    False
+  )
+
+  # Cannot update settings for a non-existent blueprint
+  update_blueprint_settings(
+    ["1", "11.0", "3", "1", "1", "3"],
+    "AsyncArtAccount",
+    False
+  )
+
+
 if __name__ == '__main__':
   test_update_blueprint_settings()

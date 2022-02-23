@@ -16,5 +16,8 @@ def test_setup_blueprints_users():
   setup_blueprints_user("User2")
   setup_blueprints_user("User3")
 
+  # noop
+  setup_blueprints_user("User1")
+
 if __name__ == '__main__':
   test_setup_blueprints_users()
