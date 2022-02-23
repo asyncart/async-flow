@@ -8,6 +8,7 @@ import pytest
 from test_unit_setup_blueprints_user import setup_blueprints_user
 from test_unit_acquire_minter import acquire_minter
 from test_unit_prepare_blueprint import prepare_blueprint
+from test_unit_begin_sale import begin_sale
 
 # args:
 # blueprintID: UInt64, quantity: UInt64, recipient: Address
@@ -51,8 +52,25 @@ def test_purchase_blueprints():
   # assert on User2's ownership of the NFTs
   assert "id: 0" in send_blueprints_script_and_return_result("getNFT", args=[["Address", address("User2")], ["UInt64", "0"]])
 
-  # test claims value of purchasing
-  # test sale mechanisms
+  # User2 cannot purchase anymore as they were whitelisted, and have claimed their spot via the whitelist
+  purchase_blueprints(
+    ["0", "1", "User2"],
+    "User2",
+    False
+  )
+
+  # After sale has started User2 can purchase again after having claimed
+  begin_sale(
+    "0",
+    "AsyncArtAccount",
+    True
+  )
+
+  purchase_blueprints(
+    ["0", "1", "User2"],
+    "User2",
+    True
+  )
 
 if __name__ == '__main__':
   test_purchase_blueprints()

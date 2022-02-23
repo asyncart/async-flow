@@ -63,7 +63,18 @@ def test_prepare_blueprint():
     False
   )
 
-  # TODO: invalid data values
+  # Cannot pass in an invalid currency 
+  prepare_blueprint(
+    ["User1", "5", "10.0", "B.0ae53cb6e3f42a79.FlowToken.Vault", "metadata", "https://token-uri.com", ["User2"], "1", "2", "2"],
+    "User2",
+    False
+  )
+
+  prepare_blueprint(
+    ["User1", "5", "10.0", "A.0ae53cb6e3f42a79.FlowToken", "metadata", "https://token-uri.com", ["User2"], "1", "2", "2"],
+    "User2",
+    False
+  )
   
   # Confirm that designated minter can prepare blueprint
   prepare_blueprint(
