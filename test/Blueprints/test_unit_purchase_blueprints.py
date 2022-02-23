@@ -72,5 +72,25 @@ def test_purchase_blueprints():
     True
   )
 
+  # User cannot purchase more than the max purchase amount
+  purchase_blueprints(
+    ["0", "3", "User2"],
+    "User2",
+    False
+  )
+
+  # Cannot purchase tokens after capacity runs out
+  purchase_blueprints(
+    ["0", "2", "User2"],
+    "User2",
+    True
+  )
+
+  purchase_blueprints(
+    ["0", "2", "User2"],
+    "User2",
+    False
+  )
+
 if __name__ == '__main__':
   test_purchase_blueprints()
