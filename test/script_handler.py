@@ -27,6 +27,10 @@ def send_nft_auction_script(scriptname, args=None, show=False):
     scriptfile = f"cadence/scripts/NFTAuction/{scriptname}.cdc"
     return send_script_driver(scriptfile, args, show)
 
+def send_blueprints_script(scriptname, args=None, show=False):
+    scriptfile = f"cadence/scripts/Blueprints/{scriptname}.cdc"
+    return send_script_driver(scriptfile, args, show)
+
 def send_script(scriptname, args=None, show=False):
     scriptfile = f"cadence/scripts/{scriptname}.cdc"
     return send_script_driver(scriptfile, args, show)
@@ -49,6 +53,10 @@ def send_async_artwork_script_and_return_result(scriptname, args=None, show=Fals
 
 def send_nft_auction_script_and_return_result(scriptname, args=None, show=False):
     scriptfile = f"cadence/scripts/NFTAuction/{scriptname}.cdc"
+    return send_script_and_return_result_driver(scriptfile, args, show)
+
+def send_blueprints_script_and_return_result(scriptname, args=None, show=False):
+    scriptfile = f"cadence/scripts/Blueprints/{scriptname}.cdc"
     return send_script_and_return_result_driver(scriptfile, args, show)
 
 def send_script_and_return_result(scriptname, args=None, show=False):

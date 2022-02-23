@@ -1,5 +1,4 @@
 import Blueprints from "../../contracts/Blueprints.cdc"
-import FungibleToken from "../../contracts/FungibleToken.cdc"
 
 // Mint a certain number of NFTs corresponding to a certain blueprint before it's sale starts
 // Will only succeed for the minter or designated whitelisted users for the blueprint
@@ -7,10 +6,7 @@ import FungibleToken from "../../contracts/FungibleToken.cdc"
 transaction(blueprintID: UInt64, quantity: UInt64) {
 
     prepare(acct: AuthAccount) {
-        let senderClientRef: &Blueprints.BlueprintClient = acct.borrow<&Blueprints.BlueprintClient>(from: Blueprints.blueprintsClientStoragePath)
-        if senderClientRef == nil {
-            panic("Cannot borrow reference to blueprints client resource")
-        }
+        let senderClientRef: &Blueprints.BlueprintsClient = acct.borrow<&Blueprints.BlueprintsClient>(from: Blueprints.blueprintsClientStoragePath) ?? panic("Could not borrow client resource")
 
         senderClientRef.presaleMint(
             blueprintID: blueprintID,

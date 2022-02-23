@@ -6,11 +6,7 @@ transaction(
 ) {
 
     prepare(acct: AuthAccount) {
-        let senderPlatformRef: &Blueprints.Platform = acct.borrow<&Blueprints.Platform>(from: Blueprints.platformStoragePath)
-        if senderPlatformRef == nil {
-            panic("Coulf not borrow reference to blueprints Platform resource")
-        }
-
+        let senderPlatformRef: &Blueprints.Platform = acct.borrow<&Blueprints.Platform>(from: Blueprints.platformStoragePath) ?? panic("Could not borrow platform resource from acct")
         senderPlatformRef.changeMinter(newMinter: newMinterAddress)
     }
 }
