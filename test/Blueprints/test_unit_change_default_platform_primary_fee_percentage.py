@@ -23,16 +23,16 @@ def test_change_default_platform_primary_fee_percentage():
   main()
 
   # Assert that the initial default platform primary fee percentage is 20.0
-  assert 20.0 == float(send_blueprints_script_and_return_result("getDefaultPlatformPrimaryFeePercentage"))
+  assert 0.2 == float(send_blueprints_script_and_return_result("getDefaultPlatformPrimaryFeePercentage"))
 
   # Change the minter to be user2
-  change_default_platform_primary_fee_percentage("10.0", "AsyncArtAccount", True)
+  change_default_platform_primary_fee_percentage("0.1", "AsyncArtAccount", True)
 
   # Confirm that the new default platform primary fee percentage is 10.0
-  assert 10.0 == float(send_blueprints_script_and_return_result("getDefaultPlatformPrimaryFeePercentage"))
+  assert 0.1 == float(send_blueprints_script_and_return_result("getDefaultPlatformPrimaryFeePercentage"))
 
   # Changing to a percentage higher than allowed should fail
-  change_default_platform_primary_fee_percentage("100.1", "AsyncArtAccount", False)
+  change_default_platform_primary_fee_percentage("1.01", "AsyncArtAccount", False)
 
 if __name__ == '__main__':
   test_change_default_platform_primary_fee_percentage()
