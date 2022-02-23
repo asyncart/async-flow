@@ -48,5 +48,19 @@ def test_update_token_uri():
   expected_blueprint = 'A.01cf0e2f2f715450.Blueprints.Blueprint(tokenUriLocked: false, mintAmountArtist: 1, mintAmountPlatform: 2, capacity: 5, nftIndex: 0, maxPurchaseAmount: 2, price: 10.00000000, artist: 0x179b6b1cb6755e31, currency: "A.0ae53cb6e3f42a79.FlowToken.Vault", baseTokenUri: "new-token-uri", saleState: A.01cf0e2f2f715450.Blueprints.SaleState(rawValue: 0), primaryFeePercentages: [], secondaryFeePercentages: [], primaryFeeRecipients: [], secondaryFeeRecipients: [], whitelist: {0xf3fcd2c1a78f5eee: false}, blueprintMetadata: "metadata")'
   assert expected_blueprint == send_blueprints_script_and_return_result("getBlueprint", args=[["UInt64", "0"]])
 
+  # Unauthorized account should not be able to update token uri 
+  update_token_uri(
+    ["0", "new-token-uri"],
+    "User2",
+    False
+  )
+
+  # should not be able to update token uri for non existent blueprint
+  update_token_uri(
+    ["1", "new-token-uri"],
+    "AsyncArtAccount",
+    False
+  )
+
 if __name__ == '__main__':
   test_update_token_uri()

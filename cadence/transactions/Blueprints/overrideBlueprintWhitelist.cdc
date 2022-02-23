@@ -9,9 +9,9 @@ transaction(
     prepare(acct: AuthAccount) {
         let senderMinterRef: &Blueprints.Minter = acct.borrow<&Blueprints.Minter>(from: Blueprints.minterStoragePath) ?? panic("Could not borrow minter resource")
 
-        senderMinterRef!.overrideBlueprintWhitelist(
-            _blueprintID: UInt64,
-            _whitelistedAddresses: [Address]
+        senderMinterRef!.overwriteBlueprintWhitelist(
+            _blueprintID: _blueprintID,
+            _whitelistedAddresses: _whitelistedAddresses
         )
     }
 }

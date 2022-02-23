@@ -50,9 +50,6 @@ def test_claim_payout():
   # User2 acquires tokens to purchase blueprints
   transfer_flow_token("User2", "100.0", "emulator-account")
 
-  balance = send_script_and_return_result("getUsersFlowTokenBalance", args=[["Address", address("User2")]])
-  print(balance)
-
   setup_blueprints_user("User2")
   setup_blueprints_user("User3")
 
@@ -69,6 +66,21 @@ def test_claim_payout():
     "User3",
     True 
   )
+
+  # should not be able to claim again
+  claim_payout(
+    ["A.0ae53cb6e3f42a79.FlowToken.Vault"],
+    "User3",
+    False 
+  )
+
+  # should not be able to claim with the wrong currency
+  claim_payout(
+    ["A.0ae53cb6e3f42a79.FUSD.Vault"],
+    "User3",
+    False 
+  )
+
 
 if __name__ == '__main__':
   test_claim_payout()

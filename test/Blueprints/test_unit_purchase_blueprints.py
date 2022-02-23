@@ -51,5 +51,8 @@ def test_purchase_blueprints():
   # assert on User2's ownership of the NFTs
   assert "id: 0" in send_blueprints_script_and_return_result("getNFT", args=[["Address", address("User2")], ["UInt64", "0"]])
 
+  # test claims value of purchasing
+  # test sale mechanisms
+
 if __name__ == '__main__':
   test_purchase_blueprints()
