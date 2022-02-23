@@ -1,6 +1,6 @@
 from initialize_testing_environment import main
 from transaction_handler import send_blueprints_transaction, send_transaction
-from script_handler import send_blueprints_script_and_return_result
+from script_handler import send_blueprints_script_and_return_result, send_script_and_return_result
 from event_handler import check_for_event
 from utils import address, transfer_flow_token
 import pytest
@@ -39,18 +39,22 @@ def test_claim_payout():
   assert expected_blueprint == send_blueprints_script_and_return_result("getBlueprint", args=[["UInt64", "0"]])
 
   set_fee_recipients(
-    ["0", ["User3"], ["5.0"], ["User4"], ["3.0"]],
+    ["0", ["User3"], ["0.05"], ["User4"], ["0.03"]],
     "AsyncArtAccount",
     True
   )
-
+  
   # User 3 deletes their receiver
   assert send_transaction("unlinkFlowTokenReceiver", signer="User3")
 
   # User2 acquires tokens to purchase blueprints
   transfer_flow_token("User2", "100.0", "emulator-account")
 
+  balance = send_script_and_return_result("getUsersFlowTokenBalance", args=[["Address", address("User2")]])
+  print(balance)
+
   setup_blueprints_user("User2")
+  setup_blueprints_user("User3")
 
   # Purchase blueprint where user 3 cannot receive payout
   purchase_blueprints(
@@ -59,7 +63,12 @@ def test_claim_payout():
     True
   )
 
-  #TODO: finish this test
+  # User 3 claims payout
+  claim_payout(
+    ["A.0ae53cb6e3f42a79.FlowToken.Vault"],
+    "User3",
+    True 
+  )
 
 if __name__ == '__main__':
   test_claim_payout()

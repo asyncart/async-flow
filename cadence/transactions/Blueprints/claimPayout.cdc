@@ -6,9 +6,13 @@ transaction(currency: String) {
 
     prepare(acct: AuthAccount) {
         let senderClientRef: &Blueprints.BlueprintsClient = acct.borrow<&Blueprints.BlueprintsClient>(from: Blueprints.blueprintsClientStoragePath) ?? panic ("Could not borrow client resource")
+        let currencyInfo: Blueprints.Paths = Blueprints.getCurrencyPaths()[currency] ?? panic("Blueprint's currency no longer supported!")
+        let receiver: &FungibleToken.Vault = acct.borrow<&FungibleToken.Vault>(from: currencyInfo.storage) ?? panic("Could not find currency's vault in storage")
 
-        senderClientRef.claimPayout(
+        let payout <- senderClientRef.claimPayout(
             currency: currency
         )
+
+        receiver.deposit(from: <- payout)
     }
 }

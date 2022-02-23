@@ -203,7 +203,7 @@ pub contract Blueprints: NonFungibleToken {
                 for percentage in _feePercentages {
                     totalPercent = totalPercent + percentage 
                 }
-                if totalPercent > 100.0 {
+                if totalPercent > 1.0 {
                     return false 
                 }
 
@@ -271,6 +271,22 @@ pub contract Blueprints: NonFungibleToken {
                 return false
             } else {
                 return !self.whitelist[user]! 
+            }
+        }
+
+        pub fun getPrimaryFeeRecipients(): [Address] {
+            if self.primaryFeeRecipients.length == 0 {
+                return [Blueprints.asyncSaleFeesRecipient]
+            } else {
+                return self.primaryFeeRecipients
+            }
+        }
+
+        pub fun getPrimaryFeePercentages(): [UFix64] {
+            if self.primaryFeePercentages.length == 0 {
+                return [Blueprints.defaultPlatformPrimaryFeePercentage]
+            } else {
+                return self.primaryFeePercentages
             }
         }
 
@@ -489,8 +505,8 @@ pub contract Blueprints: NonFungibleToken {
                 Blueprints.claimsVaults.containsKey(payment.getType().identifier) : "Currency not whitelisted"
                 payment.getType().identifier == Blueprints.blueprints[blueprintID]!.currency : "Incorrect currency"
             }
-            let feeRecipients = Blueprints.blueprints[blueprintID]!.primaryFeeRecipients 
-            let feePercentages = Blueprints.blueprints[blueprintID]!.primaryFeePercentages
+            let feeRecipients = Blueprints.blueprints[blueprintID]!.getPrimaryFeeRecipients()
+            let feePercentages = Blueprints.blueprints[blueprintID]!.getPrimaryFeePercentages()
             let totalPaymentAmount: UFix64 = payment.balance
             let currency: String = payment.getType().identifier
 
@@ -954,21 +970,21 @@ pub contract Blueprints: NonFungibleToken {
 
         pub fun changeDefaultPlatformPrimaryFeePercentage(newFee: UFix64) {
             pre {
-                newFee <= 100.0 : "Invalid fee"
+                newFee <= 1.0 : "Invalid fee"
             }
             Blueprints.defaultPlatformPrimaryFeePercentage = newFee
         }
 
         pub fun changeDefaultPlatformSecondaryFeePercentage(newFee: UFix64) {
             pre {
-                newFee + Blueprints.defaultBlueprintSecondarySalePercentage <= 100.0 : "Invalid fee"
+                newFee + Blueprints.defaultBlueprintSecondarySalePercentage <= 1.0 : "Invalid fee"
             }
             Blueprints.defaultPlatformSecondarySalePercentage = newFee
         }
 
         pub fun changeDefaultBlueprintSecondaryFeePercentage(newFee: UFix64) {
             pre {
-                newFee + Blueprints.defaultPlatformSecondarySalePercentage <= 100.0 : "Invalid fee"
+                newFee + Blueprints.defaultPlatformSecondarySalePercentage <= 1.0 : "Invalid fee"
             }
             Blueprints.defaultBlueprintSecondarySalePercentage = newFee
         }
@@ -1015,9 +1031,9 @@ pub contract Blueprints: NonFungibleToken {
         self.blueprintIndex = 0
         self.latestNftIndex = 0
 
-        self.defaultPlatformPrimaryFeePercentage = 20.0
-        self.defaultBlueprintSecondarySalePercentage = 7.5
-        self.defaultPlatformSecondarySalePercentage = 2.5
+        self.defaultPlatformPrimaryFeePercentage = 0.2
+        self.defaultBlueprintSecondarySalePercentage = 0.075
+        self.defaultPlatformSecondarySalePercentage = 0.025
         self.asyncSaleFeesRecipient = self.account.address
 
         self.blueprints = {}

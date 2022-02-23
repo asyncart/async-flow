@@ -41,7 +41,7 @@ def test_set_fee_recipients():
   assert expected_blueprint == send_blueprints_script_and_return_result("getBlueprint", args=[["UInt64", "0"]])
 
   set_fee_recipients(
-    ["0", ["User3"], ["5.0"], ["User4"], ["3.0"]],
+    ["0", ["User3"], ["0.05"], ["User4"], ["0.03"]],
     "AsyncArtAccount",
     True
   )
