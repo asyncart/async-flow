@@ -18,6 +18,8 @@ def unwhitelist_currency(arg, signer, should_succeed):
 
   if should_succeed:
     assert send_blueprints_transaction("unwhitelistCurrency", args=formatted_args, signer=signer)
+    event = f'A.{address("AsyncArtwork")[2:]}.Blueprints.CurrencyUnwhitelisted'
+    assert check_for_event(event)
     print("Successfully Unwhitelisted Currency")
   else:
     assert not send_blueprints_transaction("unwhitelistCurrency", args=formatted_args, signer=signer)
