@@ -20,6 +20,8 @@ def remove_from_whitelist(blueprintID, args, signer, should_succeed):
   
   if should_succeed:
     assert send_blueprints_transaction("removeBlueprintWhitelist", args=formatted_args, signer=signer)
+    event = f'A.{address("AsyncArtwork")[2:]}.Blueprints.BlueprintWhitelistUpdated'
+    assert check_for_event(event)
     print("Successfully Removed Addresses from Whitelist for Blueprint")
   else:
     assert not send_blueprints_transaction("removeBlueprintWhitelist", args=formatted_args, signer=signer)

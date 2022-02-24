@@ -1,7 +1,7 @@
 from initialize_testing_environment import main
 from transaction_handler import send_blueprints_transaction
 from script_handler import send_blueprints_script_and_return_result
-from event_handler import check_for_event
+from event_handler import check_for_event, check_for_n_event_occurences_over_x_blocks
 from utils import address, transfer_flow_token
 import pytest
 
@@ -17,6 +17,8 @@ def purchase_blueprints(args, signer, should_succeed):
   
   if should_succeed:
     assert send_blueprints_transaction("purchaseBlueprints", args=formatted_args, signer=signer)
+    event = f'A.{address("AsyncArtwork")[2:]}.Blueprints.BlueprintMinted'
+    assert check_for_n_event_occurences_over_x_blocks(args[1], int(args[1]), event)
     print("Successfully Purchased Blueprints")
   else:
     assert not send_blueprints_transaction("purchaseBlueprints", args=formatted_args, signer=signer)
