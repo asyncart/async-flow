@@ -18,6 +18,8 @@ def pause_sale(arg, signer, should_succeed):
   
   if should_succeed:
     assert send_blueprints_transaction("pauseSale", args=formatted_args, signer=signer)
+    event = f'A.{address("AsyncArtwork")[2:]}.Blueprints.SalePaused'
+    assert check_for_event(event)
     print("Successfully Paused Sale for Blueprint")
   else:
     assert not send_blueprints_transaction("pauseSale", args=formatted_args, signer=signer)

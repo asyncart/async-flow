@@ -17,6 +17,8 @@ def update_token_uri(args, signer, should_succeed):
   
   if should_succeed:
     assert send_blueprints_transaction("updateTokenUri", args=formatted_args, signer=signer)
+    event = f'A.{address("AsyncArtwork")[2:]}.Blueprints.BlueprintTokenUriUpdated'
+    assert check_for_event(event)
     print("Successfully Updated Token URI")
   else:
     assert not send_blueprints_transaction("updateTokenUri", args=formatted_args, signer=signer)

@@ -19,6 +19,8 @@ def add_to_whitelist(blueprintID, args, signer, should_succeed):
   
   if should_succeed:
     assert send_blueprints_transaction("addToBlueprintWhitelist", args=formatted_args, signer=signer)
+    event = f'A.{address("AsyncArtwork")[2:]}.Blueprints.BlueprintWhitelistUpdated'
+    assert check_for_event(event)
     print("Successfully Added Addresses to Whitelist for Blueprint")
   else:
     assert not send_blueprints_transaction("addToBlueprintWhitelist", args=formatted_args, signer=signer)
