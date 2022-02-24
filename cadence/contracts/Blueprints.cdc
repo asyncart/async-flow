@@ -89,6 +89,7 @@ pub contract Blueprints: NonFungibleToken {
     )
 
     pub event CurrencyWhitelisted(currency: String)
+    pub event CurrencyUnwhitelisted(currency: String)
 
     pub struct Paths {
         pub var public: PublicPath
@@ -104,6 +105,12 @@ pub contract Blueprints: NonFungibleToken {
 
     pub fun getCurrencyPaths(): {String: Paths} {
         return self.currencyPaths
+    }
+
+    pub fun isCurrencySupported(currency: String): Bool {
+        return self.currencyPaths.containsKey(currency) &&
+               self.claimsVaults.containsKey(currency) &&
+               self.payoutClaims.containsKey(currency)
     }
 
     pub enum SaleState: UInt8 {
@@ -303,6 +310,7 @@ pub contract Blueprints: NonFungibleToken {
             _maxPurchaseAmount: UInt64?
         ) {
             pre {
+                // Should we instead be asserting that the currency is supported not just a valid format
                 Blueprints.isValidCurrencyFormat(_currency: _currency) : "Currency type is invalid"
             }
 
@@ -500,9 +508,7 @@ pub contract Blueprints: NonFungibleToken {
         ) {
             pre {
                 UFix64(quantity) * Blueprints.blueprints[blueprintID]!.price == payment.balance : "Purchase amount must match price"
-                // coalesce into a pub fun isCurrencySupported at the contract level
-                Blueprints.currencyPaths.containsKey(payment.getType().identifier) : "Currency not whitelisted"
-                Blueprints.claimsVaults.containsKey(payment.getType().identifier) : "Currency not whitelisted"
+                Blueprints.isCurrencySupported(currency: payment.getType().identifier) : "Currency not whitelisted"
                 payment.getType().identifier == Blueprints.blueprints[blueprintID]!.currency : "Incorrect currency"
             }
             let feeRecipients = Blueprints.blueprints[blueprintID]!.getPrimaryFeeRecipients()
@@ -999,9 +1005,11 @@ pub contract Blueprints: NonFungibleToken {
         ) {
             pre {
                 Blueprints.isValidCurrencyFormat(_currency: currency) : "Currency identifier is invalid"
-                !Blueprints.currencyPaths.containsKey(currency) : "Currency already whitelisted"
-                !Blueprints.claimsVaults.containsKey(currency) : "Currency already whitelisted"
-                !Blueprints.payoutClaims.containsKey(currency) : "Currency already whitelisted"
+                !Blueprints.isCurrencySupported(currency: currency): "Currency is already whitelisted"
+            }
+
+            post {
+                Blueprints.isCurrencySupported(currency: currency): "Currency not whitelisted successfully"
             }
 
             Blueprints.currencyPaths[currency] = Paths(
@@ -1013,6 +1021,28 @@ pub contract Blueprints: NonFungibleToken {
             destroy <- Blueprints.claimsVaults.insert(key: currency, <- vault)
 
             emit CurrencyWhitelisted(currency: currency)
+        }
+
+        // unwhitelist currency
+        pub fun unwhitelistCurrency(
+            currency: String
+        ) {
+            pre {
+                Blueprints.isCurrencySupported(currency: currency): "Currency is not whitelisted"
+            }
+
+            post {
+                !Blueprints.isCurrencySupported(currency: currency): "Currency unwhitelist failed"
+            }
+
+            Blueprints.currencyPaths.remove(key: currency)
+            Blueprints.payoutClaims.remove(key: currency)
+
+            // Warning this could permanently remove funds from claims -- but claims is already quite accomodating so we won't block
+            // admin if the claims vault is non-empty
+            destroy <- Blueprints.claimsVaults.remove(key: currency)
+
+            emit CurrencyUnwhitelisted(currency: currency)
         }
     }
 
@@ -1047,12 +1077,12 @@ pub contract Blueprints: NonFungibleToken {
         self.currencyPaths = {
             flowTokenCurrencyType: Paths(
                 /public/flowTokenReceiver,
-                /private/flowTokenVault, // technically unknown standard
+                /private/asyncArtworkFlowTokenVault, // technically unknown standard -> opt for custom path
                 /storage/flowTokenVault
             ),
             fusdCurrencyType: Paths(
                 /public/fusdReceiver,
-                /private/fusdVault, // technically unknown standard
+                /private/asyncArtworkFusdVault, // technically unknown standard -> opt for custom path
                 /storage/fusdVault
             )
         }

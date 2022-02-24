@@ -36,6 +36,7 @@
                 "mainnet": "0x3c5959b568896393"
             }
         },
+        "ExampleToken": "./cadence/contracts/ExampleToken.cdc",
         "AsyncArtwork": "./cadence/contracts/AsyncArtwork.cdc",
         "Blueprints": "./cadence/contracts/Blueprints.cdc",
         "NFTAuction": "./cadence/contracts/NFTAuction.cdc"
@@ -48,38 +49,39 @@
     "accounts": {
         "emulator-account": {
             "address": "f8d6e0586b0a20c7",
-            "key": "36ceb76afcc1774d376818d8223674a6ea656cad7c6cce9544dc81eacdaf5430"
+            "key": "af29700b33c4b2bfe70122833d7882e9d2e0547405e8ba58385a1e2d9869d1f2"
         },
         "AsyncArtAccount": {
             "address": "0x01cf0e2f2f715450",
-            "key": "1b5f4108552809c11e51136d9823f3f2d4d9e41f29df10608cd331240c90acd7"
+            "key": "eb19d3e870138c67c381de27bdfcafc8ca480ae5241af0bc70726c5f40b2c078"
         },
         "User1": {
             "address": "0x179b6b1cb6755e31",
-            "key": "71fd3f2d60bcc80e848f4e348baf4e1b1855d5d5a208277d61d9775f8305b678"
+            "key": "591265ac13275f84a037c7da6817b4751b1da0c065492743cbca6bf9f8809b88"
         },
         "User2": {
             "address": "0xf3fcd2c1a78f5eee",
-            "key": "850ae05d8ec3736780717cfff8fc9619cc63d8239821c5c697881b1b977682c3"
+            "key": "9bfa77b827b4bdf56ca95c74b9b880e91ece3e35666823dae2a7e8ca9440cd78"
         },
         "User3": {
             "address": "0xe03daebed8ca0615",
-            "key": "16350723da20faec3230bc553450f3734ff6db75b3f0bca2bb85333c85831fb6"
+            "key": "ebe743ddde21550bad551dd8b420d1ad5e8623ff2756ec27ffb8884c443c3485"
         },
         "User4": {
             "address": "0x045a1763c93006ca",
-            "key": "6288140716731ff287e9ce56e5021ea027a44f1eb115dc9f873dfa036d45dd12"
+            "key": "e7d519b45840028d2b4a2e57d8c8a95b62761f17787380a2a270293b453dcabc"
         },
         "AsyncMarketplaceAccount": {
             "address": "0x120e725050340cab",
-            "key": "19ec7926234457d56c9e9628159fda9e0e494de0ff395493eb23be81f4fa585e"
+            "key": "a07b2b984b0be6dc1a81091595f104b37f89ad3513e30460f9ca95ebb45541a1"
         }
     },
     "deployments": {
         "emulator": {
             "emulator-account": [
                 "NonFungibleToken",
-                "FUSD"
+                "FUSD",
+                "ExampleToken"
             ],
             "AsyncArtAccount": [
                 "AsyncArtwork",
