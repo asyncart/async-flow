@@ -3,13 +3,16 @@ def generate_possible_dictionary_strings(dict_tokens):
   possible_dict_token_lists = list(itertools.permutations(dict_tokens))
   possible_dicts = []
   for ordered_seq in possible_dict_token_lists:
-    dict_str = "{"
-    for i in range(len(ordered_seq)):
-      dict_str += str(i) + ": " + ordered_seq[i] + ", "
-    # Remove the last comma
-    dict_str = dict_str[:-2]
-    dict_str += "}"
-    possible_dicts.append(dict_str)
+    keys = [i for i in range(len(ordered_seq))]
+    all_keys_permutations = list(itertools.permutations(keys))
+    for key_set in all_keys_permutations:
+      dict_str = "{"
+      for i in key_set:
+        dict_str += str(i) + ": " + ordered_seq[i] + ", "
+      # Remove the last comma
+      dict_str = dict_str[:-2]
+      dict_str += "}"
+      possible_dicts.append(dict_str)
   return possible_dicts
 
 

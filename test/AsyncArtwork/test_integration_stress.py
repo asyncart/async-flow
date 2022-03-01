@@ -181,7 +181,7 @@ def test_integration():
       assert_metadata=True
   )
 
-  levers = "{{1: A.{contract}.AsyncArtwork.ControlLever(minValue: 1, maxValue: 20, currentValue: 18), 0: A.{contract}.AsyncArtwork.ControlLever(minValue: 1, maxValue: 10, currentValue: 3)}}".format(contract=address("AsyncArtwork")[2:])
+  levers = "{{0: A.{contract}.AsyncArtwork.ControlLever(minValue: 1, maxValue: 20, currentValue: 18), 1: A.{contract}.AsyncArtwork.ControlLever(minValue: 1, maxValue: 10, currentValue: 3)}}".format(contract=address("AsyncArtwork")[2:])
   uniqueTokenCreators = f'{address("User1")}, {address("User3")}'
   expected_metadata = 'A.{contract}.AsyncArtwork.NFTMetadata(id: 5, isMaster: false, uri: "<uri>", isUriLocked: false, platformFirstSalePercentage: 15.00000000, platformSecondSalePercentage: 10.00000000, tokenSoldOnce: false, numControlLevers: nil, numRemainingUpdates: 5, owner: {owner}, levers: {levers}, uniqueTokenCreators: [{uniqueTokenCreators}])'.format(contract=address("AsyncArtwork")[2:], owner=address("User3"), levers=levers, uniqueTokenCreators=uniqueTokenCreators)
 
