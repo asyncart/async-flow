@@ -120,7 +120,8 @@ def test_settle_auction():
   assert "96.00000000" == send_script_and_return_result("getUsersFlowTokenBalance", args=[["Address", address("User2")]])
 
   assert "[]" == send_async_artwork_script_and_return_result("getNFTs", args=[["Address", address("User1")]])
-  assert "[A.01cf0e2f2f715450.AsyncArtwork.NFT(uuid: 61, id: 1)]" == send_async_artwork_script_and_return_result("getNFTs", args=[["Address", address("User2")]])
+  user2_owned_nfts = send_async_artwork_script_and_return_result("getNFTs", args=[["Address", address("User2")]])
+  assert "A.01cf0e2f2f715450.AsyncArtwork.NFT" in user2_owned_nfts and "id: 1" in user2_owned_nfts
 
   create_new_nft_auction(
     ["A.01cf0e2f2f715450.AsyncArtwork.NFT", "1", "A.0ae53cb6e3f42a79.FlowToken.Vault", "2.0", "5.0", "0.00000001", "5.0", [], []],
@@ -144,7 +145,8 @@ def test_settle_auction():
   assert "0.00000000" == send_script_and_return_result("getUsersFlowTokenBalance", args=[["Address", address("User1")]])
   assert "100.00000000" == send_script_and_return_result("getUsersFlowTokenBalance", args=[["Address", address("User2")]])
 
-  assert "[A.01cf0e2f2f715450.AsyncArtwork.NFT(uuid: 61, id: 1)]" == send_async_artwork_script_and_return_result("getNFTs", args=[["Address", address("User1")]])
+  user1_owned_nfts = send_async_artwork_script_and_return_result("getNFTs", args=[["Address", address("User1")]])
+  assert "A.01cf0e2f2f715450.AsyncArtwork.NFT" in user1_owned_nfts and "id: 1" in user1_owned_nfts
   assert "[]" == send_async_artwork_script_and_return_result("getNFTs", args=[["Address", address("User2")]])
 
 

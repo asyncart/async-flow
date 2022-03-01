@@ -68,7 +68,12 @@ def test_make_bids():
 
   # Assert that User2 has payed for NFT and received it from User1
   assert "14.00000000" == send_script_and_return_result("getUsersFUSDBalance", args=[["Address", address("User2")]])
-  assert "[A.01cf0e2f2f715450.AsyncArtwork.NFT(uuid: 60, id: 1)]" == send_async_artwork_script_and_return_result("getNFTs", args=[["Address", address("User2")]])
+
+  # Confirm user2 owns AsyncArtwork NFT 1
+  user2_owned_nfts = send_async_artwork_script_and_return_result("getNFTs", args=[["Address", address("User2")]])
+  assert "A.01cf0e2f2f715450.AsyncArtwork.NFT" in user2_owned_nfts and "id: 1" in user2_owned_nfts
+
+  # Confirm that user1 does not own any AsyncArtwork NFTs
   assert "[]" == send_async_artwork_script_and_return_result("getNFTs", args=[["Address", address("User1")]])
 
   # Initialize User1 to receive standard non-default assets (i.e. FUSD)
