@@ -2,6 +2,7 @@ from initialize_testing_environment import main
 from transaction_handler import send_async_artwork_transaction
 from script_handler import send_async_artwork_script_and_return_result
 from event_handler import check_for_event
+from metadata_handler import result_equals_expected_metadata
 from utils import address
 import json
 import pytest
@@ -36,7 +37,7 @@ def mint_control_token(args, signer, should_succeed, expected_control_mint_reser
     metadata = send_async_artwork_script_and_return_result("getMetadata", args=[["UInt64", args[0]]])
     print(metadata)
     if assert_metadata:
-      assert metadata == expected_metadata
+      assert result_equals_expected_metadata(metadata, expected_metadata)
     
     print("Successfully Minted Control Token")
   else:

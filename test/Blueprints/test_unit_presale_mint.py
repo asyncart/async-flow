@@ -17,12 +17,12 @@ def presale_mint(args, signer, should_succeed):
   formatted_args = [["UInt64", args[0]], ["UInt64", args[1]]]
   
   if should_succeed:
-    assert send_blueprints_transaction("preSaleMint", args=formatted_args, signer=signer)
+    assert send_blueprints_transaction("presaleMint", args=formatted_args, signer=signer)
     event = f'A.{address("AsyncArtwork")[2:]}.Blueprints.BlueprintMinted'
     assert check_for_n_event_occurences_over_x_blocks(args[1], int(args[1]), event)
     print("Successfully Completed Pre-Sale Mint")
   else:
-    assert not send_blueprints_transaction("preSaleMint", args=formatted_args, signer=signer)
+    assert not send_blueprints_transaction("presaleMint", args=formatted_args, signer=signer)
     print("Failed to Execute Pre-Sale Mint As Expected")
 
 @pytest.mark.core
