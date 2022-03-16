@@ -93,7 +93,19 @@
                 "Royalties"
             ],
             "AsyncArtAccount": [
-                "AsyncArtwork",
+                {
+                    "name": "AsyncArtwork",
+                    "args": [
+                        {
+                            "type": "String",
+                            "value": "A.0ae53cb6e3f42a79.FlowToken.Vault"
+                        },
+                        {
+                            "type": "String",
+                            "value": "A.f8d6e0586b0a20c7.FUSD.Vault"
+                        }
+                    ]
+                },
                 {
                     "name": "Blueprints",
                     "args": [
