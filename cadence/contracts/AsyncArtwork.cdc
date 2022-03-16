@@ -3,6 +3,7 @@ import FungibleToken from "./FungibleToken.cdc"
 import FlowToken from "./FlowToken.cdc"
 import FUSD from "./FUSD.cdc"
 import MetadataViews from "./MetadataViews.cdc"
+import Royalties from "./Royalties.cdc"
 
 pub contract AsyncArtwork: NonFungibleToken {
     pub var totalSupply: UInt64
@@ -30,6 +31,9 @@ pub contract AsyncArtwork: NonFungibleToken {
 
     // Second sale percentage for artists platform wide
     pub var artistSecondSalePercentage: UFix64
+
+    // Recipient of platform royalties on AsyncArtwork sales
+    pub var asyncSaleFeesRecipient: Address
 
     access(self) let tipVault: @FungibleToken.Vault
 
@@ -144,7 +148,8 @@ pub contract AsyncArtwork: NonFungibleToken {
             return [
                 Type<String>(),
                 Type<{UInt64: ControlLever}>(),
-                Type<[Address]>()
+                Type<[Address]>(),
+                Type<{Royalties.Royalty}>
             ]
         }
 
@@ -157,6 +162,10 @@ pub contract AsyncArtwork: NonFungibleToken {
                 return metadata.getLevers()
             } else if type == Type<[Address]>() {
                 return metadata.getUniqueTokenCreators()
+            } else if type == Type<{Royalties.Royalty}> {
+                let artistsFee: UFix64 = metadata.tokenSoldOnce ? AsyncArtwork.artistSecondSalePercentage : 0.0
+                let platformFee: UFix64 = metadata.tokenSoldOnce ? metadata.platformSecondSalePercentage : platformFirstSalePercentage
+                return AsyncArtwork.Royalties(metadata.getUniqueTokenCreators(), AsyncArtwork.asyncSaleFeesRecipient, artistsFee, platformFee)
             } else {
                 return nil
             }
@@ -164,6 +173,62 @@ pub contract AsyncArtwork: NonFungibleToken {
 
         init (id: UInt64) {
             self.id = id
+        }
+    }
+
+    pub struct Royalties : Royalties.Royalty {
+        pub let recipients: [Address]
+        pub let percentages: [UFix64]
+        pub let totalCut: UFix64
+        
+        init(_ artists: [Address], _ platform: Address, _ artistsCut: UFix64, _ platformCut: UFix64) {
+            pre {
+                artistsCut + platformCut <= 100.0 : "Invalid cuts"
+            }
+
+            self.percentages = []
+            artists.append(platform)
+            self.recipients = artists
+            let perArtistCut: UFix64 = artistsCut / artists.length
+
+            for artist in artists {
+                self.percentages.append(perArtistCut)
+            }
+            self.percentages.append(platformCut)
+
+            self.totalCut = artistsCut + platformCut
+        }
+
+        pub fun calculateRoyalty(type: Type, amount:UFix64) : UFix64? {
+            return self.isCurrencySupported(currency: type.identifier) ? totalCut * amount / 100.0 : nil
+        }
+    
+        pub fun distributeRoyalty(vault: @FungibleToken.Vault) {
+            pre {
+                self.isCurrencySupported(vault.getType().identifier) : "Currency not supported"
+            }
+
+            let totalPaymentAmount: UFix64 = vault.balance
+            var i: Int = 0
+            while i < self.recipients.length {
+                let amount: @FungibleToken.Vault <- vault.withdraw(amount: percentages[i] * totalPaymentAmount)
+                self.payout(recipient: recipients[i], amount: <- amount, currency: currency)
+
+                i = i + 1
+            }
+
+            // if any left over (shouldn't be)
+            self.payout(recipient: self.recipients[self.recipients.length - 1], amount: <- payment, currency: currency)
+        }
+
+        pub fun displayRoyalty() : String? {
+            var text = ""
+            var i: Int = 0
+            while i < self.recipients.length {
+                text.concat(self.recipients[i].toString()).concat(" ").concat(self.percentages[i].toString()).concat("%\n")
+                i = i + 1
+            }
+            return text
         }
     }
 
@@ -1031,6 +1096,10 @@ pub contract AsyncArtwork: NonFungibleToken {
 
             emit CurrencyUnwhitelisted(currency: currency)
         }
+
+        pub fun setAsyncSaleFeesRecipient(newRecipient: Address) {
+            AsyncArtwork.asyncSaleFeesRecipient = newRecipient
+        }
     }
 
     // Public getter for the metadata of any token
@@ -1071,6 +1140,7 @@ pub contract AsyncArtwork: NonFungibleToken {
         self.defaultPlatformFirstSalePercentage = 10.0
         self.defaultPlatformSecondSalePercentage = 5.0
         self.artistSecondSalePercentage = 10.0
+        self.asyncSaleFeesRecipient = self.account.address
 
         self.tipVault <- FlowToken.createEmptyVault()
 
