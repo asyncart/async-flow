@@ -3,6 +3,7 @@ import FungibleToken from "./FungibleToken.cdc"
 import FlowToken from "./FlowToken.cdc"
 import FUSD from "./FUSD.cdc"
 import MetadataViews from "./MetadataViews.cdc"
+import Royalties from "./Royalties.cdc"
 
 pub contract Blueprints: NonFungibleToken {
     pub var collectionStoragePath: StoragePath
@@ -409,7 +410,7 @@ pub contract Blueprints: NonFungibleToken {
         return true 
     }
 
-    pub resource NFT: NonFungibleToken.INFT, MetadataViews.Resolver {
+    pub resource NFT: NonFungibleToken.INFT, MetadataViews.Resolver, Royalties.Royalty {
         pub let id: UInt64
 
         pub fun getViews() : [Type] {
@@ -424,6 +425,18 @@ pub contract Blueprints: NonFungibleToken {
             } else {
                 return nil
             }
+        }
+
+        pub fun calculateRoyalty(type: Type, amount: UFix64) : UFix64? {
+            
+        }
+
+		pub fun distributeRoyalty(vault: @FungibleToken.Vault) {
+
+        }
+
+		pub fun displayRoyalty() : String? {
+
         }
 
         init(initID: UInt64) {

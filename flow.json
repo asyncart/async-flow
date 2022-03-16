@@ -45,7 +45,8 @@
         "ExampleToken": "./cadence/contracts/ExampleToken.cdc",
         "AsyncArtwork": "./cadence/contracts/AsyncArtwork.cdc",
         "Blueprints": "./cadence/contracts/Blueprints.cdc",
-        "NFTAuction": "./cadence/contracts/NFTAuction.cdc"
+        "NFTAuction": "./cadence/contracts/NFTAuction.cdc",
+        "Royalties": "./cadence/contracts/Royalties.cdc"
     },
     "networks": {
         "emulator": "127.0.0.1:3569",
@@ -88,7 +89,8 @@
                 "NonFungibleToken",
                 "FUSD",
                 "ExampleToken",
-                "MetadataViews"
+                "MetadataViews",
+                "Royalties"
             ],
             "AsyncArtAccount": [
                 "AsyncArtwork",
