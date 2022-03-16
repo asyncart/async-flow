@@ -66,10 +66,11 @@ def test_claim_nfts():
     True
   )
 
-  send_transaction("simulateTimeDelay")
-
   # User2 unlinks their NFT receiver capability
   send_async_artwork_transaction("unlinkAsyncArtworkNFTCollectionPublicCapability", signer="User2")
+
+  for i in range(100):
+    send_transaction("simulateTimeDelay")
 
   settle_auction(
     ["A.01cf0e2f2f715450.AsyncArtwork.NFT", "1"],
