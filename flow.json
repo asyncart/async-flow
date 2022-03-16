@@ -36,6 +36,12 @@
                 "mainnet": "0x3c5959b568896393"
             }
         },
+        "MetadataViews": {
+            "source": "./cadence/contracts/MetadataViews.cdc",
+            "aliases": {
+                "mainnet": "0x1d7e57aa55817448"
+            }
+        },
         "ExampleToken": "./cadence/contracts/ExampleToken.cdc",
         "AsyncArtwork": "./cadence/contracts/AsyncArtwork.cdc",
         "Blueprints": "./cadence/contracts/Blueprints.cdc",
@@ -49,31 +55,31 @@
     "accounts": {
         "emulator-account": {
             "address": "f8d6e0586b0a20c7",
-            "key": "cb8c7775ca8161601cbd11c9954029ed5efc9218b11baa26317f9ae98fc09897"
+            "key": "ffabd400869ae4c60c7eb1c4e91a1be00b6e9ce8b76318be6ca63bc1ee193341"
         },
         "AsyncArtAccount": {
             "address": "0x01cf0e2f2f715450",
-            "key": "d0f46f8231f5a328b02c2335a5ba79ab9d919c2c36cc48adb47b0b70bd056e0d"
+            "key": "67442f91f0637390638f9b336f373c1affad02d6e5ca2684c3ebda978dfbcd5c"
         },
         "User1": {
             "address": "0x179b6b1cb6755e31",
-            "key": "414bf83482bd30516edef6723a7437c7190edc78a93af73f494c5d9571dd4e4c"
+            "key": "e5296300639d6d6c2a6c6f36fef880647219181c90735ee413a430cc8341d575"
         },
         "User2": {
             "address": "0xf3fcd2c1a78f5eee",
-            "key": "724040b036b4f25987371561aea728a2c713e3c227e818ccfc08fab230e5cd54"
+            "key": "136d62af52955e8d573cfb36637349eb8ac63ccdff58a0b4c096651ee15f76fa"
         },
         "User3": {
             "address": "0xe03daebed8ca0615",
-            "key": "61ce0dbd7a34593d5e9c3525f50612023be9d8cb8a7148a9e8bf88e90752bb1f"
+            "key": "d4d75592ab3719ac3e81796c53115984dbdb2572538cf98ee3bedd1bae0547dc"
         },
         "User4": {
             "address": "0x045a1763c93006ca",
-            "key": "a09c0ea117e3e39cc46f8e5913706a2290eed9e57cdbc93245e61ac833332eac"
+            "key": "60b7fa393830cadf002b46a604b3a2f007146385e01e7c009a7c5b06c109e339"
         },
         "AsyncMarketplaceAccount": {
             "address": "0x120e725050340cab",
-            "key": "71609efb19481d5369101a65515e55e63e2b45c51fc5391c46dadb155636f5f8"
+            "key": "87e388adc55a9ea9ccba78b05e1cf692bc14311a05f54e2805e01100c6949829"
         }
     },
     "deployments": {
@@ -81,7 +87,8 @@
             "emulator-account": [
                 "NonFungibleToken",
                 "FUSD",
-                "ExampleToken"
+                "ExampleToken",
+                "MetadataViews"
             ],
             "AsyncArtAccount": [
                 "AsyncArtwork",

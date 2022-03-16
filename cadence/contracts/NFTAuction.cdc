@@ -796,7 +796,7 @@ pub contract NFTAuction {
                 NFTAuction.auctions[nftTypeIdentifier]![tokenId]!.nftHighestBid != nil : "This auction does not have any valid bids, to cancel auction call: withdrawAuction"
                 NFTAuction.auctions[nftTypeIdentifier]![tokenId]!.nftHighestBidder != nil : "NFT highest bidder is invalid, cannot settle"
                 NFTAuction.auctions[nftTypeIdentifier]![tokenId]!.auctionEnd != nil : "Auction end date not set, cannot settle"
-                getCurrentBlock().timestamp > NFTAuction.auctions[nftTypeIdentifier]![tokenId]!.auctionEnd! : "Cannot settle auction before end time"
+                getCurrentBlock().timestamp > NFTAuction.auctions[nftTypeIdentifier]![tokenId]!.auctionEnd! + 10 : "Cannot settle auction before end time" // accounting for potential 10 second offset
                 self.owner != nil : "Cannot perform operation while client in transit"
             }
 
@@ -1072,7 +1072,7 @@ pub contract NFTAuction {
             let escrowCollection = NFTAuction.escrowCollectionCap.borrow()!
 
             for id in ids {
-              nfts.append(<- escrowCollection.withdraw(nftTypeIdentifier:nftTypeIdentifier, tokenId: id))
+              nfts.append(<- escrowCollection.withdraw(nftTypeIdentifier: nftTypeIdentifier, tokenId: id))
             }
 
             // Remove user from the claims mapping
@@ -1246,6 +1246,10 @@ pub contract NFTAuction {
             auctionBidPeriod: UFix64,
             nftProviderCapability: Capability<&{NonFungibleToken.Provider}>?
         ) {
+            pre {
+                feeRecipients.length <= 500 : "More than 500 fee recipients not allowed"
+            }
+
             if buyNowPrice != nil && buyNowPrice! <= 0.0 {
                 panic("Buy now price cannot be 0")
             }
@@ -1346,6 +1350,9 @@ pub contract NFTAuction {
         pub var totalSupply: UInt64
         pub fun borrowNFT(nftTypeIdentifier: String, tokenId: UInt64): &NonFungibleToken.NFT
         pub fun containsNFT(nftTypeIdentifier: String, tokenId: UInt64): Bool
+        pub fun getTypesToProviderPaths(): {String: PrivatePath}
+        pub fun getTypesToStoragePaths(): {String: StoragePath}
+        pub fun getTypesToReceiverPaths(): {String: PublicPath}
     }
     
     pub resource escrowCollection: escrowCollectionPublic {
@@ -1354,13 +1361,25 @@ pub contract NFTAuction {
         // Dictionary of NFT types -> capabilities to their collections
         access(self) var typesToCollectionCapabilities: {String: Capability<&NonFungibleToken.Collection>}
 
-        pub var typesToProviderPaths: {String: PrivatePath}
+        access(self) var typesToProviderPaths: {String: PrivatePath}
 
-        pub var typesToStoragePaths: {String: StoragePath}
+        access(self) var typesToStoragePaths: {String: StoragePath}
 
-        pub var typesToReceiverPaths: {String: PublicPath}
+        access(self) var typesToReceiverPaths: {String: PublicPath}
 
         pub var totalSupply: UInt64
+
+        pub fun getTypesToProviderPaths(): {String: PrivatePath} {
+            return self.typesToProviderPaths
+        }
+
+        pub fun getTypesToStoragePaths(): {String: StoragePath} {
+            return self.typesToStoragePaths
+        }
+
+        pub fun getTypesToReceiverPaths(): {String: PublicPath} {
+            return self.typesToReceiverPaths
+        }
 
         pub fun containsNFT(nftTypeIdentifier: String, tokenId: UInt64): Bool {
             return self.ownedNFTs.containsKey(nftTypeIdentifier) && self.ownedNFTs[nftTypeIdentifier]!.containsKey(tokenId)
