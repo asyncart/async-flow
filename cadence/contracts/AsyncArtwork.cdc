@@ -149,7 +149,7 @@ pub contract AsyncArtwork: NonFungibleToken {
                 Type<String>(),
                 Type<{UInt64: ControlLever}>(),
                 Type<[Address]>(),
-                Type<{Royalties.Royalty}>
+                Type<{Royalties.Royalty}>()
             ]
         }
 
@@ -162,10 +162,10 @@ pub contract AsyncArtwork: NonFungibleToken {
                 return metadata.getLevers()
             } else if type == Type<[Address]>() {
                 return metadata.getUniqueTokenCreators()
-            } else if type == Type<&{Royalties.Royalty}> {
+            } else if type == Type<{Royalties.Royalty}>() {
                 let artistsFee: UFix64 = metadata.tokenSoldOnce ? AsyncArtwork.artistSecondSalePercentage : 0.0
-                let platformFee: UFix64 = metadata.tokenSoldOnce ? metadata.platformSecondSalePercentage : platformFirstSalePercentage
-                return AsyncArtwork.Royalties(metadata.getUniqueTokenCreators(), AsyncArtwork.asyncSaleFeesRecipient, artistsFee, platformFee)
+                let platformFee: UFix64 = metadata.tokenSoldOnce ? metadata.platformSecondSalePercentage : metadata.platformFirstSalePercentage
+                return AsyncArtwork.Royalty(metadata.getUniqueTokenCreators(), AsyncArtwork.asyncSaleFeesRecipient, artistsFee, platformFee)
             } else {
                 return nil
             }
@@ -176,7 +176,7 @@ pub contract AsyncArtwork: NonFungibleToken {
         }
     }
 
-    pub struct Royalties : Royalties.Royalty {
+    pub struct Royalty : Royalties.Royalty {
         pub let recipients: [Address]
         pub let percentages: [UFix64]
         pub let totalCut: UFix64
@@ -189,7 +189,7 @@ pub contract AsyncArtwork: NonFungibleToken {
             self.percentages = []
             artists.append(platform)
             self.recipients = artists
-            let perArtistCut: UFix64 = artistsCut / artists.length
+            let perArtistCut: UFix64 = artistsCut / UFix64(artists.length)
 
             for artist in artists {
                 self.percentages.append(perArtistCut)
@@ -200,25 +200,27 @@ pub contract AsyncArtwork: NonFungibleToken {
         }
 
         pub fun calculateRoyalty(type: Type, amount:UFix64) : UFix64? {
-            return self.isCurrencySupported(currency: type.identifier) ? totalCut * amount / 100.0 : nil
+            return nil
+         //   return AsyncArtwork.isCurrencySupported(currency: type.identifier) ? self.totalCut * amount / 100.0 : nil
         }
     
         pub fun distributeRoyalty(vault: @FungibleToken.Vault) {
             pre {
-                self.isCurrencySupported(vault.getType().identifier) : "Currency not supported"
+                AsyncArtwork.isCurrencySupported(currency: vault.getType().identifier) : "Currency not supported"
             }
 
+            let currency: String = vault.getType().identifier
             let totalPaymentAmount: UFix64 = vault.balance
             var i: Int = 0
             while i < self.recipients.length {
-                let amount: @FungibleToken.Vault <- vault.withdraw(amount: percentages[i] * totalPaymentAmount)
-                self.payout(recipient: recipients[i], amount: <- amount, currency: currency)
+                let amount: @FungibleToken.Vault <- vault.withdraw(amount: self.percentages[i] * totalPaymentAmount)
+                AsyncArtwork.payout(recipient: self.recipients[i], amount: <- amount, currency: currency)
 
                 i = i + 1
             }
 
-            // if any left over (shouldn't be)
-            self.payout(recipient: self.recipients[self.recipients.length - 1], amount: <- payment, currency: currency)
+            // if any left over (shouldn't be, but caller could have sent more)
+            AsyncArtwork.payout(recipient: self.recipients[self.recipients.length - 1], amount: <- vault, currency: currency)
         }
 
         pub fun displayRoyalty() : String? {
@@ -1090,11 +1092,12 @@ pub contract AsyncArtwork: NonFungibleToken {
             AsyncArtwork.currencyPaths.remove(key: currency)
             AsyncArtwork.payoutClaims.remove(key: currency)
 
-            let vault <- AsyncArtwork.claimsVaults.remove(key: currency)
+            let vault <- AsyncArtwork.claimsVaults.remove(key: currency) ?? panic("Could not retrieve claims vault for currency")
             if vault.balance > 0.0 {
                 panic("Claims vault is non-empty")
+            } else {
+                destroy <- vault
             }
-            destroy <- vault
 
             emit CurrencyUnwhitelisted(currency: currency)
         }
@@ -1116,10 +1119,10 @@ pub contract AsyncArtwork: NonFungibleToken {
 
             // Warning this could permanently remove funds from claims -- but claims is already quite accomodating so we won't block
             // admin if the claims vault is non-empty
-            let vault <- AsyncArtwork.claimsVaults.remove(key: currency)
+            let vault <- AsyncArtwork.claimsVaults.remove(key: currency) ?? panic("Could not retrieve claims vault for currency")
 
             // if any remaining, pay out to asyncSaleFeesRecipient to potentially manually payout later
-            self.payout(recipient: self.asyncSaleFeesRecipient, amount: <- vault, currency: currency)
+            AsyncArtwork.payout(recipient: AsyncArtwork.asyncSaleFeesRecipient, amount: <- vault, currency: currency)
 
             emit CurrencyUnwhitelisted(currency: currency)
         }
