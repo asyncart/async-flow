@@ -1,6 +1,8 @@
 // Used to manage FT and NFT paths + whitelisting
 
 pub contract TokenRegistry {
+    pub let claimerStoragePath: StoragePath
+
     // A mapping of currency type identifiers to expected paths
     access(self) let currencyPaths: {String: Paths}
 
@@ -32,6 +34,15 @@ pub contract TokenRegistry {
         amount: @FungibleToken.Vault,
         currency: String,
         auth: Blueprints.Auth
+    ) {
+        self.payout(recipient: recipient, amount: <- amount, currency: currency)
+    }
+
+    pub fun asyncArtworkPayout(
+        recipient: Address,
+        amount: @FungibleToken.Vault,
+        currency: String,
+        auth: AsyncArtwork.Auth
     ) {
         self.payout(recipient: recipient, amount: <- amount, currency: currency)
     }
@@ -198,6 +209,8 @@ pub contract TokenRegistry {
             flowTokenCurrencyType: {},
             fusdCurrencyType: {}
         }
+
+        self.claimerStoragePath = /storage/asyncTokenRegistryClaimer
 
         // Create a Platform resource and save it to storage
         let platform <- create Platform()
