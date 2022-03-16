@@ -796,7 +796,7 @@ pub contract NFTAuction {
                 NFTAuction.auctions[nftTypeIdentifier]![tokenId]!.nftHighestBid != nil : "This auction does not have any valid bids, to cancel auction call: withdrawAuction"
                 NFTAuction.auctions[nftTypeIdentifier]![tokenId]!.nftHighestBidder != nil : "NFT highest bidder is invalid, cannot settle"
                 NFTAuction.auctions[nftTypeIdentifier]![tokenId]!.auctionEnd != nil : "Auction end date not set, cannot settle"
-                getCurrentBlock().timestamp > NFTAuction.auctions[nftTypeIdentifier]![tokenId]!.auctionEnd! + 10 : "Cannot settle auction before end time" // accounting for potential 10 second offset
+                getCurrentBlock().timestamp > NFTAuction.auctions[nftTypeIdentifier]![tokenId]!.auctionEnd! + 10.0 : "Cannot settle auction before end time" // accounting for potential 10 second offset
                 self.owner != nil : "Cannot perform operation while client in transit"
             }
 
