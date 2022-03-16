@@ -1030,8 +1030,32 @@ pub contract Blueprints: NonFungibleToken {
             emit CurrencyWhitelisted(currency: currency)
         }
 
-        // unwhitelist currency
-        pub fun unwhitelistCurrency(
+        // unwhitelist currency safe (checks if claims vault being removed is empty)
+        pub fun unwhitelistCurrencySafe(
+            currency: String
+        ) {
+            pre {
+                Blueprints.isCurrencySupported(currency: currency): "Currency is not whitelisted"
+            }
+
+            post {
+                !Blueprints.isCurrencySupported(currency: currency): "Currency unwhitelist failed"
+            }
+
+            Blueprints.currencyPaths.remove(key: currency)
+            Blueprints.payoutClaims.remove(key: currency)
+
+            let vault <- Blueprints.claimsVaults.remove(key: currency)
+            if vault.balance > 0.0 {
+                panic("Claims vault is non-empty")
+            }
+            destroy <- vault
+
+            emit CurrencyUnwhitelisted(currency: currency)
+        }
+
+        // unwhitelist currency unchecked (doesn't check if claims vault being removed is empty)
+        pub fun unwhitelistCurrencyUnchecked(
             currency: String
         ) {
             pre {
@@ -1047,7 +1071,10 @@ pub contract Blueprints: NonFungibleToken {
 
             // Warning this could permanently remove funds from claims -- but claims is already quite accomodating so we won't block
             // admin if the claims vault is non-empty
-            destroy <- Blueprints.claimsVaults.remove(key: currency)
+            let vault <- Blueprints.claimsVaults.remove(key: currency)
+
+            // if any remaining, pay out to asyncSaleFeesRecipient to potentially manually payout later
+            self.payout(recipient: self.asyncSaleFeesRecipient, amount: <- vault, currency: currency)
 
             emit CurrencyUnwhitelisted(currency: currency)
         }

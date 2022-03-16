@@ -6,12 +6,12 @@ transaction(currency: String) {
     prepare(acct: AuthAccount) {
 
         let senderPlatformRef: &Blueprints.Platform = acct.borrow<&Blueprints.Platform>(from: Blueprints.platformStoragePath) ?? panic("Could not borrow platform resource from acct")
-        senderPlatformRef.unwhitelistCurrency(
+        senderPlatformRef.unwhitelistCurrencySafe(
             currency: currency
         )
 
         let admin: &AsyncArtwork.Admin = acct.borrow<&AsyncArtwork.Admin>(from: AsyncArtwork.adminStoragePath) ?? panic("Could not borrow AsyncArtwork admin resource from acct")
-        admin.unwhitelistCurrency(
+        admin.unwhitelistCurrencySafe(
             currency: currency
         )
     }

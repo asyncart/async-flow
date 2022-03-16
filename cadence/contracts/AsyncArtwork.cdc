@@ -162,7 +162,7 @@ pub contract AsyncArtwork: NonFungibleToken {
                 return metadata.getLevers()
             } else if type == Type<[Address]>() {
                 return metadata.getUniqueTokenCreators()
-            } else if type == Type<{Royalties.Royalty}> {
+            } else if type == Type<&{Royalties.Royalty}> {
                 let artistsFee: UFix64 = metadata.tokenSoldOnce ? AsyncArtwork.artistSecondSalePercentage : 0.0
                 let platformFee: UFix64 = metadata.tokenSoldOnce ? metadata.platformSecondSalePercentage : platformFirstSalePercentage
                 return AsyncArtwork.Royalties(metadata.getUniqueTokenCreators(), AsyncArtwork.asyncSaleFeesRecipient, artistsFee, platformFee)
@@ -1075,8 +1075,32 @@ pub contract AsyncArtwork: NonFungibleToken {
             emit CurrencyWhitelisted(currency: currency)
         }
 
-        // unwhitelist currency
-        pub fun unwhitelistCurrency(
+        // unwhitelist currency safe (checks if claims vault being removed is empty)
+        pub fun unwhitelistCurrencySafe(
+            currency: String
+        ) {
+            pre {
+                AsyncArtwork.isCurrencySupported(currency: currency): "Currency is not whitelisted"
+            }
+
+            post {
+                !AsyncArtwork.isCurrencySupported(currency: currency): "Currency unwhitelist failed"
+            }
+
+            AsyncArtwork.currencyPaths.remove(key: currency)
+            AsyncArtwork.payoutClaims.remove(key: currency)
+
+            let vault <- AsyncArtwork.claimsVaults.remove(key: currency)
+            if vault.balance > 0.0 {
+                panic("Claims vault is non-empty")
+            }
+            destroy <- vault
+
+            emit CurrencyUnwhitelisted(currency: currency)
+        }
+
+        // unwhitelist currency unchecked (doesn't check if claims vault being removed is empty)
+        pub fun unwhitelistCurrencyUnchecked(
             currency: String
         ) {
             pre {
@@ -1092,7 +1116,10 @@ pub contract AsyncArtwork: NonFungibleToken {
 
             // Warning this could permanently remove funds from claims -- but claims is already quite accomodating so we won't block
             // admin if the claims vault is non-empty
-            destroy <- AsyncArtwork.claimsVaults.remove(key: currency)
+            let vault <- AsyncArtwork.claimsVaults.remove(key: currency)
+
+            // if any remaining, pay out to asyncSaleFeesRecipient to potentially manually payout later
+            self.payout(recipient: self.asyncSaleFeesRecipient, amount: <- vault, currency: currency)
 
             emit CurrencyUnwhitelisted(currency: currency)
         }
