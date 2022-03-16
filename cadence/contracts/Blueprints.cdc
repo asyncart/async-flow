@@ -4,6 +4,7 @@ import FlowToken from "./FlowToken.cdc"
 import FUSD from "./FUSD.cdc"
 import MetadataViews from "./MetadataViews.cdc"
 import Royalties from "./Royalties.cdc"
+import TokenRegistry from "./TokenRegistry.cdc"
 
 pub contract Blueprints: NonFungibleToken {
     pub var collectionStoragePath: StoragePath
@@ -27,17 +28,6 @@ pub contract Blueprints: NonFungibleToken {
     // token id to blueprint id
     access(self) let tokenToBlueprintID: {UInt64: UInt64}
     access(self) let blueprints: {UInt64: Blueprint}
-
-    // A mapping of currency type identifiers to expected paths
-    access(self) let currencyPaths: {String: Paths}
-
-    // managing claims on failed payouts
-
-    // A mapping of currency type identifiers to intermediary claims vaults
-    access(self) let claimsVaults: @{String: FungibleToken.Vault}
-
-    // A mapping of currency type identifiers to {User Addresses -> Amounts of currency they are owed}
-    access(self) let payoutClaims: {String: {Address: UFix64}}
 
     pub event ContractInitialized()
     pub event Withdraw(id: UInt64, from: Address?)
@@ -89,31 +79,6 @@ pub contract Blueprints: NonFungibleToken {
         blueprintID: UInt64,
         newBaseTokenUri: String
     )
-
-    pub event CurrencyWhitelisted(currency: String)
-    pub event CurrencyUnwhitelisted(currency: String)
-
-    pub struct Paths {
-        pub var public: PublicPath
-        pub var private: PrivatePath
-        pub var storage: StoragePath
-
-        init(_ _public: PublicPath, _ _private: PrivatePath, _ _storage: StoragePath) {
-            self.public = _public 
-            self.private = _private 
-            self.storage = _storage 
-        }
-    }
-
-    pub fun getCurrencyPaths(): {String: Paths} {
-        return self.currencyPaths
-    }
-
-    pub fun isCurrencySupported(currency: String): Bool {
-        return self.currencyPaths.containsKey(currency) &&
-               self.claimsVaults.containsKey(currency) &&
-               self.payoutClaims.containsKey(currency)
-    }
 
     pub enum SaleState: UInt8 {
         pub case notStarted 
@@ -374,42 +339,6 @@ pub contract Blueprints: NonFungibleToken {
         }
     }
 
-    access(self) fun isValidCurrencyFormat(_currency: String): Bool {
-        // valid hex address, will abort otherwise
-        _currency.slice(from: 2, upTo: 18).decodeHex()
-
-        let periodUtf8: UInt8 = 46
-
-        if _currency.slice(from: 0, upTo: 2) != "A." {
-            // does not start with A. 
-            return false 
-        } else if _currency[18] != "." {
-            // 16 chars not in address
-            return false
-        } else if !_currency.slice(from: 19, upTo: _currency.length).utf8.contains(periodUtf8) {
-            // third dot is not present
-            return false 
-        } 
-
-        // check if substring after last dot is "Vault"
-        let contractSpecifier: String = _currency.slice(from: 19, upTo: _currency.length)
-        var typeFirstIndex: Int = 0
-
-        var i: Int = 0
-        while i < contractSpecifier.length {
-            if contractSpecifier[i] == "." {
-                typeFirstIndex = i + 1
-                break
-            }
-            i = i + 1
-        }
-        if contractSpecifier.slice(from: typeFirstIndex, upTo: contractSpecifier.length) != "Vault" {
-            return false
-        }
-        
-        return true 
-    }
-
     pub resource NFT: NonFungibleToken.INFT, MetadataViews.Resolver, Royalties.Royalty {
         pub let id: UInt64
 
@@ -508,6 +437,8 @@ pub contract Blueprints: NonFungibleToken {
         return <- create Collection()
     }
 
+    pub resource Auth {}
+
     pub resource BlueprintsClient {
         // checks if the buyer is whitelisted or the sale has started
         access(self) fun buyerWhitelistedOrSaleStarted(
@@ -528,7 +459,7 @@ pub contract Blueprints: NonFungibleToken {
         ) {
             pre {
                 UFix64(quantity) * Blueprints.blueprints[blueprintID]!.price == payment.balance : "Purchase amount must match price"
-                Blueprints.isCurrencySupported(currency: payment.getType().identifier) : "Currency not whitelisted"
+                TokenRegistry.isCurrencySupported(currency: payment.getType().identifier) : "Currency not whitelisted"
                 payment.getType().identifier == Blueprints.blueprints[blueprintID]!.currency : "Incorrect currency"
             }
             let feeRecipients = Blueprints.blueprints[blueprintID]!.getPrimaryFeeRecipients()
@@ -541,51 +472,16 @@ pub contract Blueprints: NonFungibleToken {
             while i < feeRecipients.length {
                 let amount: @FungibleToken.Vault <- payment.withdraw(amount: feePercentages[i] * totalPaymentAmount)
                 feesPaid = feesPaid + amount.balance 
-                self.payout(recipient: feeRecipients[i], amount: <- amount, currency: currency)
+                TokenRegistry.blueprintsPayout(recipient: feeRecipients[i], amount: <- amount, currency: currency, auth: <- Auth())
 
                 i = i + 1
             }
 
             if totalPaymentAmount - feesPaid > 0.0 {
-                self.payout(recipient: artist, amount: <- payment, currency: currency)
+                TokenRegistry.blueprintsPayout(recipient: artist, amount: <- payment, currency: currency, auth: <- Auth())
             } else {
                 destroy payment
             }
-        }
-
-        access(self) fun payout(
-            recipient: Address,
-            amount: @FungibleToken.Vault,
-            currency: String
-        ) {
-            let receiverPath = Blueprints.currencyPaths[currency]!.public
-            let vaultReceiver = getAccount(recipient).getCapability<&{FungibleToken.Receiver}>(receiverPath).borrow()
-
-            if vaultReceiver != nil {
-                vaultReceiver!.deposit(from: <- amount)
-            } else {
-                self.payClaims(recipient: recipient, amount: <- amount, currency: currency)
-            }
-        }
-
-        access(self) fun payClaims(
-            recipient: Address, 
-            amount: @FungibleToken.Vault,
-            currency: String
-        ) {
-            var newClaim: UFix64 = 0.0
-            if Blueprints.payoutClaims[currency]![recipient] == nil {
-                newClaim = amount.balance
-            } else {
-                newClaim = Blueprints.payoutClaims[currency]![recipient]! + amount.balance
-            }
-            Blueprints.payoutClaims[currency]!.insert(key: recipient, newClaim)
-
-            let claimsVault <- Blueprints.claimsVaults.remove(key: currency)!
-            claimsVault.deposit(from: <- amount)
-
-            // This should always destroy an empty resource
-            destroy <- Blueprints.claimsVaults.insert(key: currency, <- claimsVault)
         }
 
         access(self) fun mintQuantity(
@@ -713,23 +609,6 @@ pub contract Blueprints: NonFungibleToken {
                 quantity: quantity,
                 nftRecipient: nftRecipient
             )
-        }
-
-        // claim amount
-        pub fun claimPayout(currency: String): @FungibleToken.Vault {
-            pre {
-                self.owner != nil : "Cannot perform operation while client in transit"
-                Blueprints.payoutClaims[currency] != nil : "Currency type is not supported"
-                Blueprints.payoutClaims[currency]![self.owner!.address] != nil : "Sender does not have any payouts to claim for this currency"
-            }
-
-            let withdrawAmount: UFix64 = Blueprints.payoutClaims[currency]![self.owner!.address]!
-            let claimsVault <- Blueprints.claimsVaults.remove(key: currency)!
-            let payout: @FungibleToken.Vault <- claimsVault.withdraw(amount: withdrawAmount)
-
-            destroy <- Blueprints.claimsVaults.insert(key: currency, <- claimsVault)
-
-            return <- payout
         }
     }
 
@@ -1014,59 +893,9 @@ pub contract Blueprints: NonFungibleToken {
             }
             Blueprints.defaultBlueprintSecondarySalePercentage = newFee
         }
-
-        // whitelist currency
-        pub fun whitelistCurrency(
-            currency: String,
-            currencyPublicPath: PublicPath,
-            currencyPrivatePath: PrivatePath,
-            currencyStoragePath: StoragePath,
-            vault: @FungibleToken.Vault
-        ) {
-            pre {
-                Blueprints.isValidCurrencyFormat(_currency: currency) : "Currency identifier is invalid"
-                !Blueprints.isCurrencySupported(currency: currency): "Currency is already whitelisted"
-            }
-
-            post {
-                Blueprints.isCurrencySupported(currency: currency): "Currency not whitelisted successfully"
-            }
-
-            Blueprints.currencyPaths[currency] = Paths(
-                currencyPublicPath,
-                currencyPrivatePath,
-                currencyStoragePath
-            )
-            Blueprints.payoutClaims.insert(key: currency, {})
-            destroy <- Blueprints.claimsVaults.insert(key: currency, <- vault)
-
-            emit CurrencyWhitelisted(currency: currency)
-        }
-
-        // unwhitelist currency
-        pub fun unwhitelistCurrency(
-            currency: String
-        ) {
-            pre {
-                Blueprints.isCurrencySupported(currency: currency): "Currency is not whitelisted"
-            }
-
-            post {
-                !Blueprints.isCurrencySupported(currency: currency): "Currency unwhitelist failed"
-            }
-
-            Blueprints.currencyPaths.remove(key: currency)
-            Blueprints.payoutClaims.remove(key: currency)
-
-            // Warning this could permanently remove funds from claims -- but claims is already quite accomodating so we won't block
-            // admin if the claims vault is non-empty
-            destroy <- Blueprints.claimsVaults.remove(key: currency)
-
-            emit CurrencyUnwhitelisted(currency: currency)
-        }
     }
 
-	init(minterAddress: Address, flowTokenCurrencyType: String, fusdCurrencyType: String) {
+	init(minterAddress: Address) {
         // Initialize the total supply
         self.totalSupply = 0
 
@@ -1088,28 +917,6 @@ pub contract Blueprints: NonFungibleToken {
 
         self.blueprints = {}
         self.tokenToBlueprintID = {}
-
-        // whitelist flowToken and fusd to start
-        self.claimsVaults <- {
-            flowTokenCurrencyType: <- FlowToken.createEmptyVault(),
-            fusdCurrencyType: <- FUSD.createEmptyVault()
-        }
-        self.currencyPaths = {
-            flowTokenCurrencyType: Paths(
-                /public/flowTokenReceiver,
-                /private/asyncArtworkFlowTokenVault, // technically unknown standard -> opt for custom path
-                /storage/flowTokenVault
-            ),
-            fusdCurrencyType: Paths(
-                /public/fusdReceiver,
-                /private/asyncArtworkFusdVault, // technically unknown standard -> opt for custom path
-                /storage/fusdVault
-            )
-        }
-        self.payoutClaims = {
-            flowTokenCurrencyType: {},
-            fusdCurrencyType: {}
-        }
 
         let collection <- self.createEmptyCollection()
         self.account.save(<- collection, to: self.collectionStoragePath)
