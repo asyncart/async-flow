@@ -98,7 +98,7 @@ pub contract AsyncArtwork: NonFungibleToken {
             self.currentValue = startValue
         }
     }
-    
+
     // The id in the NFT is also a pointer to it's metadata stored on contract
     pub resource NFT: NonFungibleToken.INFT, MetadataViews.Resolver {
         pub let id: UInt64
@@ -373,7 +373,6 @@ pub contract AsyncArtwork: NonFungibleToken {
             }
 
             for id in self.ownedNFTs.keys {
-                // borrowNFT protects against fraudulent swaps of token ids in ownedNFTs by collection owner
                 let NFT = self.borrowNFT(id: id)
                 let tokenId = NFT.id
 
