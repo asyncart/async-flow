@@ -1,3 +1,5 @@
+import FungibleToken from "./FungibleToken.cdc"
+
 // Use this contract as a placeholder until a royalty standard contract is deployed to mainnet
 
 pub contract Royalties {

@@ -17,12 +17,12 @@ def unwhitelist_currency(arg, signer, should_succeed):
   formatted_args = [["String", arg]]
 
   if should_succeed:
-    assert send_blueprints_transaction("unwhitelistCurrency", args=formatted_args, signer=signer)
+    assert send_transaction("unwhitelistCurrency", args=formatted_args, signer=signer)
     event = f'A.{address("AsyncArtwork")[2:]}.Blueprints.CurrencyUnwhitelisted'
     assert check_for_event(event)
     print("Successfully Unwhitelisted Currency")
   else:
-    assert not send_blueprints_transaction("unwhitelistCurrency", args=formatted_args, signer=signer)
+    assert not send_transaction("unwhitelistCurrency", args=formatted_args, signer=signer)
     print("Failed to Unwhitelist Currency As Expected")
 
 @pytest.mark.core

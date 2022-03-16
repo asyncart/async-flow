@@ -1,6 +1,7 @@
 import NonFungibleToken from "./NonFungibleToken.cdc"
 import FungibleToken from "./FungibleToken.cdc"
 import FlowToken from "./FlowToken.cdc"
+import FUSD from "./FUSD.cdc"
 import MetadataViews from "./MetadataViews.cdc"
 
 pub contract AsyncArtwork: NonFungibleToken {
@@ -1073,20 +1074,6 @@ pub contract AsyncArtwork: NonFungibleToken {
 
         self.tipVault <- FlowToken.createEmptyVault()
 
-        // Collection
-        let collection <- self.createEmptyCollection()
-        self.account.save(<-collection, to: self.collectionStoragePath)
-
-        self.account.link<&{NonFungibleToken.Provider, AsyncCollectionPrivate}>(
-            self.collectionPrivatePath,
-            target: self.collectionStoragePath
-        )
-
-        self.account.link<&{NonFungibleToken.CollectionPublic, NonFungibleToken.Receiver, AsyncCollectionPublic}>(
-            self.collectionPublicPath,
-            target: self.collectionStoragePath
-        )
-
         // currency whitelisting and claims
         // whitelist flowToken and fusd to start
         self.claimsVaults <- {
@@ -1109,6 +1096,20 @@ pub contract AsyncArtwork: NonFungibleToken {
             flowTokenCurrencyType: {},
             fusdCurrencyType: {}
         }
+
+        // Collection
+        let collection <- create Collection()
+        self.account.save(<-collection, to: self.collectionStoragePath)
+
+        self.account.link<&{NonFungibleToken.CollectionPublic, NonFungibleToken.Receiver, AsyncCollectionPublic}>(
+            self.collectionPublicPath,
+            target: self.collectionStoragePath
+        )
+
+        self.account.link<&{NonFungibleToken.Provider, AsyncCollectionPrivate}>(
+            self.collectionPrivatePath,
+            target: self.collectionStoragePath
+        )
 
         // Admin
         let admin <- create Admin()
