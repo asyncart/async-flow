@@ -98,7 +98,7 @@ def test_take_highest_bid():
     True
   )
 
-  assert "4.00000000" == send_script_and_return_result("getUsersFlowTokenBalance", args=[["Address", address("User1")]])
+  assert "3.80000000" == send_script_and_return_result("getUsersFlowTokenBalance", args=[["Address", address("User1")]])
   assert "96.00000000" == send_script_and_return_result("getUsersFlowTokenBalance", args=[["Address", address("User2")]])
 
   assert "[]" == send_async_artwork_script_and_return_result("getNFTs", args=[["Address", address("User1")]])

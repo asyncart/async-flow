@@ -4,6 +4,8 @@ import FlowToken from "./FlowToken.cdc"
 import FUSD from "./FUSD.cdc"
 import AsyncArtwork from "./AsyncArtwork.cdc"
 import Blueprints from "./Blueprints.cdc"
+import Royalties from "./Royalties.cdc"
+import MetadataViews from "./MetadataViews.cdc"
 
 pub contract NFTAuction {
     pub var marketplaceClientPublicPath: PublicPath
@@ -13,6 +15,9 @@ pub contract NFTAuction {
     pub var escrowCollectionPrivatePath: PrivatePath
     pub var escrowCollectionPublicPath: PublicPath
     access(self) var escrowCollectionCap: Capability<&escrowCollection>
+
+    pub var asyncArtworkNFTType: String
+    pub var blueprintsNFTType: String
 
     pub var flowTokenCurrencyType: String
 
@@ -192,18 +197,39 @@ pub contract NFTAuction {
 
         self.auctions[nftTypeIdentifier]![tokenId]!.resetBids()
 
-        self._payFeesAndSeller(
-            nftTypeIdentifier: nftTypeIdentifier,
-            tokenId: tokenId,
-            seller: auction.nftSeller!, 
-            bid: <- bid
-        )
-
         let receiverPath = self.nftTypePaths[nftTypeIdentifier]!.public
         let collection = getAccount(auction.getNFTRecipient()).getCapability<&{NonFungibleToken.CollectionPublic}>(receiverPath).borrow()
 
-        let nft <- self.escrowCollectionCap.borrow()!.withdraw(nftTypeIdentifier: nftTypeIdentifier, tokenId: tokenId)
+        // for AsyncArtwork and Blueprints NFTs, ignore feeRecipients and feePercentages, for contract defined royalties
+        if nftTypeIdentifier == self.asyncArtworkNFTType || nftTypeIdentifier == self.blueprintsNFTType {
+            let readNFT = self.escrowCollectionCap.borrow()!.borrowViewResolver(nftTypeIdentifier: nftTypeIdentifier, tokenId: tokenId)
 
+            let views: [Type] = readNFT.getViews()
+            var royalty: {Royalties.Royalty}? = nil
+            for view in views {
+                if view == Type<{Royalties.Royalty}>() {
+                    royalty = readNFT.resolveView(view) as! {Royalties.Royalty}?
+                    break
+                }
+            }
+
+            self._payFeesAndSellerAsyncContracts(
+                nftTypeIdentifier: nftTypeIdentifier,
+                tokenId: tokenId,
+                seller: auction.nftSeller!, 
+                bid: <- bid,
+                royalty: royalty
+            )
+        } else {
+            self._payFeesAndSellerGeneral(
+                nftTypeIdentifier: nftTypeIdentifier,
+                tokenId: tokenId,
+                seller: auction.nftSeller!, 
+                bid: <- bid
+            )   
+        }
+
+        let nft <- self.escrowCollectionCap.borrow()!.withdraw(nftTypeIdentifier: nftTypeIdentifier, tokenId: tokenId)
         let type: String = nft.getType().identifier
 
         if collection != nil {
@@ -239,7 +265,43 @@ pub contract NFTAuction {
       self.escrowCollectionCap.borrow()!.deposit(token: <- nft)
     }
 
-    access(self) fun _payFeesAndSeller(
+    access(self) fun _payFeesAndSellerAsyncContracts(
+        nftTypeIdentifier: String,
+        tokenId: UInt64,
+        seller: Address, 
+        bid: @FungibleToken.Vault,
+        royalty: {Royalties.Royalty}?
+    ) {
+        if royalty == nil {
+            // didn't identify royalty view, try paying generally
+            self._payFeesAndSellerGeneral(
+                nftTypeIdentifier: nftTypeIdentifier,
+                tokenId: tokenId,
+                seller: seller, 
+                bid: <- bid
+            )
+        } else {
+            let royaltyAmount: UFix64? = royalty!.calculateRoyalty(type: bid.getType(), amount: bid.balance)
+            if royaltyAmount == nil {
+                // try paying fees via general
+                self._payFeesAndSellerGeneral(
+                    nftTypeIdentifier: nftTypeIdentifier,
+                    tokenId: tokenId,
+                    seller: seller, 
+                    bid: <- bid
+                )   
+            } else {
+                royalty!.distributeRoyalty(vault: <- bid.withdraw(amount: royaltyAmount!))
+
+                self._payout(
+                    recipient: seller, 
+                    amount: <- bid
+                )
+            }
+        }
+    }
+
+    access(self) fun _payFeesAndSellerGeneral(
         nftTypeIdentifier: String,
         tokenId: UInt64,
         seller: Address, 
@@ -351,7 +413,7 @@ pub contract NFTAuction {
         if NFTAuction.auctions[nftTypeIdentifier]![tokenId] == nil {
             // early bid
 
-            // TODO: update this with the nft's fee recipients and fee percentages! (Will be resolved once Bleuprint is fully implemented)
+            // when supporting contracts not implementing royalty standard, or allowing overriding of recipients and percentages set on AsyncArtwork and Blueprints, refactor this
             let feeRecipients: [Address] = []
             let feePercentages: [UFix64] = []
 
@@ -1348,7 +1410,8 @@ pub contract NFTAuction {
     // Collection Escrow Resource
     pub resource interface escrowCollectionPublic {
         pub var totalSupply: UInt64
-        pub fun borrowNFT(nftTypeIdentifier: String, tokenId: UInt64): &NonFungibleToken.NFT
+        pub fun borrowNFT(nftTypeIdentifier: String, tokenId: UInt64): &NonFungibleToken.NFT 
+        pub fun borrowViewResolver(nftTypeIdentifier: String, tokenId: UInt64): &{MetadataViews.Resolver}
         pub fun containsNFT(nftTypeIdentifier: String, tokenId: UInt64): Bool
         pub fun getTypesToProviderPaths(): {String: PrivatePath}
         pub fun getTypesToStoragePaths(): {String: StoragePath}
@@ -1360,6 +1423,8 @@ pub contract NFTAuction {
 
         // Dictionary of NFT types -> capabilities to their collections
         access(self) var typesToCollectionCapabilities: {String: Capability<&NonFungibleToken.Collection>}
+
+        access(self) var typesToViewCollectionCapabilities: {String: Capability<&{MetadataViews.ResolverCollection}>}
 
         access(self) var typesToProviderPaths: {String: PrivatePath}
 
@@ -1385,7 +1450,7 @@ pub contract NFTAuction {
             return self.ownedNFTs.containsKey(nftTypeIdentifier) && self.ownedNFTs[nftTypeIdentifier]!.containsKey(tokenId)
         }
 
-        pub fun withdraw(nftTypeIdentifier: String, tokenId: UInt64): @NonFungibleToken.NFT {
+        pub fun withdraw(nftTypeIdentifier: String, tokenId: UInt64): @NonFungibleToken.NFT{
             if self.ownedNFTs.containsKey(nftTypeIdentifier) && self.ownedNFTs[nftTypeIdentifier]!.containsKey(tokenId) {
                 self.ownedNFTs[nftTypeIdentifier]!.remove(key: tokenId)
             } else {
@@ -1423,13 +1488,31 @@ pub contract NFTAuction {
             let nft: &NonFungibleToken.NFT = collection.borrowNFT(id: tokenId)
             return nft
         }
+
+        pub fun borrowViewResolver(nftTypeIdentifier: String, tokenId: UInt64): &{MetadataViews.Resolver} {
+            let typeRef = self.typesToViewCollectionCapabilities[nftTypeIdentifier] ?? panic("Does not support NFT type") 
+            let collection = typeRef.borrow() ?? panic("Could not borrow reference to NFTCollection") 
+            let nft: &{MetadataViews.Resolver} = collection.borrowViewResolver(id: tokenId)
+            return nft
+        }
         
-        init (asyncArtworkNFTType: String, blueprintNFTType: String, asyncArtworkEscrowCollectionCap: Capability<&NonFungibleToken.Collection>, blueprintEscrowCollectionCap: Capability<&NonFungibleToken.Collection>) {
+        init (
+            asyncArtworkNFTType: String, 
+            blueprintNFTType: String, 
+            asyncArtworkEscrowCollectionPrivateCap: Capability<&NonFungibleToken.Collection>, 
+            blueprintEscrowCollectionPrivateCap: Capability<&NonFungibleToken.Collection>,
+            asyncArtworkEscrowCollectionPublicCap: Capability<&{MetadataViews.ResolverCollection}>, 
+            blueprintEscrowCollectionPublicCap: Capability<&{MetadataViews.ResolverCollection}>
+        ) {
             self.totalSupply = 0
             self.ownedNFTs = {}
             self.typesToCollectionCapabilities = {
-                asyncArtworkNFTType: asyncArtworkEscrowCollectionCap,
-                blueprintNFTType: blueprintEscrowCollectionCap
+                asyncArtworkNFTType: asyncArtworkEscrowCollectionPrivateCap,
+                blueprintNFTType: blueprintEscrowCollectionPrivateCap
+            }
+            self.typesToViewCollectionCapabilities = {
+                asyncArtworkNFTType: asyncArtworkEscrowCollectionPublicCap,
+                blueprintNFTType: blueprintEscrowCollectionPublicCap
             }
             self.typesToStoragePaths = {
                 asyncArtworkNFTType: AsyncArtwork.collectionStoragePath,
@@ -1458,6 +1541,8 @@ pub contract NFTAuction {
         self.escrowCollectionPrivatePath = /private/EscrowCollectionPrivate
         self.escrowCollectionPublicPath = /public/escrowCollectionPublic
         self.escrowCollectionStoragePath = /storage/escrowCollection
+        self.asyncArtworkNFTType = asyncArtworkNFTType
+        self.blueprintsNFTType = blueprintNFTType
         self.flowTokenCurrencyType = flowTokenCurrencyType
 
         self.auctions = {
@@ -1499,8 +1584,7 @@ pub contract NFTAuction {
         let asyncArtworkCollection <- AsyncArtwork.createEmptyCollection()
         self.account.save(<- asyncArtworkCollection, to: AsyncArtwork.collectionStoragePath)
 
-        // does linking this as an NFT Collection instead of an AsyncArtwork collection have any ramifications? I don't think so...
-        let asyncEscrowCollectionCap = self.account.link<&NonFungibleToken.Collection>(
+        let asyncEscrowCollectionPrivateCap = self.account.link<&NonFungibleToken.Collection>(
             AsyncArtwork.collectionPrivatePath,
             target: AsyncArtwork.collectionStoragePath
         ) ?? panic("Coud not link private capability to async artwork collection")
@@ -1510,20 +1594,37 @@ pub contract NFTAuction {
             target: AsyncArtwork.collectionStoragePath
         )
 
+        let asyncEscrowCollectionPublicCap = self.account.link<&{MetadataViews.ResolverCollection}>(
+            AsyncArtwork.collectionMetadataViewResolverPublicPath,
+            target: AsyncArtwork.collectionStoragePath
+        )
+
         let blueprintCollection <- Blueprints.createEmptyCollection()
         self.account.save(<- blueprintCollection, to: Blueprints.collectionStoragePath)
 
-        let blueprintEscrowCollectionCap = self.account.link<&NonFungibleToken.Collection>(
+        let blueprintEscrowCollectionPrivateCap = self.account.link<&NonFungibleToken.Collection>(
             Blueprints.collectionPrivatePath,
             target: Blueprints.collectionStoragePath
         ) ?? panic("Could not link private capability to blueprint collection!")
 
-        self.account.link<&Blueprints.Collection{NonFungibleToken.CollectionPublic, NonFungibleToken.Receiver}>(
+        self.account.link<&Blueprints.Collection{NonFungibleToken.CollectionPublic, NonFungibleToken.Receiver, MetadataViews.ResolverCollection}>(
             Blueprints.collectionPublicPath,
             target: Blueprints.collectionStoragePath
         )
 
-        let escrow <- create escrowCollection(asyncArtworkNFTType: asyncArtworkNFTType, blueprintNFTType: blueprintNFTType, asyncArtworkEscrowCollectionCap: asyncEscrowCollectionCap, blueprintEscrowCollectionCap: blueprintEscrowCollectionCap)
+        let blueprintEscrowCollectionPublicCap = self.account.link<&{MetadataViews.ResolverCollection}>(
+            Blueprints.collectionMetadataViewResolverPublicPath,
+            target: Blueprints.collectionStoragePath
+        )
+
+        let escrow <- create escrowCollection(
+            asyncArtworkNFTType: asyncArtworkNFTType,  
+            blueprintNFTType: blueprintNFTType, 
+            asyncArtworkEscrowCollectionPrivateCap: asyncEscrowCollectionPrivateCap, 
+            blueprintEscrowCollectionPrivateCap: blueprintEscrowCollectionPrivateCap,
+            asyncArtworkEscrowCollectionPublicCap: asyncEscrowCollectionPublicCap!, 
+            blueprintEscrowCollectionPublicCap: blueprintEscrowCollectionPublicCap!
+        )
         self.account.save(<- escrow, to: self.escrowCollectionStoragePath)
 
         self.escrowCollectionCap = self.account.link<&escrowCollection>(

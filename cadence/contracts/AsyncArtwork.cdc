@@ -6,14 +6,16 @@ import MetadataViews from "./MetadataViews.cdc"
 import Royalties from "./Royalties.cdc"
 
 pub contract AsyncArtwork: NonFungibleToken {
-    pub var totalSupply: UInt64
     pub let collectionStoragePath: StoragePath 
     pub let collectionPrivatePath: PrivatePath
     pub let collectionPublicPath: PublicPath
+    pub let collectionMetadataViewResolverPublicPath: PublicPath
     pub let adminStoragePath: StoragePath
     pub let adminPrivatePath: PrivatePath
     pub let minterStoragePath: StoragePath
     pub let minterPrivatePath: PrivatePath
+    
+    pub var totalSupply: UInt64
 
     // The number of tokens which have been allocated an id for minting
     pub var expectedTokenSupply: UInt64
@@ -163,8 +165,8 @@ pub contract AsyncArtwork: NonFungibleToken {
             } else if type == Type<[Address]>() {
                 return metadata.getUniqueTokenCreators()
             } else if type == Type<{Royalties.Royalty}>() {
-                let artistsFee: UFix64 = metadata.tokenSoldOnce ? AsyncArtwork.artistSecondSalePercentage : 0.0
-                let platformFee: UFix64 = metadata.tokenSoldOnce ? metadata.platformSecondSalePercentage : metadata.platformFirstSalePercentage
+                let artistsFee: UFix64 = metadata.tokenSoldOnce == true ? AsyncArtwork.artistSecondSalePercentage : 0.0
+                let platformFee: UFix64 = metadata.tokenSoldOnce == true ? metadata.platformSecondSalePercentage : metadata.platformFirstSalePercentage
                 return AsyncArtwork.Royalty(metadata.getUniqueTokenCreators(), AsyncArtwork.asyncSaleFeesRecipient, artistsFee, platformFee)
             } else {
                 return nil
@@ -200,8 +202,11 @@ pub contract AsyncArtwork: NonFungibleToken {
         }
 
         pub fun calculateRoyalty(type: Type, amount:UFix64) : UFix64? {
-            return nil
-         //   return AsyncArtwork.isCurrencySupported(currency: type.identifier) ? self.totalCut * amount / 100.0 : nil
+            if AsyncArtwork.isCurrencySupported(currency: type.identifier) {
+                return self.totalCut * amount / 100.0
+            } else {
+                return nil
+            }
         }
     
         pub fun distributeRoyalty(vault: @FungibleToken.Vault) {
@@ -284,7 +289,7 @@ pub contract AsyncArtwork: NonFungibleToken {
         pub fun getControlUpdate(): {UInt64: UInt64}
     }
 
-    pub resource Collection: NonFungibleToken.Provider, NonFungibleToken.Receiver, NonFungibleToken.CollectionPublic, AsyncCollectionPublic, AsyncCollectionPrivate {
+    pub resource Collection: NonFungibleToken.Provider, NonFungibleToken.Receiver, NonFungibleToken.CollectionPublic, AsyncCollectionPublic, AsyncCollectionPrivate, MetadataViews.ResolverCollection {
         // dictionary of NFT conforming tokens
         // NFT is a resource type with an `UInt64` ID field
         pub var ownedNFTs: @{UInt64: NonFungibleToken.NFT}
@@ -552,6 +557,19 @@ pub contract AsyncArtwork: NonFungibleToken {
 
             self.controlMintReservation.insert(key: id, 0)
             destroy auth
+        }
+
+        // =============================
+        // MetadataViews.ResolverCollection interface
+        // =============================        
+
+        pub fun borrowViewResolver(id: UInt64): &{MetadataViews.Resolver} {
+            let nft = &self.ownedNFTs[id] as auth &NonFungibleToken.NFT
+            if nft.id != id {
+                panic("NFT id does not match requested id")
+            }
+            let asyncArtworkNFT = nft as! &AsyncArtwork.NFT 
+            return asyncArtworkNFT as &{MetadataViews.Resolver}
         }
 
         // =============================
@@ -837,6 +855,14 @@ pub contract AsyncArtwork: NonFungibleToken {
             emit TokenSoldOnce(tokenId: self.id)
         }
 
+        // used for idempotent operation - currently unused, may use on sale
+        pub fun setTokenSoldOnceUnchecked() {
+            if !self.tokenSoldOnce {
+                self.tokenSoldOnce = true
+                emit TokenSoldOnce(tokenId: self.id)
+            } 
+        }
+
         pub fun updateUri(_ uri: String) {
             pre {
                 !self.isUriLocked : "Cannot update uri -- locked"
@@ -1095,9 +1121,8 @@ pub contract AsyncArtwork: NonFungibleToken {
             let vault <- AsyncArtwork.claimsVaults.remove(key: currency) ?? panic("Could not retrieve claims vault for currency")
             if vault.balance > 0.0 {
                 panic("Claims vault is non-empty")
-            } else {
-                destroy <- vault
             }
+            destroy vault
 
             emit CurrencyUnwhitelisted(currency: currency)
         }
@@ -1159,6 +1184,7 @@ pub contract AsyncArtwork: NonFungibleToken {
         self.collectionStoragePath = /storage/AsyncArtworkCollection
         self.collectionPrivatePath = /private/AsyncArtworkCollection
         self.collectionPublicPath = /public/AsyncArtworkCollection
+        self.collectionMetadataViewResolverPublicPath = /public/AsyncArtworkMetadataViews
         self.adminStoragePath = /storage/AsyncArtworkAdmin
         self.adminPrivatePath = /private/AsyncArtworkAdmin
         self.minterStoragePath = /storage/AsyncArtworkMinter
