@@ -92,7 +92,7 @@ def test_settle_auction():
     True
   )
 
-  for i in range(100):
+  for i in range(120):
     send_transaction("simulateTimeDelay")
 
   # Cannot settle auction that does not exist
@@ -136,7 +136,7 @@ def test_settle_auction():
     True
   )
 
-  for i in range(100):
+  for i in range(120):
     send_transaction("simulateTimeDelay")
 
   # Can settle auction as non NFT seller, and as non bidder
