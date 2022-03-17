@@ -14,12 +14,12 @@ from test_unit_update_blueprint_settings import update_blueprint_settings
 
 def whitelist_example_token(signer, should_succeed):
   if should_succeed:
-    assert send_blueprints_transaction("whitelistExampleToken", signer=signer)
+    assert send_transaction("whitelistExampleToken", signer=signer)
     event = f'A.{address("AsyncArtwork")[2:]}.Blueprints.CurrencyWhitelisted'
     assert check_for_event(event)
     print("Successfully Whitelisted Example Token")
   else:
-    assert not send_blueprints_transaction("whitelistExampleToken", signer=signer)
+    assert not send_transaction("whitelistExampleToken", signer=signer)
     print("Failed to Whitelist Example Token As Expected")
 
 @pytest.mark.core

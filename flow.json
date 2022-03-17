@@ -45,7 +45,8 @@
         "ExampleToken": "./cadence/contracts/ExampleToken.cdc",
         "AsyncArtwork": "./cadence/contracts/AsyncArtwork.cdc",
         "Blueprints": "./cadence/contracts/Blueprints.cdc",
-        "NFTAuction": "./cadence/contracts/NFTAuction.cdc"
+        "NFTAuction": "./cadence/contracts/NFTAuction.cdc",
+        "Royalties": "./cadence/contracts/Royalties.cdc"
     },
     "networks": {
         "emulator": "127.0.0.1:3569",
@@ -55,31 +56,31 @@
     "accounts": {
         "emulator-account": {
             "address": "f8d6e0586b0a20c7",
-            "key": "b150bb9f734fcea3e57f4d9a5a6234b1f3f675e849af0d0262eb050cb562c011"
+            "key": "6aa41d3d4056ad3d3666a52d2a246da548fecbd4c59749c9b0d7bcaea5fb0094"
         },
         "AsyncArtAccount": {
             "address": "0x01cf0e2f2f715450",
-            "key": "dd7f05f55922e5aa349133beb6b70a84ac801cc5eae3dc37fa4c5271f19f49d4"
+            "key": "d98dc6283a540b61f06d4c2155eb8cf04d8bf3a85a6d1791cf36ef93504984d2"
         },
         "User1": {
             "address": "0x179b6b1cb6755e31",
-            "key": "6f61993510d5cf80fcc5e787691ccad69122ef91e5b111d633a65020b552fda1"
+            "key": "709f027e9f361001e3d40bbf2b20e418aa70f1341b4df580baf3521c127f2d39"
         },
         "User2": {
             "address": "0xf3fcd2c1a78f5eee",
-            "key": "abcf535f3bf7fd2b93d88fb2692b70061294f6370fd9bcb14de243aec688531a"
+            "key": "95aef42ab416fc38869b0c6bd0c5d36938001f14318db63e7f225ad20f835904"
         },
         "User3": {
             "address": "0xe03daebed8ca0615",
-            "key": "b7d0d5cd8edf6bbc703944049983c021eae2e0bd95731c59bfed0ce58e10e91f"
+            "key": "d714ba27582440ffc8cf06b4e5b63aa7cc4eacc5ca5ac2a087f6e5856d94b91a"
         },
         "User4": {
             "address": "0x045a1763c93006ca",
-            "key": "263ca723f5daff4497b62f8a203d2875fc97b3f852e16c8c539a7115418034a6"
+            "key": "43eb0091a90ae4ef6b26d5e3c11580fa18aee51a0f1dcfcf15d78cc0ce864a00"
         },
         "AsyncMarketplaceAccount": {
             "address": "0x120e725050340cab",
-            "key": "6de1151105264ca647d86cdc9d289733b152317b6b679c1c49c2fd8a575947c1"
+            "key": "4d3808a9addd77a42c2186ed003db788b3dee220aea830f4bf4b94bff24038d7"
         }
     },
     "deployments": {
@@ -88,10 +89,23 @@
                 "NonFungibleToken",
                 "FUSD",
                 "ExampleToken",
-                "MetadataViews"
+                "MetadataViews",
+                "Royalties"
             ],
             "AsyncArtAccount": [
-                "AsyncArtwork",
+                {
+                    "name": "AsyncArtwork",
+                    "args": [
+                        {
+                            "type": "String",
+                            "value": "A.0ae53cb6e3f42a79.FlowToken.Vault"
+                        },
+                        {
+                            "type": "String",
+                            "value": "A.f8d6e0586b0a20c7.FUSD.Vault"
+                        }
+                    ]
+                },
                 {
                     "name": "Blueprints",
                     "args": [

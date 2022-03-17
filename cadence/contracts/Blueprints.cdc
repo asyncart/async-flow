@@ -3,14 +3,16 @@ import FungibleToken from "./FungibleToken.cdc"
 import FlowToken from "./FlowToken.cdc"
 import FUSD from "./FUSD.cdc"
 import MetadataViews from "./MetadataViews.cdc"
+import Royalties from "./Royalties.cdc"
 
 pub contract Blueprints: NonFungibleToken {
-    pub var collectionStoragePath: StoragePath
-    pub var collectionPrivatePath: PrivatePath
-    pub var collectionPublicPath: PublicPath
-    pub var minterStoragePath: StoragePath
-    pub var platformStoragePath: StoragePath
-    pub var blueprintsClientStoragePath: StoragePath
+    pub let collectionStoragePath: StoragePath
+    pub let collectionPrivatePath: PrivatePath
+    pub let collectionPublicPath: PublicPath
+    pub let collectionMetadataViewResolverPublicPath: PublicPath
+    pub let minterStoragePath: StoragePath
+    pub let platformStoragePath: StoragePath
+    pub let blueprintsClientStoragePath: StoragePath
 
     pub var totalSupply: UInt64
 
@@ -114,6 +116,59 @@ pub contract Blueprints: NonFungibleToken {
                self.payoutClaims.containsKey(currency)
     }
 
+    pub struct Royalty : Royalties.Royalty {
+        pub let recipients: [Address]
+        pub let percentages: [UFix64]
+        pub var totalCut: UFix64
+        
+        init(_ recipients: [Address], _ percentages: [UFix64]) {
+            self.recipients = recipients
+            self.percentages = percentages
+            self.totalCut = 0.0
+
+            for percentage in percentages {
+                self.totalCut = self.totalCut + percentage
+            }
+        }
+
+        pub fun calculateRoyalty(type: Type, amount:UFix64) : UFix64? {
+            if Blueprints.isCurrencySupported(currency: type.identifier) {
+                return self.totalCut * amount
+            } else {
+                return nil
+            }
+        }
+    
+        pub fun distributeRoyalty(vault: @FungibleToken.Vault) {
+            pre {
+                Blueprints.isCurrencySupported(currency: vault.getType().identifier) : "Currency not supported"
+            }
+
+            let currency: String = vault.getType().identifier
+            let totalPaymentAmount: UFix64 = vault.balance
+            var i: Int = 0
+            while i < self.recipients.length {
+                let amount: @FungibleToken.Vault <- vault.withdraw(amount: self.percentages[i] * totalPaymentAmount)
+                Blueprints.payout(recipient: self.recipients[i], amount: <- amount, currency: currency)
+
+                i = i + 1
+            }
+
+            // if any left over (shouldn't be, but caller could have sent more)
+            Blueprints.payout(recipient: self.recipients[self.recipients.length - 1], amount: <- vault, currency: currency)
+        }
+
+        pub fun displayRoyalty() : String? {
+            var text = ""
+            var i: Int = 0
+            while i < self.recipients.length {
+                text.concat(self.recipients[i].toString()).concat(" ").concat(self.percentages[i].toString()).concat("%\n")
+                i = i + 1
+            }
+            return text
+        }
+    }
+
     pub enum SaleState: UInt8 {
         pub case notStarted 
         pub case started 
@@ -133,10 +188,10 @@ pub contract Blueprints: NonFungibleToken {
         pub var baseTokenUri: String 
         pub var saleState: SaleState
 
-        access(contract) var primaryFeePercentages: [UFix64]
-        access(contract) var secondaryFeePercentages: [UFix64]
-        access(contract) var primaryFeeRecipients: [Address]
-        access(contract) var secondaryFeeRecipients: [Address]
+        pub fun getPrimaryFeeRecipients(): [Address]
+        pub fun getPrimaryFeePercentages(): [UFix64]
+        pub fun getSecondaryFeeRecipients(): [Address]
+        pub fun getSecondaryFeePercentages(): [UFix64]
     }
 
     pub struct Blueprint: BlueprintPublic {
@@ -152,10 +207,10 @@ pub contract Blueprints: NonFungibleToken {
         pub var baseTokenUri: String 
         pub var saleState: SaleState
 
-        access(contract) var primaryFeePercentages: [UFix64]
-        access(contract) var secondaryFeePercentages: [UFix64]
-        access(contract) var primaryFeeRecipients: [Address]
-        access(contract) var secondaryFeeRecipients: [Address]
+        access(self) var primaryFeePercentages: [UFix64]
+        access(self) var secondaryFeePercentages: [UFix64]
+        access(self) var primaryFeeRecipients: [Address]
+        access(self) var secondaryFeeRecipients: [Address]
 
         // maps whitelisted addresses to if they've claimed
         access(contract) var whitelist: {Address: Bool}
@@ -310,6 +365,22 @@ pub contract Blueprints: NonFungibleToken {
             }
         }
 
+        pub fun getSecondaryFeeRecipients(): [Address] {
+            if self.secondaryFeeRecipients.length == 0 {
+                return [Blueprints.asyncSaleFeesRecipient, self.artist]
+            } else {
+                return self.secondaryFeeRecipients
+            }
+        }
+
+        pub fun getSecondaryFeePercentages(): [UFix64] {
+            if self.secondaryFeePercentages.length == 0 {
+                return [Blueprints.defaultPlatformSecondarySalePercentage, Blueprints.defaultBlueprintSecondarySalePercentage]
+            } else {
+                return self.secondaryFeePercentages
+            }
+        }
+
         init(
             _artist: Address,
             _capacity: UInt64,
@@ -414,13 +485,20 @@ pub contract Blueprints: NonFungibleToken {
 
         pub fun getViews() : [Type] {
             return [
-                Type<String>()
+                Type<String>(),
+                Type<{Royalties.Royalty}>()
             ]
         }
 
         pub fun resolveView(_ type: Type): AnyStruct {
             if type == Type<String>() {
                 return Blueprints.tokenURI(tokenId: self.id)
+            } else if type == Type<{Royalties.Royalty}>() {
+                let metadata = Blueprints.getBlueprintByTokenId(tokenId: self.id)
+                if metadata == nil {
+                    panic("Token id does not correspond to a Blueprint")
+                }
+                return Blueprints.Royalty(metadata!.getSecondaryFeeRecipients(), metadata!.getSecondaryFeePercentages())
             } else {
                 return nil
             }
@@ -441,13 +519,22 @@ pub contract Blueprints: NonFungibleToken {
         return baseURI.concat("/").concat(tokenId.toString()).concat("/token.json")
     }
 
-    pub resource Collection: NonFungibleToken.Provider, NonFungibleToken.Receiver, NonFungibleToken.CollectionPublic {
+    pub resource Collection: NonFungibleToken.Provider, NonFungibleToken.Receiver, NonFungibleToken.CollectionPublic, MetadataViews.ResolverCollection {
         // dictionary of NFT conforming tokens
         // NFT is a resource type with an `UInt64` ID field
         pub var ownedNFTs: @{UInt64: NonFungibleToken.NFT}
 
         init () {
             self.ownedNFTs <- {}
+        }
+
+        pub fun borrowViewResolver(id: UInt64): &{MetadataViews.Resolver} {
+            let nft = &self.ownedNFTs[id] as auth &NonFungibleToken.NFT
+            if nft.id != id {
+                panic("NFT id does not match requested id")
+            }
+            let blueprintNFT = nft as! &Blueprints.NFT 
+            return blueprintNFT as &{MetadataViews.Resolver}
         }
 
         // withdraw removes an NFT from the collection and moves it to the caller
@@ -495,6 +582,41 @@ pub contract Blueprints: NonFungibleToken {
         return <- create Collection()
     }
 
+    access(self) fun payout(
+        recipient: Address,
+        amount: @FungibleToken.Vault,
+        currency: String
+    ) {
+        let receiverPath = self.currencyPaths[currency]!.public
+        let vaultReceiver = getAccount(recipient).getCapability<&{FungibleToken.Receiver}>(receiverPath).borrow()
+
+        if vaultReceiver != nil {
+            vaultReceiver!.deposit(from: <- amount)
+        } else {
+            self.payClaims(recipient: recipient, amount: <- amount, currency: currency)
+        }
+    }
+
+    access(self) fun payClaims(
+        recipient: Address, 
+        amount: @FungibleToken.Vault,
+        currency: String
+    ) {
+        var newClaim: UFix64 = 0.0
+        if self.payoutClaims[currency]![recipient] == nil {
+            newClaim = amount.balance
+        } else {
+            newClaim = self.payoutClaims[currency]![recipient]! + amount.balance
+        }
+        self.payoutClaims[currency]!.insert(key: recipient, newClaim)
+
+        let claimsVault <- self.claimsVaults.remove(key: currency)!
+        claimsVault.deposit(from: <- amount)
+
+        // This should always destroy an empty resource
+        destroy <- self.claimsVaults.insert(key: currency, <- claimsVault)
+    }
+
     pub resource BlueprintsClient {
         // checks if the buyer is whitelisted or the sale has started
         access(self) fun buyerWhitelistedOrSaleStarted(
@@ -528,51 +650,16 @@ pub contract Blueprints: NonFungibleToken {
             while i < feeRecipients.length {
                 let amount: @FungibleToken.Vault <- payment.withdraw(amount: feePercentages[i] * totalPaymentAmount)
                 feesPaid = feesPaid + amount.balance 
-                self.payout(recipient: feeRecipients[i], amount: <- amount, currency: currency)
+                Blueprints.payout(recipient: feeRecipients[i], amount: <- amount, currency: currency)
 
                 i = i + 1
             }
 
             if totalPaymentAmount - feesPaid > 0.0 {
-                self.payout(recipient: artist, amount: <- payment, currency: currency)
+                Blueprints.payout(recipient: artist, amount: <- payment, currency: currency)
             } else {
                 destroy payment
             }
-        }
-
-        access(self) fun payout(
-            recipient: Address,
-            amount: @FungibleToken.Vault,
-            currency: String
-        ) {
-            let receiverPath = Blueprints.currencyPaths[currency]!.public
-            let vaultReceiver = getAccount(recipient).getCapability<&{FungibleToken.Receiver}>(receiverPath).borrow()
-
-            if vaultReceiver != nil {
-                vaultReceiver!.deposit(from: <- amount)
-            } else {
-                self.payClaims(recipient: recipient, amount: <- amount, currency: currency)
-            }
-        }
-
-        access(self) fun payClaims(
-            recipient: Address, 
-            amount: @FungibleToken.Vault,
-            currency: String
-        ) {
-            var newClaim: UFix64 = 0.0
-            if Blueprints.payoutClaims[currency]![recipient] == nil {
-                newClaim = amount.balance
-            } else {
-                newClaim = Blueprints.payoutClaims[currency]![recipient]! + amount.balance
-            }
-            Blueprints.payoutClaims[currency]!.insert(key: recipient, newClaim)
-
-            let claimsVault <- Blueprints.claimsVaults.remove(key: currency)!
-            claimsVault.deposit(from: <- amount)
-
-            // This should always destroy an empty resource
-            destroy <- Blueprints.claimsVaults.insert(key: currency, <- claimsVault)
         }
 
         access(self) fun mintQuantity(
@@ -1030,8 +1117,32 @@ pub contract Blueprints: NonFungibleToken {
             emit CurrencyWhitelisted(currency: currency)
         }
 
-        // unwhitelist currency
-        pub fun unwhitelistCurrency(
+        // unwhitelist currency safe (checks if claims vault being removed is empty)
+        pub fun unwhitelistCurrencySafe(
+            currency: String
+        ) {
+            pre {
+                Blueprints.isCurrencySupported(currency: currency): "Currency is not whitelisted"
+            }
+
+            post {
+                !Blueprints.isCurrencySupported(currency: currency): "Currency unwhitelist failed"
+            }
+
+            Blueprints.currencyPaths.remove(key: currency)
+            Blueprints.payoutClaims.remove(key: currency)
+
+            let vault <- Blueprints.claimsVaults.remove(key: currency) ?? panic("Could not retrieve claims vault for currency")
+            if vault.balance > 0.0 {
+                panic("Claims vault is non-empty")
+            }
+            destroy vault
+
+            emit CurrencyUnwhitelisted(currency: currency)
+        }
+
+        // unwhitelist currency unchecked (doesn't check if claims vault being removed is empty)
+        pub fun unwhitelistCurrencyUnchecked(
             currency: String
         ) {
             pre {
@@ -1047,7 +1158,10 @@ pub contract Blueprints: NonFungibleToken {
 
             // Warning this could permanently remove funds from claims -- but claims is already quite accomodating so we won't block
             // admin if the claims vault is non-empty
-            destroy <- Blueprints.claimsVaults.remove(key: currency)
+            let vault <- Blueprints.claimsVaults.remove(key: currency) ?? panic("Could not retrieve claims vault for currency")
+
+            // if any remaining, pay out to asyncSaleFeesRecipient to potentially manually payout later
+            Blueprints.payout(recipient: Blueprints.asyncSaleFeesRecipient, amount: <- vault, currency: currency)
 
             emit CurrencyUnwhitelisted(currency: currency)
         }
@@ -1060,6 +1174,7 @@ pub contract Blueprints: NonFungibleToken {
         self.collectionStoragePath = /storage/BlueprintCollection
         self.collectionPrivatePath = /private/BlueprintCollection
         self.collectionPublicPath = /public/BlueprintCollection
+        self.collectionMetadataViewResolverPublicPath = /public/BlueprintMetadataViews
         self.minterStoragePath = /storage/BlueprintMinter
         self.platformStoragePath = /storage/BlueprintPlatform
         self.blueprintsClientStoragePath = /storage/BlueprintClient

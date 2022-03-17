@@ -69,7 +69,7 @@ def test_claim_nfts():
   # User2 unlinks their NFT receiver capability
   send_async_artwork_transaction("unlinkAsyncArtworkNFTCollectionPublicCapability", signer="User2")
 
-  for i in range(100):
+  for i in range(120):
     send_transaction("simulateTimeDelay")
 
   settle_auction(
@@ -78,7 +78,7 @@ def test_claim_nfts():
     True
   )
 
-  assert "4.00000000" == send_script_and_return_result("getUsersFlowTokenBalance", args=[["Address", address("User1")]])
+  assert "3.80000000" == send_script_and_return_result("getUsersFlowTokenBalance", args=[["Address", address("User1")]])
   assert "96.00000000" == send_script_and_return_result("getUsersFlowTokenBalance", args=[["Address", address("User2")]])
 
   assert "[]" == send_async_artwork_script_and_return_result("getNFTs", args=[["Address", address("User1")]])

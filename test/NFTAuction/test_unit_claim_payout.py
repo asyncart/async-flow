@@ -103,7 +103,7 @@ def test_make_bids():
   )
 
   # User1 should now have their FUSD after claim
-  assert "6.00000000" == send_script_and_return_result("getUsersFUSDBalance", args=[["Address", address("User1")]])
+  assert "5.70000000" == send_script_and_return_result("getUsersFUSDBalance", args=[["Address", address("User1")]])
 
 if __name__ == '__main__':
   test_make_bids()

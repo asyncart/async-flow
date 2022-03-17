@@ -1,17 +1,21 @@
 import NonFungibleToken from "./NonFungibleToken.cdc"
 import FungibleToken from "./FungibleToken.cdc"
 import FlowToken from "./FlowToken.cdc"
+import FUSD from "./FUSD.cdc"
 import MetadataViews from "./MetadataViews.cdc"
+import Royalties from "./Royalties.cdc"
 
 pub contract AsyncArtwork: NonFungibleToken {
-    pub var totalSupply: UInt64
     pub let collectionStoragePath: StoragePath 
     pub let collectionPrivatePath: PrivatePath
     pub let collectionPublicPath: PublicPath
+    pub let collectionMetadataViewResolverPublicPath: PublicPath
     pub let adminStoragePath: StoragePath
     pub let adminPrivatePath: PrivatePath
     pub let minterStoragePath: StoragePath
     pub let minterPrivatePath: PrivatePath
+    
+    pub var totalSupply: UInt64
 
     // The number of tokens which have been allocated an id for minting
     pub var expectedTokenSupply: UInt64
@@ -30,7 +34,21 @@ pub contract AsyncArtwork: NonFungibleToken {
     // Second sale percentage for artists platform wide
     pub var artistSecondSalePercentage: UFix64
 
+    // Recipient of platform royalties on AsyncArtwork sales
+    pub var asyncSaleFeesRecipient: Address
+
     access(self) let tipVault: @FungibleToken.Vault
+
+    // A mapping of currency type identifiers to expected paths
+    access(self) let currencyPaths: {String: Paths}
+
+    // managing claims on failed payouts
+
+    // A mapping of currency type identifiers to intermediary claims vaults
+    access(self) let claimsVaults: @{String: FungibleToken.Vault}
+
+    // A mapping of currency type identifiers to {User Addresses -> Amounts of currency they are owed}
+    access(self) let payoutClaims: {String: {Address: UFix64}}
 
     pub event ContractInitialized()
     pub event Withdraw(id: UInt64, from: Address?)
@@ -75,6 +93,31 @@ pub contract AsyncArtwork: NonFungibleToken {
         updatedValues: [Int64]
     )
 
+    pub event CurrencyWhitelisted(currency: String)
+    pub event CurrencyUnwhitelisted(currency: String)
+
+    pub struct Paths {
+        pub var public: PublicPath
+        pub var private: PrivatePath
+        pub var storage: StoragePath
+
+        init(_ _public: PublicPath, _ _private: PrivatePath, _ _storage: StoragePath) {
+            self.public = _public 
+            self.private = _private 
+            self.storage = _storage 
+        }
+    }
+
+    pub fun getCurrencyPaths(): {String: Paths} {
+        return self.currencyPaths
+    }
+
+    pub fun isCurrencySupported(currency: String): Bool {
+        return self.currencyPaths.containsKey(currency) &&
+               self.claimsVaults.containsKey(currency) &&
+               self.payoutClaims.containsKey(currency)
+    }
+
     pub struct ControlLever {
         pub var minValue: Int64
         pub var maxValue: Int64 
@@ -107,7 +150,8 @@ pub contract AsyncArtwork: NonFungibleToken {
             return [
                 Type<String>(),
                 Type<{UInt64: ControlLever}>(),
-                Type<[Address]>()
+                Type<[Address]>(),
+                Type<{Royalties.Royalty}>()
             ]
         }
 
@@ -120,6 +164,10 @@ pub contract AsyncArtwork: NonFungibleToken {
                 return metadata.getLevers()
             } else if type == Type<[Address]>() {
                 return metadata.getUniqueTokenCreators()
+            } else if type == Type<{Royalties.Royalty}>() {
+                let artistsFee: UFix64 = metadata.tokenSoldOnce == true ? AsyncArtwork.artistSecondSalePercentage : 0.0
+                let platformFee: UFix64 = metadata.tokenSoldOnce == true ? metadata.platformSecondSalePercentage : metadata.platformFirstSalePercentage
+                return AsyncArtwork.Royalty(metadata.getUniqueTokenCreators(), AsyncArtwork.asyncSaleFeesRecipient, artistsFee, platformFee)
             } else {
                 return nil
             }
@@ -127,6 +175,67 @@ pub contract AsyncArtwork: NonFungibleToken {
 
         init (id: UInt64) {
             self.id = id
+        }
+    }
+
+    pub struct Royalty : Royalties.Royalty {
+        pub let recipients: [Address]
+        pub let percentages: [UFix64]
+        pub let totalCut: UFix64
+        
+        init(_ artists: [Address], _ platform: Address, _ artistsCut: UFix64, _ platformCut: UFix64) {
+            pre {
+                artistsCut + platformCut <= 100.0 : "Invalid cuts"
+            }
+
+            self.percentages = []
+            artists.append(platform)
+            self.recipients = artists
+            let perArtistCut: UFix64 = artistsCut / UFix64(artists.length)
+
+            for artist in artists {
+                self.percentages.append(perArtistCut)
+            }
+            self.percentages.append(platformCut)
+
+            self.totalCut = artistsCut + platformCut
+        }
+
+        pub fun calculateRoyalty(type: Type, amount:UFix64) : UFix64? {
+            if AsyncArtwork.isCurrencySupported(currency: type.identifier) {
+                return self.totalCut * amount / 100.0
+            } else {
+                return nil
+            }
+        }
+    
+        pub fun distributeRoyalty(vault: @FungibleToken.Vault) {
+            pre {
+                AsyncArtwork.isCurrencySupported(currency: vault.getType().identifier) : "Currency not supported"
+            }
+
+            let currency: String = vault.getType().identifier
+            let totalPaymentAmount: UFix64 = vault.balance
+            var i: Int = 0
+            while i < self.recipients.length {
+                let amount: @FungibleToken.Vault <- vault.withdraw(amount: self.percentages[i] * totalPaymentAmount)
+                AsyncArtwork.payout(recipient: self.recipients[i], amount: <- amount, currency: currency)
+
+                i = i + 1
+            }
+
+            // if any left over (shouldn't be, but caller could have sent more)
+            AsyncArtwork.payout(recipient: self.recipients[self.recipients.length - 1], amount: <- vault, currency: currency)
+        }
+
+        pub fun displayRoyalty() : String? {
+            var text = ""
+            var i: Int = 0
+            while i < self.recipients.length {
+                text.concat(self.recipients[i].toString()).concat(" ").concat(self.percentages[i].toString()).concat("%\n")
+                i = i + 1
+            }
+            return text
         }
     }
 
@@ -161,6 +270,8 @@ pub contract AsyncArtwork: NonFungibleToken {
         pub fun grantControlPermission(id: UInt64, permissionedUser: Address, grant: Bool)
 
         pub fun updateOwnerForOwnedNFTs()
+
+        pub fun claimPayout(currency: String): @FungibleToken.Vault
     }
 
     // Public
@@ -178,7 +289,7 @@ pub contract AsyncArtwork: NonFungibleToken {
         pub fun getControlUpdate(): {UInt64: UInt64}
     }
 
-    pub resource Collection: NonFungibleToken.Provider, NonFungibleToken.Receiver, NonFungibleToken.CollectionPublic, AsyncCollectionPublic, AsyncCollectionPrivate {
+    pub resource Collection: NonFungibleToken.Provider, NonFungibleToken.Receiver, NonFungibleToken.CollectionPublic, AsyncCollectionPublic, AsyncCollectionPrivate, MetadataViews.ResolverCollection {
         // dictionary of NFT conforming tokens
         // NFT is a resource type with an `UInt64` ID field
         pub var ownedNFTs: @{UInt64: NonFungibleToken.NFT}
@@ -387,6 +498,23 @@ pub contract AsyncArtwork: NonFungibleToken {
             }
         }
 
+        // claim amount
+        pub fun claimPayout(currency: String): @FungibleToken.Vault {
+            pre {
+                self.owner != nil : "Cannot perform operation while client in transit"
+                AsyncArtwork.payoutClaims[currency] != nil : "Currency type is not supported"
+                AsyncArtwork.payoutClaims[currency]![self.owner!.address] != nil : "Sender does not have any payouts to claim for this currency"
+            }
+
+            let withdrawAmount: UFix64 = AsyncArtwork.payoutClaims[currency]![self.owner!.address]!
+            let claimsVault <- AsyncArtwork.claimsVaults.remove(key: currency)!
+            let payout: @FungibleToken.Vault <- claimsVault.withdraw(amount: withdrawAmount)
+
+            destroy <- AsyncArtwork.claimsVaults.insert(key: currency, <- claimsVault)
+
+            return <- payout
+        }
+
         // =============================
         // AsyncCollectionPublic interface
         // =============================
@@ -429,6 +557,19 @@ pub contract AsyncArtwork: NonFungibleToken {
 
             self.controlMintReservation.insert(key: id, 0)
             destroy auth
+        }
+
+        // =============================
+        // MetadataViews.ResolverCollection interface
+        // =============================        
+
+        pub fun borrowViewResolver(id: UInt64): &{MetadataViews.Resolver} {
+            let nft = &self.ownedNFTs[id] as auth &NonFungibleToken.NFT
+            if nft.id != id {
+                panic("NFT id does not match requested id")
+            }
+            let asyncArtworkNFT = nft as! &AsyncArtwork.NFT 
+            return asyncArtworkNFT as &{MetadataViews.Resolver}
         }
 
         // =============================
@@ -490,6 +631,77 @@ pub contract AsyncArtwork: NonFungibleToken {
     // returns whether or not a given sales percentage is a legal value
     access(self) fun isSalesPercentageValid(_ percentage: UFix64): Bool {
         return percentage < 100.0 && percentage >= 0.0
+    }
+
+    access(self) fun isValidCurrencyFormat(_currency: String): Bool {
+        // valid hex address, will abort otherwise
+        _currency.slice(from: 2, upTo: 18).decodeHex()
+
+        let periodUtf8: UInt8 = 46
+
+        if _currency.slice(from: 0, upTo: 2) != "A." {
+            // does not start with A. 
+            return false 
+        } else if _currency[18] != "." {
+            // 16 chars not in address
+            return false
+        } else if !_currency.slice(from: 19, upTo: _currency.length).utf8.contains(periodUtf8) {
+            // third dot is not present
+            return false 
+        } 
+
+        // check if substring after last dot is "Vault"
+        let contractSpecifier: String = _currency.slice(from: 19, upTo: _currency.length)
+        var typeFirstIndex: Int = 0
+
+        var i: Int = 0
+        while i < contractSpecifier.length {
+            if contractSpecifier[i] == "." {
+                typeFirstIndex = i + 1
+                break
+            }
+            i = i + 1
+        }
+        if contractSpecifier.slice(from: typeFirstIndex, upTo: contractSpecifier.length) != "Vault" {
+            return false
+        }
+        
+        return true 
+    }
+
+    access(self) fun payout(
+        recipient: Address,
+        amount: @FungibleToken.Vault,
+        currency: String
+    ) {
+        let receiverPath = self.currencyPaths[currency]!.public
+        let vaultReceiver = getAccount(recipient).getCapability<&{FungibleToken.Receiver}>(receiverPath).borrow()
+
+        if vaultReceiver != nil {
+            vaultReceiver!.deposit(from: <- amount)
+        } else {
+            self.payClaims(recipient: recipient, amount: <- amount, currency: currency)
+        }
+    }
+
+    access(self) fun payClaims(
+        recipient: Address, 
+        amount: @FungibleToken.Vault,
+        currency: String
+    ) {
+        var newClaim: UFix64 = 0.0
+        if self.payoutClaims[currency]![recipient] == nil {
+            newClaim = amount.balance
+        } else {
+            newClaim = self.payoutClaims[currency]![recipient]! + amount.balance
+        }
+        self.payoutClaims[currency]!.insert(key: recipient, newClaim)
+
+        let claimsVault <- self.claimsVaults.remove(key: currency)!
+        claimsVault.deposit(from: <- amount)
+
+        // This should always destroy an empty resource
+        destroy <- self.claimsVaults.insert(key: currency, <- claimsVault)
     }
 
     // minter and platform are decoupled
@@ -641,6 +853,14 @@ pub contract AsyncArtwork: NonFungibleToken {
             }
             self.tokenSoldOnce = true
             emit TokenSoldOnce(tokenId: self.id)
+        }
+
+        // used for idempotent operation - currently unused, may use on sale
+        pub fun setTokenSoldOnceUnchecked() {
+            if !self.tokenSoldOnce {
+                self.tokenSoldOnce = true
+                emit TokenSoldOnce(tokenId: self.id)
+            } 
         }
 
         pub fun updateUri(_ uri: String) {
@@ -854,6 +1074,87 @@ pub contract AsyncArtwork: NonFungibleToken {
         pub fun withdrawTips(): @FungibleToken.Vault {
             return <- AsyncArtwork.tipVault.withdraw(amount: AsyncArtwork.tipVault.balance)
         }
+
+        // whitelist currency
+        pub fun whitelistCurrency(
+            currency: String,
+            currencyPublicPath: PublicPath,
+            currencyPrivatePath: PrivatePath,
+            currencyStoragePath: StoragePath,
+            vault: @FungibleToken.Vault
+        ) {
+            pre {
+                AsyncArtwork.isValidCurrencyFormat(_currency: currency) : "Currency identifier is invalid"
+                !AsyncArtwork.isCurrencySupported(currency: currency): "Currency is already whitelisted"
+            }
+
+            post {
+                AsyncArtwork.isCurrencySupported(currency: currency): "Currency not whitelisted successfully"
+            }
+
+            AsyncArtwork.currencyPaths[currency] = Paths(
+                currencyPublicPath,
+                currencyPrivatePath,
+                currencyStoragePath
+            )
+            AsyncArtwork.payoutClaims.insert(key: currency, {})
+            destroy <- AsyncArtwork.claimsVaults.insert(key: currency, <- vault)
+
+            emit CurrencyWhitelisted(currency: currency)
+        }
+
+        // unwhitelist currency safe (checks if claims vault being removed is empty)
+        pub fun unwhitelistCurrencySafe(
+            currency: String
+        ) {
+            pre {
+                AsyncArtwork.isCurrencySupported(currency: currency): "Currency is not whitelisted"
+            }
+
+            post {
+                !AsyncArtwork.isCurrencySupported(currency: currency): "Currency unwhitelist failed"
+            }
+
+            AsyncArtwork.currencyPaths.remove(key: currency)
+            AsyncArtwork.payoutClaims.remove(key: currency)
+
+            let vault <- AsyncArtwork.claimsVaults.remove(key: currency) ?? panic("Could not retrieve claims vault for currency")
+            if vault.balance > 0.0 {
+                panic("Claims vault is non-empty")
+            }
+            destroy vault
+
+            emit CurrencyUnwhitelisted(currency: currency)
+        }
+
+        // unwhitelist currency unchecked (doesn't check if claims vault being removed is empty)
+        pub fun unwhitelistCurrencyUnchecked(
+            currency: String
+        ) {
+            pre {
+                AsyncArtwork.isCurrencySupported(currency: currency): "Currency is not whitelisted"
+            }
+
+            post {
+                !AsyncArtwork.isCurrencySupported(currency: currency): "Currency unwhitelist failed"
+            }
+
+            AsyncArtwork.currencyPaths.remove(key: currency)
+            AsyncArtwork.payoutClaims.remove(key: currency)
+
+            // Warning this could permanently remove funds from claims -- but claims is already quite accomodating so we won't block
+            // admin if the claims vault is non-empty
+            let vault <- AsyncArtwork.claimsVaults.remove(key: currency) ?? panic("Could not retrieve claims vault for currency")
+
+            // if any remaining, pay out to asyncSaleFeesRecipient to potentially manually payout later
+            AsyncArtwork.payout(recipient: AsyncArtwork.asyncSaleFeesRecipient, amount: <- vault, currency: currency)
+
+            emit CurrencyUnwhitelisted(currency: currency)
+        }
+
+        pub fun setAsyncSaleFeesRecipient(newRecipient: Address) {
+            AsyncArtwork.asyncSaleFeesRecipient = newRecipient
+        }
     }
 
     // Public getter for the metadata of any token
@@ -879,10 +1180,11 @@ pub contract AsyncArtwork: NonFungibleToken {
         return self.tipVault.balance
     }
 
-	init() {
+	init(flowTokenCurrencyType: String, fusdCurrencyType: String) {
         self.collectionStoragePath = /storage/AsyncArtworkCollection
         self.collectionPrivatePath = /private/AsyncArtworkCollection
         self.collectionPublicPath = /public/AsyncArtworkCollection
+        self.collectionMetadataViewResolverPublicPath = /public/AsyncArtworkMetadataViews
         self.adminStoragePath = /storage/AsyncArtworkAdmin
         self.adminPrivatePath = /private/AsyncArtworkAdmin
         self.minterStoragePath = /storage/AsyncArtworkMinter
@@ -894,20 +1196,44 @@ pub contract AsyncArtwork: NonFungibleToken {
         self.defaultPlatformFirstSalePercentage = 10.0
         self.defaultPlatformSecondSalePercentage = 5.0
         self.artistSecondSalePercentage = 10.0
+        self.asyncSaleFeesRecipient = self.account.address
 
         self.tipVault <- FlowToken.createEmptyVault()
 
-        // Collection
-        let collection <- self.createEmptyCollection()
-        self.account.save(<-collection, to: self.collectionStoragePath)
+        // currency whitelisting and claims
+        // whitelist flowToken and fusd to start
+        self.claimsVaults <- {
+            flowTokenCurrencyType: <- FlowToken.createEmptyVault(),
+            fusdCurrencyType: <- FUSD.createEmptyVault()
+        }
+        self.currencyPaths = {
+            flowTokenCurrencyType: Paths(
+                /public/flowTokenReceiver,
+                /private/asyncArtworkFlowTokenVault, // technically unknown standard -> opt for custom path
+                /storage/flowTokenVault
+            ),
+            fusdCurrencyType: Paths(
+                /public/fusdReceiver,
+                /private/asyncArtworkFusdVault, // technically unknown standard -> opt for custom path
+                /storage/fusdVault
+            )
+        }
+        self.payoutClaims = {
+            flowTokenCurrencyType: {},
+            fusdCurrencyType: {}
+        }
 
-        self.account.link<&{NonFungibleToken.Provider, AsyncCollectionPrivate}>(
-            self.collectionPrivatePath,
-            target: self.collectionStoragePath
-        )
+        // Collection
+        let collection <- create Collection()
+        self.account.save(<-collection, to: self.collectionStoragePath)
 
         self.account.link<&{NonFungibleToken.CollectionPublic, NonFungibleToken.Receiver, AsyncCollectionPublic}>(
             self.collectionPublicPath,
+            target: self.collectionStoragePath
+        )
+
+        self.account.link<&{NonFungibleToken.Provider, AsyncCollectionPrivate}>(
+            self.collectionPrivatePath,
             target: self.collectionStoragePath
         )
 

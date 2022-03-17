@@ -92,7 +92,7 @@ def test_settle_auction():
     True
   )
 
-  for i in range(100):
+  for i in range(120):
     send_transaction("simulateTimeDelay")
 
   # Cannot settle auction that does not exist
@@ -117,7 +117,7 @@ def test_settle_auction():
     False
   )
 
-  assert "4.00000000" == send_script_and_return_result("getUsersFlowTokenBalance", args=[["Address", address("User1")]])
+  assert "3.80000000" == send_script_and_return_result("getUsersFlowTokenBalance", args=[["Address", address("User1")]])
   assert "96.00000000" == send_script_and_return_result("getUsersFlowTokenBalance", args=[["Address", address("User2")]])
 
   assert "[]" == send_async_artwork_script_and_return_result("getNFTs", args=[["Address", address("User1")]])
@@ -131,12 +131,12 @@ def test_settle_auction():
   )
 
   make_bid(
-    ["A.01cf0e2f2f715450.AsyncArtwork.NFT", "1", "A.0ae53cb6e3f42a79.FlowToken.Vault", "4.0"],
+    ["A.01cf0e2f2f715450.AsyncArtwork.NFT", "1", "A.0ae53cb6e3f42a79.FlowToken.Vault", "3.0"],
     "User1",
     True
   )
 
-  for i in range(100):
+  for i in range(120):
     send_transaction("simulateTimeDelay")
 
   # Can settle auction as non NFT seller, and as non bidder
@@ -146,8 +146,8 @@ def test_settle_auction():
     True
   )
 
-  assert "0.00000000" == send_script_and_return_result("getUsersFlowTokenBalance", args=[["Address", address("User1")]])
-  assert "100.00000000" == send_script_and_return_result("getUsersFlowTokenBalance", args=[["Address", address("User2")]])
+  assert "0.80000000" == send_script_and_return_result("getUsersFlowTokenBalance", args=[["Address", address("User1")]])
+  assert "98.85000000" == send_script_and_return_result("getUsersFlowTokenBalance", args=[["Address", address("User2")]])
 
   user1_owned_nfts = send_async_artwork_script_and_return_result("getNFTs", args=[["Address", address("User1")]])
   assert "A.01cf0e2f2f715450.AsyncArtwork.NFT" in user1_owned_nfts and "id: 1" in user1_owned_nfts
