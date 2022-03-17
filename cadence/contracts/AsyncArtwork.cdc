@@ -1,6 +1,7 @@
 import NonFungibleToken from "./NonFungibleToken.cdc"
 import FungibleToken from "./FungibleToken.cdc"
 import FlowToken from "./FlowToken.cdc"
+import MetadataViews from "./MetadataViews.cdc"
 
 pub contract AsyncArtwork: NonFungibleToken {
     pub var totalSupply: UInt64
@@ -98,13 +99,8 @@ pub contract AsyncArtwork: NonFungibleToken {
         }
     }
 
-    pub resource interface ViewResolver {
-        pub fun getViews() : [Type]
-        pub fun resolveView(_ view:Type): AnyStruct?    
-    }
-
     // The id in the NFT is also a pointer to it's metadata stored on contract
-    pub resource NFT: NonFungibleToken.INFT, ViewResolver {
+    pub resource NFT: NonFungibleToken.INFT, MetadataViews.Resolver {
         pub let id: UInt64
 
         pub fun getViews() : [Type] {
@@ -237,6 +233,7 @@ pub contract AsyncArtwork: NonFungibleToken {
                 AsyncArtwork.metadata[id]!.isMaster == true : "Metadata for token id is set for a control token"
                 self.masterMintReservation.containsKey(id) : "Not authorized to mint"
                 self.masterMintReservation[id] == UInt64(controlTokenArtists.length) : "Layer count does not match control token artist length"
+                uniqueArtists.length <= 500 : "Unique artists length too long, over 500"
             }
 
             post {
@@ -378,6 +375,11 @@ pub contract AsyncArtwork: NonFungibleToken {
             for id in self.ownedNFTs.keys {
                 let NFT = self.borrowNFT(id: id)
                 let tokenId = NFT.id
+
+                if tokenId != id {
+                    panic("NFT id does not match key id in ownedNFTs")
+                }
+
                 let metadata = AsyncArtwork.metadata[tokenId]
                 if metadata != nil && (metadata!.owner == nil || metadata!.owner != self.owner!.address) {
                     AsyncArtwork.metadata[tokenId]!.updateOwner(self.owner!.address)

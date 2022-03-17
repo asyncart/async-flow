@@ -2,6 +2,7 @@ import NonFungibleToken from "./NonFungibleToken.cdc"
 import FungibleToken from "./FungibleToken.cdc"
 import FlowToken from "./FlowToken.cdc"
 import FUSD from "./FUSD.cdc"
+import MetadataViews from "./MetadataViews.cdc"
 
 pub contract Blueprints: NonFungibleToken {
     pub var collectionStoragePath: StoragePath
@@ -131,11 +132,11 @@ pub contract Blueprints: NonFungibleToken {
         pub var currency: String 
         pub var baseTokenUri: String 
         pub var saleState: SaleState
-        // These should be safe because our getters return copies?
-        pub var primaryFeePercentages: [UFix64]
-        pub var secondaryFeePercentages: [UFix64]
-        pub var primaryFeeRecipients: [Address]
-        pub var secondaryFeeRecipients: [Address]
+
+        access(contract) var primaryFeePercentages: [UFix64]
+        access(contract) var secondaryFeePercentages: [UFix64]
+        access(contract) var primaryFeeRecipients: [Address]
+        access(contract) var secondaryFeeRecipients: [Address]
     }
 
     pub struct Blueprint: BlueprintPublic {
@@ -150,13 +151,14 @@ pub contract Blueprints: NonFungibleToken {
         pub var currency: String 
         pub var baseTokenUri: String 
         pub var saleState: SaleState
-        pub var primaryFeePercentages: [UFix64]
-        pub var secondaryFeePercentages: [UFix64]
-        pub var primaryFeeRecipients: [Address]
-        pub var secondaryFeeRecipients: [Address]
+
+        access(contract) var primaryFeePercentages: [UFix64]
+        access(contract) var secondaryFeePercentages: [UFix64]
+        access(contract) var primaryFeeRecipients: [Address]
+        access(contract) var secondaryFeeRecipients: [Address]
 
         // maps whitelisted addresses to if they've claimed
-        pub var whitelist: {Address: Bool}
+        access(contract) var whitelist: {Address: Bool}
 
         pub var blueprintMetadata: String
 
@@ -177,7 +179,10 @@ pub contract Blueprints: NonFungibleToken {
         pub fun addToWhitelist(
             _whitelistAdditions: [Address]
         ) {
-            // unbounded loop may be flagged by auditor
+            pre {
+                _whitelistAdditions.length <= 500 : "Whitelist additions too long, over 500 entries"
+            }
+
             for newAddress in _whitelistAdditions {
                 if !self.whitelist.containsKey(newAddress) {
                     self.whitelist.insert(key: newAddress, false)
@@ -188,6 +193,10 @@ pub contract Blueprints: NonFungibleToken {
         pub fun removeFromWhitelist(
             _whitelistRemovals: [Address]
         ) {
+            pre {
+                _whitelistRemovals.length <= 500 : "Whitelist removals too long, over 500 entries"
+            }
+
             // unbounded loop may be flagged by auditor
             for newAddress in _whitelistRemovals {
                 if self.whitelist.containsKey(newAddress) {
@@ -204,6 +213,10 @@ pub contract Blueprints: NonFungibleToken {
         }
 
         access(self) fun feesApplicable(_feeRecipients: [Address], _feePercentages: [UFix64]): Bool {
+            if _feeRecipients.length > 500 {
+                return false
+            }
+
             if _feeRecipients.length == _feePercentages.length &&  _feeRecipients.length > 0 {
 
                 var totalPercent: UFix64 = 0.0 
@@ -360,7 +373,6 @@ pub contract Blueprints: NonFungibleToken {
         }
     }
 
-    // not sure if we need this
     access(self) fun isValidCurrencyFormat(_currency: String): Bool {
         // valid hex address, will abort otherwise
         _currency.slice(from: 2, upTo: 18).decodeHex()
@@ -397,12 +409,7 @@ pub contract Blueprints: NonFungibleToken {
         return true 
     }
 
-    pub resource interface ViewResolver {
-        pub fun getViews() : [Type]
-        pub fun resolveView(_ view:Type): AnyStruct?    
-    }
-
-    pub resource NFT: NonFungibleToken.INFT, ViewResolver {
+    pub resource NFT: NonFungibleToken.INFT, MetadataViews.Resolver {
         pub let id: UInt64
 
         pub fun getViews() : [Type] {

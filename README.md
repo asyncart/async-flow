@@ -42,4 +42,8 @@ To move these admin privileges to another account, see `cadence/transactions/mov
 
 To administrate Async Art's contracts, see `cadence/transactions`.
 
+# Test
+
+See `test/README.md`
+
 ### Notes
