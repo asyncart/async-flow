@@ -193,7 +193,7 @@ pub contract Blueprints: NonFungibleToken {
             let totalPaymentAmount: UFix64 = vault.balance
             var i: Int = 0
             while i < self.recipients.length {
-                let amount: @FungibleToken.Vault <- vault.withdraw(amount: self.percentages[i] * (100.0/self.totalCut) * totalPaymentAmount)
+                let amount: @FungibleToken.Vault <- vault.withdraw(amount: (self.percentages[i]/100.0) * (100.0/self.totalCut) * totalPaymentAmount)
                 Blueprints.payout(recipient: self.recipients[i], amount: <- amount, currency: currency)
 
                 i = i + 1

@@ -1,6 +1,7 @@
 from initialize_testing_environment import main
 from transaction_handler import send_async_artwork_transaction
 from script_handler import send_async_artwork_script, send_async_artwork_script_and_return_result
+from metadata_handler import result_equals_expected_metadata
 from event_handler import check_for_event
 from utils import address
 import json
@@ -16,7 +17,11 @@ def whitelist(args, signer, should_succeed, expected_master_mint_res):
   args = [["Address", creator_address], ["UInt64", args[1]], ["UInt64", args[2]], ["UFix64?", args[3]], ["UFix64?", args[4]]]
   if should_succeed:
     assert send_async_artwork_transaction("whitelist", args=args, signer=signer)
-    assert expected_master_mint_res == send_async_artwork_script_and_return_result("getMasterMintReservation", args=[["Address", creator_address]])
+    metadata = send_async_artwork_script_and_return_result("getMasterMintReservation", args=[["Address", creator_address]])
+    print(expected_master_mint_res)
+    print(metadata)
+    if expected_master_mint_res != None:
+      assert result_equals_expected_metadata(metadata, expected_master_mint_res)
     # Checks that the metadata entry here is non-empty
     assert send_async_artwork_script("getMetadata", args=[args[1]])
     assert check_for_event(f'A.{address("AsyncArtwork")[2:]}.AsyncArtwork.CreatorWhitelisted')

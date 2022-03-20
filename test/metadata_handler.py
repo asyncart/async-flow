@@ -1,18 +1,19 @@
 import itertools
 def generate_possible_dictionary_strings(dict_tokens):
-  possible_dict_token_lists = list(itertools.permutations(dict_tokens))
+  possible_dict_token_tuples = list(itertools.permutations(dict_tokens))
+  possible_dict_token_lists = [list(possible_dict_token_tuples[i]) for i in range(len(possible_dict_token_tuples))]
   possible_dicts = []
-  for ordered_seq in possible_dict_token_lists:
-    keys = [i for i in range(len(ordered_seq))]
-    all_keys_permutations = list(itertools.permutations(keys))
-    for key_set in all_keys_permutations:
-      dict_str = "{"
-      for i in key_set:
-        dict_str += str(i) + ": " + ordered_seq[i] + ", "
-      # Remove the last comma
-      dict_str = dict_str[:-2]
-      dict_str += "}"
-      possible_dicts.append(dict_str)
+  for ordered_list in possible_dict_token_lists:
+    #keys = [i for i in range(len(ordered_seq))]
+    #all_keys_permutations = list(itertools.permutations(keys))
+    #for key_set in all_keys_permutations:
+    dict_str = "{"
+    for kvp in ordered_list:
+      dict_str += kvp + ", "
+    # Remove the last comma
+    dict_str = dict_str[:-2]
+    dict_str += "}"
+    possible_dicts.append(dict_str)
   return possible_dicts
 
 
@@ -23,7 +24,7 @@ def permute_string_dict(string_dict):
   tokens = []
   for i in range(len(string_dict)-3):
     if (string_dict[i] >= '0' and string_dict[i] <= '9' and string_dict[i+1] == ':' and string_dict[i+2] == ' '):
-      start = i+3
+      start = i
       end = i+3
       for j in range (i+3, len(string_dict)):
         if (string_dict[j] == '}'):

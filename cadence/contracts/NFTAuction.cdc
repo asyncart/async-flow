@@ -533,7 +533,7 @@ pub contract NFTAuction {
         feeRecipients: [Address],
         feePercentages: [UFix64],
         nftProviderCapability: Capability<&{NonFungibleToken.Provider}>,
-        auctionBidPeriod: UFix64, // this is the time that the auction lasts until another bid occurs
+        auctionBidPeriod: UFix64,
         bidIncreasePercentage: UFix64
     ) {
         pre {

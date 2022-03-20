@@ -217,9 +217,11 @@ pub contract AsyncArtwork: NonFungibleToken {
             self.percentages = []
             self.recipients = artists
 
-            let perArtistCut: UFix64 = artistsCut / UFix64(artists.length)
-            for artist in artists {
-                self.percentages.append(perArtistCut)
+            if artists.length > 0 {
+                let perArtistCut: UFix64 = artistsCut / UFix64(artists.length)
+                for artist in artists {
+                    self.percentages.append(perArtistCut)
+                }
             }
 
             self.recipients.append(platform)
@@ -231,7 +233,7 @@ pub contract AsyncArtwork: NonFungibleToken {
         // Calculate how much of the purchase price will be distributed as royalties
         pub fun calculateRoyalty(type: Type, amount:UFix64) : UFix64? {
             if AsyncArtwork.isCurrencySupported(currency: type.identifier) {
-                return self.totalCut * amount / 100.0
+                return (self.totalCut/100.0) * amount
             } else {
                 return nil
             }
@@ -247,7 +249,7 @@ pub contract AsyncArtwork: NonFungibleToken {
             let totalPaymentAmount: UFix64 = vault.balance
             var i: Int = 0
             while i < self.recipients.length {
-                let amount: @FungibleToken.Vault <- vault.withdraw(amount: self.percentages[i] * (100.0/self.totalCut) * totalPaymentAmount)
+                let amount: @FungibleToken.Vault <- vault.withdraw(amount: (self.percentages[i]/100.0) * (100.0/self.totalCut) * totalPaymentAmount)
                 AsyncArtwork.payout(recipient: self.recipients[i], amount: <- amount, currency: currency)
                 i = i + 1
             }
