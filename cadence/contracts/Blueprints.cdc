@@ -6,6 +6,8 @@ import MetadataViews from "./MetadataViews.cdc"
 import Royalties from "./Royalties.cdc"
 
 pub contract Blueprints: NonFungibleToken {
+
+    // The paths at which resources will be stored, and capabilities linked
     pub let collectionStoragePath: StoragePath
     pub let collectionPrivatePath: PrivatePath
     pub let collectionPublicPath: PublicPath
@@ -14,25 +16,38 @@ pub contract Blueprints: NonFungibleToken {
     pub let platformStoragePath: StoragePath
     pub let blueprintsClientStoragePath: StoragePath
 
+    // The total number of Blueprint NFTs minted
     pub var totalSupply: UInt64
 
+    // The default fee that the platform receives on primary NFT sales
     pub var defaultPlatformPrimaryFeePercentage: UFix64
-    pub var defaultBlueprintSecondarySalePercentage: UFix64
+
+    // The default fee that the platform receives on secondary NFT sales
     pub var defaultPlatformSecondarySalePercentage: UFix64
+
+    // TODO: what is this
+    pub var defaultBlueprintSecondarySalePercentage: UFix64
+
+    // An index the manages an upper-bound on the number of possible NFTs
     pub var latestNftIndex: UInt64
+
+    // An index of the number of Blueprints that have been prepared by the minter. (Note the key here is that each Blueprint is associated with a maximum number of NFTs)
     pub var blueprintIndex: UInt64
 
+    // The address to pay platform fees to
     pub var asyncSaleFeesRecipient: Address
+
+    // The address that controls the preparation of new blueprints
     access(self) var minterAddress: Address
 
-    // token id to blueprint id
+    // NFT IDs -> Blueprint IDs
     access(self) let tokenToBlueprintID: {UInt64: UInt64}
+
+    // Blueprint IDs -> Blueprint Metadata
     access(self) let blueprints: {UInt64: Blueprint}
 
     // A mapping of currency type identifiers to expected paths
     access(self) let currencyPaths: {String: Paths}
-
-    // managing claims on failed payouts
 
     // A mapping of currency type identifiers to intermediary claims vaults
     access(self) let claimsVaults: @{String: FungibleToken.Vault}
@@ -41,14 +56,15 @@ pub contract Blueprints: NonFungibleToken {
     access(self) let payoutClaims: {String: {Address: UFix64}}
 
     pub event ContractInitialized()
+
+    // Emitted when a Blueprint NFT is withdrawn from its collection
     pub event Withdraw(id: UInt64, from: Address?)
+
+    // Emitted when a Blueprint NFT is deposited to a new collection
     pub event Deposit(id: UInt64, to: Address?)
 
-    pub event BlueprintSeed(
-        blueprintID: UInt64,
-        randomSeed: String
-    )
-
+    // Emitted when a certain amount of Blueprint NFTs are minted
+    // @param newCapacity is the number of Blueprint NFTs that can still be minted for this Blueprint ID
     pub event BlueprintMinted(
         blueprintID: UInt64,
         artist: Address,
@@ -58,6 +74,7 @@ pub contract Blueprints: NonFungibleToken {
         seedPrefix: [UInt8]
     )
 
+    // Emitted when the minter first prepares a Blueprint for an artist
     pub event BlueprintPrepared(
         blueprintID: UInt64,
         artist: Address,
@@ -66,6 +83,7 @@ pub contract Blueprints: NonFungibleToken {
         baseTokenUri: String
     )
 
+    // Emitted when the settings for a specific Blueprint are updated
     pub event BlueprintSettingsUpdated(
         blueprintID: UInt64,
         price: UFix64,
@@ -75,23 +93,38 @@ pub contract Blueprints: NonFungibleToken {
         newMaxPurchaseAmount: UInt64 
     )
     
+    // Emitted when the addresses of whitelisted buyers change (whitelisted buyers can purchase blueprints before the sale officially starts)
     pub event BlueprintWhitelistUpdated(
+        blueprintID: UInt64,
         oldWhitelist: {Address: Bool},
         newWhitelist: {Address: Bool}
     )
 
+    // Emitted when a Blueprint sale officialy starts
     pub event SaleStarted(blueprintID: UInt64)
 
+    // Emitted whena Blueprint sale is paused
     pub event SalePaused(blueprintID: UInt64)
 
+    // Emitted when a Blueprint sale is unpaused
     pub event SaleUnpaused(blueprintID: UInt64)
 
+    // Emitted when a Blueprint Token URI is updated
     pub event BlueprintTokenUriUpdated(
         blueprintID: UInt64,
         newBaseTokenUri: String
     )
 
+    // An event that reveals the seed associated with a Blueprint
+    pub event BlueprintSeed(
+        blueprintID: UInt64,
+        randomSeed: String
+    )
+
+    // Emitted when a new currency is a whitelisted to work with royalties
     pub event CurrencyWhitelisted(currency: String)
+
+    // Emitted when a new currency is unwhitelisted for royalties
     pub event CurrencyUnwhitelisted(currency: String)
 
     pub struct Paths {
@@ -116,12 +149,22 @@ pub contract Blueprints: NonFungibleToken {
                self.payoutClaims.containsKey(currency)
     }
 
+    // A pre-royalty standard implementation of Royalties for Blueprint NFTs
     pub struct Royalty : Royalties.Royalty {
-        pub let recipients: [Address]
-        pub let percentages: [UFix64]
-        pub var totalCut: UFix64
+
+        // Recipients of royalty
+        access(self) var recipients: [Address]
+
+        // Percentages that each recipient will receive as royalty payment. This is a percentage of the total purchase price.
+        access(self) var percentages: [UFix64]
+
+        // The total percentage of purchase price that will be taken to payout the royalty described by this struct.
+        access(self) var totalCut: UFix64
         
         init(_ recipients: [Address], _ percentages: [UFix64]) {
+            post {
+                self.totalCut <= 100.0 : "Royalty percentages cannot exceed 100%"
+            }
             self.recipients = recipients
             self.percentages = percentages
             self.totalCut = 0.0
@@ -131,6 +174,7 @@ pub contract Blueprints: NonFungibleToken {
             }
         }
 
+        // Calculate the number of tokens that would be taken for royalties given a purchase amount
         pub fun calculateRoyalty(type: Type, amount:UFix64) : UFix64? {
             if Blueprints.isCurrencySupported(currency: type.identifier) {
                 return self.totalCut * amount
@@ -139,6 +183,7 @@ pub contract Blueprints: NonFungibleToken {
             }
         }
     
+        // Distribute a lump sum royalty amount appropriately to all of the recipients
         pub fun distributeRoyalty(vault: @FungibleToken.Vault) {
             pre {
                 Blueprints.isCurrencySupported(currency: vault.getType().identifier) : "Currency not supported"
@@ -148,16 +193,17 @@ pub contract Blueprints: NonFungibleToken {
             let totalPaymentAmount: UFix64 = vault.balance
             var i: Int = 0
             while i < self.recipients.length {
-                let amount: @FungibleToken.Vault <- vault.withdraw(amount: self.percentages[i] * totalPaymentAmount)
+                let amount: @FungibleToken.Vault <- vault.withdraw(amount: self.percentages[i] * (100.0/self.totalCut) * totalPaymentAmount)
                 Blueprints.payout(recipient: self.recipients[i], amount: <- amount, currency: currency)
 
                 i = i + 1
             }
 
-            // if any left over (shouldn't be, but caller could have sent more)
+            // There should be zero tokens left, but purely to avoid loss of resource pay out anything remaining to platform
             Blueprints.payout(recipient: self.recipients[self.recipients.length - 1], amount: <- vault, currency: currency)
         }
 
+        // Visualize the royalty distribution (recipients and their percentage allocations)
         pub fun displayRoyalty() : String? {
             var text = ""
             var i: Int = 0
@@ -169,12 +215,14 @@ pub contract Blueprints: NonFungibleToken {
         }
     }
 
+    // An enum for the possible sale states for a Blueprint
     pub enum SaleState: UInt8 {
         pub case notStarted 
         pub case started 
         pub case paused
     }
 
+    // Public Blueprint metadata
     pub struct interface BlueprintPublic {
         pub var tokenUriLocked: Bool
         pub var mintAmountArtist: UInt64 
@@ -194,6 +242,7 @@ pub contract Blueprints: NonFungibleToken {
         pub fun getSecondaryFeePercentages(): [UFix64]
     }
 
+    // A representation of a Blueprint
     pub struct Blueprint: BlueprintPublic {
         pub var tokenUriLocked: Bool
         pub var mintAmountArtist: UInt64 
@@ -423,10 +472,12 @@ pub contract Blueprints: NonFungibleToken {
         }
     }
 
+    // Get the public metadata available for all Blueprints that have been prepared
     pub fun getBlueprints(): [Blueprint{BlueprintPublic}] {
         return self.blueprints.values
     }
 
+    // Get the public metadata that is available for a specific Blueprint
     pub fun getBlueprint(blueprintID: UInt64): Blueprint{BlueprintPublic}? {
         if self.blueprints.containsKey(blueprintID) {
             return self.blueprints[blueprintID]!
@@ -435,6 +486,7 @@ pub contract Blueprints: NonFungibleToken {
         }
     }
 
+    // Get Blueprint metadata based on NFT id
     pub fun getBlueprintByTokenId(tokenId: UInt64): Blueprint{BlueprintPublic}? {
         if self.tokenToBlueprintID.containsKey(tokenId) {
             let blueprintID: UInt64 = self.tokenToBlueprintID[tokenId]!
@@ -480,6 +532,7 @@ pub contract Blueprints: NonFungibleToken {
         return true 
     }
 
+    // The Blueprint NFT type, implements the Flow Metadata standard with views for the token URI and royalty information
     pub resource NFT: NonFungibleToken.INFT, MetadataViews.Resolver {
         pub let id: UInt64
 
@@ -509,6 +562,7 @@ pub contract Blueprints: NonFungibleToken {
         }
     }
 
+    // Get the tokenURI for a specific NFT ID
     pub fun tokenURI(tokenId: UInt64): String {
         pre {
             self.tokenToBlueprintID.containsKey(tokenId) : "Token doesn't exist"
@@ -519,15 +573,18 @@ pub contract Blueprints: NonFungibleToken {
         return baseURI.concat("/").concat(tokenId.toString()).concat("/token.json")
     }
 
+    // The Bluprint NFT collection resource. Any user that wants to own, sell, etc. Blueprint NFTs needs this resource and its associated capabilities.
+    // Implements the NFT standard for collections
     pub resource Collection: NonFungibleToken.Provider, NonFungibleToken.Receiver, NonFungibleToken.CollectionPublic, MetadataViews.ResolverCollection {
-        // dictionary of NFT conforming tokens
-        // NFT is a resource type with an `UInt64` ID field
+
+        // A mapping of token ids to NFTs owned in this collection
         pub var ownedNFTs: @{UInt64: NonFungibleToken.NFT}
 
         init () {
             self.ownedNFTs <- {}
         }
 
+        // Borrow a metadata view resolver
         pub fun borrowViewResolver(id: UInt64): &{MetadataViews.Resolver} {
             let nft = &self.ownedNFTs[id] as auth &NonFungibleToken.NFT
             if nft.id != id {
@@ -617,8 +674,9 @@ pub contract Blueprints: NonFungibleToken {
         destroy <- self.claimsVaults.insert(key: currency, <- claimsVault)
     }
 
+    // A client resource that enables a user to interact with the sales and minting side of this contract. Any creator or individual that would like to purchase Blueprints should have this resource.
     pub resource BlueprintsClient {
-        // checks if the buyer is whitelisted or the sale has started
+        
         access(self) fun buyerWhitelistedOrSaleStarted(
             blueprintID: UInt64,
             quantity: UInt64,
@@ -752,7 +810,7 @@ pub contract Blueprints: NonFungibleToken {
             )
         }
 
-        // presale mint
+        // The artist or minter is allowed to mint NFTs corresponding to a specific Blueprint before its sale starts via this method
         pub fun presaleMint(
             blueprintID: UInt64,
             quantity: UInt64
@@ -789,7 +847,8 @@ pub contract Blueprints: NonFungibleToken {
             )
         }
 
-        // claim amount
+        // In the event that a user could not be paid royalties at the time of a purchase, the funds that could not be transferred are sent to a claims vault managed by this contract.
+        // When the user is able to receive these funds, they can withdraw them with this method
         pub fun claimPayout(currency: String): @FungibleToken.Vault {
             pre {
                 self.owner != nil : "Cannot perform operation while client in transit"
@@ -807,15 +866,15 @@ pub contract Blueprints: NonFungibleToken {
         }
     }
 
+    // Public method for anyone to create a BlueprintsClient
     pub fun createBlueprintsClient(): @BlueprintsClient {
         return <- create BlueprintsClient()
     }
 
-    // Resource that an admin or something similar would own to be
-    // able to mint new NFTs
-    //
+    // A minter resource that is owned only by an admin. This resource controls the preparaiton of new Blueprints.
 	pub resource Minter {
-        // setup blueprint
+
+        // Prepare a new Blueprint
         pub fun prepareBlueprint(
             _artist: Address,
             _capacity: UInt64,
@@ -857,7 +916,7 @@ pub contract Blueprints: NonFungibleToken {
             Blueprints.blueprintIndex = Blueprints.blueprintIndex + 1
         }
 
-        // update blueprint settings
+        // Update the settings for a specific Blueprint
         pub fun updateBlueprintSettings(
             _blueprintID: UInt64,
             _price: UFix64,
@@ -890,7 +949,7 @@ pub contract Blueprints: NonFungibleToken {
             )
         }
 
-        // add to blueprint whitelist
+        // Add specific addresses to the whitelist for a Blueprint
         pub fun addToBlueprintWhitelist(
             _blueprintID: UInt64,
             _whitelistAdditions: [Address]
@@ -905,12 +964,13 @@ pub contract Blueprints: NonFungibleToken {
             Blueprints.blueprints[_blueprintID]!.addToWhitelist(_whitelistAdditions: _whitelistAdditions)
         
             emit BlueprintWhitelistUpdated(
+                blueprintID: _blueprintID,
                 oldWhitelist: oldWhitelist,
                 newWhitelist: Blueprints.blueprints[_blueprintID]!.whitelist
             )
         }
 
-        // remove blueprint whitelist
+        // Remove specific addreses from the whitelist for a Blueprint
         pub fun removeBlueprintWhitelist(
             _blueprintID: UInt64,
             _whitelistRemovals: [Address]
@@ -925,12 +985,13 @@ pub contract Blueprints: NonFungibleToken {
             Blueprints.blueprints[_blueprintID]!.removeFromWhitelist(_whitelistRemovals: _whitelistRemovals)
         
             emit BlueprintWhitelistUpdated(
+                blueprintID: _blueprintID,
                 oldWhitelist: oldWhitelist,
                 newWhitelist: Blueprints.blueprints[_blueprintID]!.whitelist
             )
         }
 
-        // overwrite blueprint whitelist
+        // Overwrite the whitelist of a Blueprint
         pub fun overwriteBlueprintWhitelist(
             _blueprintID: UInt64,
             _whitelistedAddresses: [Address]
@@ -945,11 +1006,13 @@ pub contract Blueprints: NonFungibleToken {
             Blueprints.blueprints[_blueprintID]!.overwriteWhitelist(_whitelistedAddresses: _whitelistedAddresses)
         
             emit BlueprintWhitelistUpdated(
+                blueprintID: _blueprintID,
                 oldWhitelist: oldWhitelist,
                 newWhitelist: Blueprints.blueprints[_blueprintID]!.whitelist
             )
         }
 
+        // Update the fee recipients of a Blueprint
         pub fun setFeeRecipients(
             _blueprintID: UInt64,
             _primaryFeeRecipients: [Address],
@@ -971,6 +1034,7 @@ pub contract Blueprints: NonFungibleToken {
             )
         }
 
+        // Change the state of a Blueprint to sale started: enabling the public to purchase Blueprints with this ID.
         pub fun beginSale(_blueprintID: UInt64) {
             pre {
                 self.owner != nil : "Cannot perform operation while client in transit"
@@ -984,6 +1048,7 @@ pub contract Blueprints: NonFungibleToken {
             emit SaleStarted(blueprintID: _blueprintID)
         }
 
+        // Pause the sale for a Blueprint. This will stop the public from being able to purchase Blueprints for this ID.
         pub fun pauseSale(_blueprintID: UInt64) {
             pre {
                 self.owner != nil : "Cannot perform operation while client in transit"
@@ -997,6 +1062,7 @@ pub contract Blueprints: NonFungibleToken {
             emit SalePaused(blueprintID: _blueprintID)
         }
 
+        // Unpause a paused Blueprint sale
         pub fun unpauseSale(_blueprintID: UInt64) {
             pre {
                 self.owner != nil : "Cannot perform operation while client in transit"
@@ -1029,6 +1095,7 @@ pub contract Blueprints: NonFungibleToken {
             )
         }
 
+        // Reveal the seed associated with a specific Blueprint
         pub fun revealBlueprintSeed(
             blueprintID: UInt64,
             randomSeed: String
@@ -1046,10 +1113,15 @@ pub contract Blueprints: NonFungibleToken {
         }
 	}
 
+    // A function to create a minter resource
+    // @notice this contract has a variable 'minterAddress' which is only settable by the "Platform"
+    //         'minterAddress' is the only address who's Minter resource function calls will change contract state
+    //          hence, even though anyone can create this 'admin' resource it is useless unless they are 'minterAddress'
     pub fun createMinter(): @Minter {
         return <- create Minter()
     }
 
+    // An admin resource that manages the minter and other governance variables
     pub resource Platform {
         pub fun changeMinter(newMinter: Address) {
             Blueprints.minterAddress = newMinter

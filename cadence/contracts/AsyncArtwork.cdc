@@ -5,7 +5,10 @@ import FUSD from "./FUSD.cdc"
 import MetadataViews from "./MetadataViews.cdc"
 import Royalties from "./Royalties.cdc"
 
+// This contract manages AsyncArtwork NFTs. For more details see: https://github.com/asyncart/async-flow/tree/main/cadence/contracts and https://github.com/asyncart/async-contracts/blob/master/contracts/AsyncArtwork_v2.sol
 pub contract AsyncArtwork: NonFungibleToken {
+
+    // The paths at which resources will be stored, and capabilities linked
     pub let collectionStoragePath: StoragePath 
     pub let collectionPrivatePath: PrivatePath
     pub let collectionPublicPath: PublicPath
@@ -15,13 +18,11 @@ pub contract AsyncArtwork: NonFungibleToken {
     pub let minterStoragePath: StoragePath
     pub let minterPrivatePath: PrivatePath
     
+    // The number of NFTs minted
     pub var totalSupply: UInt64
 
     // The number of tokens which have been allocated an id for minting
     pub var expectedTokenSupply: UInt64
-
-    // A mapping of ids (from minted NFTs) to the metadata associated with them
-    access(self) let metadata: {UInt64 : NFTMetadata}
 
     // a default value for the first sales percentage assigned to an NFT when whitelisted
     // set to 5.0 if Async wanted a 5% cut
@@ -37,12 +38,13 @@ pub contract AsyncArtwork: NonFungibleToken {
     // Recipient of platform royalties on AsyncArtwork sales
     pub var asyncSaleFeesRecipient: Address
 
+    // A mapping of ids (from minted NFTs) to the metadata associated with them
+    access(self) let metadata: {UInt64 : NFTMetadata}
+
     access(self) let tipVault: @FungibleToken.Vault
 
     // A mapping of currency type identifiers to expected paths
     access(self) let currencyPaths: {String: Paths}
-
-    // managing claims on failed payouts
 
     // A mapping of currency type identifiers to intermediary claims vaults
     access(self) let claimsVaults: @{String: FungibleToken.Vault}
@@ -51,9 +53,14 @@ pub contract AsyncArtwork: NonFungibleToken {
     access(self) let payoutClaims: {String: {Address: UFix64}}
 
     pub event ContractInitialized()
+
+    // Emitted when an NFT is withdrawn from a Collection
     pub event Withdraw(id: UInt64, from: Address?)
+
+    // Emitted when an NFT is deposited to a Collection
     pub event Deposit(id: UInt64, to: Address?)
     
+    // Emitted when a new the permissions of a user with respect to a control token are changed by the token owner
     pub event PermissionUpdated(
         tokenId: UInt64,
         tokenOwner: Address,
@@ -61,29 +68,35 @@ pub contract AsyncArtwork: NonFungibleToken {
         granted: Bool
     )
 
+    // Emitted when the 'Minter' allocates tokenId for minting by a specific creator
     pub event CreatorWhitelisted(
         tokenId: UInt64,
         layerCount: UInt64,
         creator: Address
     )
 
+    // Emitted when the platform's fee percentage for a specific token is changed
     pub event PlatformSalePercentageUpdated(
         tokenId: UInt64,
         platformFirstPercentage: UFix64,
         platformSecondPercentage: UFix64
     )
 
+    // Emitted when the default platform sale percentage changes
     pub event DefaultPlatformSalePercentageUpdated(
         defaultPlatformFirstSalePercentage: UFix64,
         defaultPlatformSecondSalePercentage: UFix64
     )
 
+    // Emitted when the uniform artist's second sale percentage is updated
     pub event ArtistSecondSalePercentUpdated(artistSecondPercentage: UFix64)
 
+    // Emitted when a specific AsyncArtwork NFT has sold
     pub event TokenSoldOnce(
         tokenId: UInt64
     )
 
+    // Emitted when a permissioned user updates the values of the levers of a control token
     pub event ControlLeverUpdated(
         tokenId: UInt64,
         priorityTip: UFix64,
@@ -93,7 +106,10 @@ pub contract AsyncArtwork: NonFungibleToken {
         updatedValues: [Int64]
     )
 
+    // Emitted when the Admin whitelists a currency for use with AsyncArtwork royalties
     pub event CurrencyWhitelisted(currency: String)
+
+    // Emitted when the Admin unwhitelists a currency for use with AsyncArtwork royalties
     pub event CurrencyUnwhitelisted(currency: String)
 
     pub struct Paths {
@@ -112,6 +128,7 @@ pub contract AsyncArtwork: NonFungibleToken {
         return self.currencyPaths
     }
 
+    // Check if a specific currency is supported for AsyncArtwork royalties
     pub fun isCurrencySupported(currency: String): Bool {
         return self.currencyPaths.containsKey(currency) &&
                self.claimsVaults.containsKey(currency) &&
@@ -142,10 +159,13 @@ pub contract AsyncArtwork: NonFungibleToken {
         }
     }
 
-    // The id in the NFT is also a pointer to it's metadata stored on contract
+    // The literal NFT that signifies ownership of an AsyncArt NFT
     pub resource NFT: NonFungibleToken.INFT, MetadataViews.Resolver {
+
+        // The id in the NFT is a pointer to its metadata stored on contract
         pub let id: UInt64
 
+        // Metadata standard implementation
         pub fun getViews() : [Type] {
             return [
                 Type<String>(),
@@ -178,29 +198,37 @@ pub contract AsyncArtwork: NonFungibleToken {
         }
     }
 
+    // A pre-royalty standard implementation of Royalties for AsyncArt NFTs
     pub struct Royalty : Royalties.Royalty {
-        pub let recipients: [Address]
-        pub let percentages: [UFix64]
-        pub let totalCut: UFix64
+        // Recipients of royalty
+        access(self) var recipients: [Address]
+
+        // Percentages that each recipient will receive as royalty payment. This is a percentage of the total purchase price.
+        access(self) var percentages: [UFix64]
+
+        // The total percentage of purchase price that will be taken to payout the royalty described by this struct.
+        access(self) var totalCut: UFix64
         
         init(_ artists: [Address], _ platform: Address, _ artistsCut: UFix64, _ platformCut: UFix64) {
             pre {
-                artistsCut + platformCut <= 100.0 : "Invalid cuts"
+                artistsCut + platformCut <= 100.0 : "Royalty percentage allocations should not exceed 100%"
             }
 
             self.percentages = []
-            artists.append(platform)
             self.recipients = artists
-            let perArtistCut: UFix64 = artistsCut / UFix64(artists.length)
 
+            let perArtistCut: UFix64 = artistsCut / UFix64(artists.length)
             for artist in artists {
                 self.percentages.append(perArtistCut)
             }
+
+            self.recipients.append(platform)
             self.percentages.append(platformCut)
 
             self.totalCut = artistsCut + platformCut
         }
 
+        // Calculate how much of the purchase price will be distributed as royalties
         pub fun calculateRoyalty(type: Type, amount:UFix64) : UFix64? {
             if AsyncArtwork.isCurrencySupported(currency: type.identifier) {
                 return self.totalCut * amount / 100.0
@@ -209,6 +237,7 @@ pub contract AsyncArtwork: NonFungibleToken {
             }
         }
     
+        // Distribute royalties on sale of AsyncArt NFT
         pub fun distributeRoyalty(vault: @FungibleToken.Vault) {
             pre {
                 AsyncArtwork.isCurrencySupported(currency: vault.getType().identifier) : "Currency not supported"
@@ -218,16 +247,16 @@ pub contract AsyncArtwork: NonFungibleToken {
             let totalPaymentAmount: UFix64 = vault.balance
             var i: Int = 0
             while i < self.recipients.length {
-                let amount: @FungibleToken.Vault <- vault.withdraw(amount: self.percentages[i] * totalPaymentAmount)
+                let amount: @FungibleToken.Vault <- vault.withdraw(amount: self.percentages[i] * (100.0/self.totalCut) * totalPaymentAmount)
                 AsyncArtwork.payout(recipient: self.recipients[i], amount: <- amount, currency: currency)
-
                 i = i + 1
             }
 
-            // if any left over (shouldn't be, but caller could have sent more)
+            // There should be zero tokens left but purely to avoid loss of resource send anything remaining to the platform
             AsyncArtwork.payout(recipient: self.recipients[self.recipients.length - 1], amount: <- vault, currency: currency)
         }
 
+        // Display the royalty percentage each recipient is receiving in a string
         pub fun displayRoyalty() : String? {
             var text = ""
             var i: Int = 0
@@ -239,10 +268,13 @@ pub contract AsyncArtwork: NonFungibleToken {
         }
     }
 
+    // Auth is a special resource that can only be instantiated by this contract. It enables this contract to authenticate its calls to public functions that live in User's AsyncCollections.
     pub resource Auth {}
 
-    // Private
+    // Private interface to a user's AsyncCollection
     pub resource interface AsyncCollectionPrivate {
+
+        // Mint a "Master Token" NFT that the Minter has allocated to this creator
         pub fun mintMasterToken(
             id: UInt64, 
             artworkUri: String, 
@@ -250,6 +282,8 @@ pub contract AsyncArtwork: NonFungibleToken {
             uniqueArtists: [Address]
         ) 
 
+        // Mint a "Control Token" NFT which controls certain parameters of a Master Token NFT.
+        // User must have been permissioned to mint control token by Master Token creator.
         pub fun mintControlToken(
             id: UInt64,
             tokenUri: String, 
@@ -260,6 +294,7 @@ pub contract AsyncArtwork: NonFungibleToken {
             additionalCollaborators: [Address]
         )
 
+        // Update the value of the control token levers on a permissioned token
         pub fun useControlToken(
             id: UInt64, 
             leverIds: [UInt64], 
@@ -267,28 +302,39 @@ pub contract AsyncArtwork: NonFungibleToken {
             renderingTip: @FungibleToken.Vault?
         )
 
+        // Change the permissions of another user with respect to a given control token
         pub fun grantControlPermission(id: UInt64, permissionedUser: Address, grant: Bool)
 
+        // If a user's "owner" field on its metadata goes out of whack. They can manually assert that this address owns all NFTs in its mapppings.
         pub fun updateOwnerForOwnedNFTs()
 
+        // Claim owed royalty payments in a specifc currency
         pub fun claimPayout(currency: String): @FungibleToken.Vault
     }
 
-    // Public
+    // Public interface to a user's AsyncCollection
     pub resource interface AsyncCollectionPublic {
+
+        // The method this contract uses to add a "master token id" that was allocated for this user to mint to its mappings
         pub fun reserveMasterMint(id: UInt64, layerCount: UInt64, auth: @AsyncArtwork.Auth)
 
+        // The method this contract uses to add a "control token id" that was allocated for this user to mint to its mappings
         pub fun reserveControlMint(id: UInt64, auth: @AsyncArtwork.Auth)
 
+        // The method this contract uses to change the permissions for the owner of this collection for a specific control token
         pub fun updateControlPermission(id: UInt64, grant: Bool, auth: @AsyncArtwork.Auth)
 
+        // Return the master token ids that this creator has yet to mint
         pub fun getMasterMintReservation(): {UInt64: UInt64}
 
+        // Return the control token ids that this creator has yet to mint
         pub fun getControlMintReservation(): {UInt64: UInt64}
         
+        // Return the control token ids that this user has permission for
         pub fun getControlUpdate(): {UInt64: UInt64}
     }
 
+    // The async colleciton resource that every user who interacts with AsyncArt NFTs must have
     pub resource Collection: NonFungibleToken.Provider, NonFungibleToken.Receiver, NonFungibleToken.CollectionPublic, AsyncCollectionPublic, AsyncCollectionPrivate, MetadataViews.ResolverCollection {
         // dictionary of NFT conforming tokens
         // NFT is a resource type with an `UInt64` ID field
@@ -459,7 +505,6 @@ pub contract AsyncArtwork: NonFungibleToken {
             )
         }
 
-        // Grant permissions to another user to update the levels on your control token?
         pub fun grantControlPermission(id: UInt64, permissionedUser: Address, grant: Bool) {
             pre {
                 (self.ownedNFTs.containsKey(id) && self.borrowNFT(id: id).id == id) : "Not authorized to grant permissions for this token"
@@ -498,7 +543,6 @@ pub contract AsyncArtwork: NonFungibleToken {
             }
         }
 
-        // claim amount
         pub fun claimPayout(currency: String): @FungibleToken.Vault {
             pre {
                 self.owner != nil : "Cannot perform operation while client in transit"
@@ -624,6 +668,7 @@ pub contract AsyncArtwork: NonFungibleToken {
     }
 
     // public function that anyone can call to create a new empty collection
+    // @notice every user must have this collection to interact with AsyncArtwork NFTs
     pub fun createEmptyCollection(): @NonFungibleToken.Collection {
         return <- create Collection()
     }
@@ -704,9 +749,10 @@ pub contract AsyncArtwork: NonFungibleToken {
         destroy <- self.claimsVaults.insert(key: currency, <- claimsVault)
     }
 
-    // minter and platform are decoupled
+    // An admin resource that whitelists specific creators to be able to mint "Master Token" NFTs. These creators can then allocate control token artists, as desired, and within the bounds set.
     pub resource Minter {
-		// Whitelist a master token for minting by an individual artist along with a certain number of component layers
+
+		// Whitelist a master token for minting by an individual creator along with a certain number of component layers
         pub fun whitelistTokenForCreator(
             creatorAddress: Address,
             masterTokenId: UInt64,
@@ -768,7 +814,7 @@ pub contract AsyncArtwork: NonFungibleToken {
         }
     }
 
-    // used to return data to the public, hiding the update functions
+    // The public NFT metadata interface, available for every minted NFT via getNFTMetadata
     pub struct interface NFTMetadataPublic {
         pub let id: UInt64
         pub let isMaster: Bool
@@ -785,7 +831,10 @@ pub contract AsyncArtwork: NonFungibleToken {
         pub fun getUniqueTokenCreators(): [Address]
     }
 
+
+    // NFTMetadata resource created for every NFT. The same metadata resource is used for both master and control tokens.
     pub struct NFTMetadata: NFTMetadataPublic {
+
         pub let id: UInt64
 
         // whether or not this NFT represents a master token or a control token
@@ -812,6 +861,7 @@ pub contract AsyncArtwork: NonFungibleToken {
         // The number of allowed updates that users can enact on the control levers
         pub var numRemainingUpdates: Int64?
 
+        // Address of the owner of the NFT
         pub var owner: Address?
 
         // Control levers that can be used to tweak NFT metadata
@@ -881,6 +931,7 @@ pub contract AsyncArtwork: NonFungibleToken {
             self.owner =  owner
         }
 
+        // Called when a control token is first minted to set some core properties
         pub fun initializeControlToken(
             uri: String,
             leverMinValues: [Int64],
@@ -910,6 +961,7 @@ pub contract AsyncArtwork: NonFungibleToken {
             }
         }
 
+        // Called when a master token is first minted to set some core properties
         pub fun initializeMasterToken(uri: String, uniqueTokenCreators: [Address], owner: Address) {
             pre {
                 self.isMaster : "Tried to intialize control token as master token"
@@ -922,6 +974,7 @@ pub contract AsyncArtwork: NonFungibleToken {
             self.owner = owner
         }
 
+        // Update a series of control token values, and return the new values
         pub fun updateControlTokenLevers(leverIds: [UInt64], newLeverValues: [Int64]): [Int64] {
             pre {
                 !self.isMaster : "Cannot update levers on a master token"
@@ -983,9 +1036,9 @@ pub contract AsyncArtwork: NonFungibleToken {
         }
     }
 
-    // The resource which manages all business logic related to AsyncArtwork
-    // Consider giving marketplace contract a capability to this admin
+    // An administrative resource that is only owned by the platform
     pub resource Admin  {
+
         // Admin can update the platform sales percentages for a given token
         pub fun updatePlatformSalePercentageForToken(
             tokenId: UInt64,
@@ -1010,8 +1063,6 @@ pub contract AsyncArtwork: NonFungibleToken {
         }
 
         // Admin can update the expectedTokenSupply state variable
-        // We may not need this if this is only used to increment the expected token supply for whitelistTokenForCreator
-        // if there are other reasons why we would want this value to change (in a more custom way) then we can leave this
         pub fun setExpectedTokenSupply (newExpectedTokenSupply: UInt64) {
             pre {
                 newExpectedTokenSupply > AsyncArtwork.expectedTokenSupply : "Cannot move the expectedTokenSupply backwards. Would mint NFTs with duplicate ids."
@@ -1019,7 +1070,7 @@ pub contract AsyncArtwork: NonFungibleToken {
             AsyncArtwork.expectedTokenSupply = newExpectedTokenSupply
         }
 
-        // Admin can update the default sales percentages attached to new tokens
+        // Admin can update its default sales royalties
         pub fun updateDefaultPlatformSalesPercentage (
             platformFirstSalePercentage: UFix64,
             platformSecondSalePercentage: UFix64
@@ -1037,7 +1088,7 @@ pub contract AsyncArtwork: NonFungibleToken {
             )
         }
 
-        // Admin can update the artist second sale percentage
+        // Admin can update the artists second sale royalties
         pub fun updateArtistSecondSalePercentage(
             artistSecondSalePercentage: UFix64
         ) {
@@ -1061,7 +1112,7 @@ pub contract AsyncArtwork: NonFungibleToken {
             AsyncArtwork.metadata[tokenId]!.updateUri(uri)
         }
 
-        // Admin can lock the token uri
+        // Admin can lock the token uri associated with a specific NFT
         pub fun lockTokenURI(
             tokenId: UInt64
         ) {
@@ -1071,11 +1122,12 @@ pub contract AsyncArtwork: NonFungibleToken {
             AsyncArtwork.metadata[tokenId]!.lockUri()
         }
 
+        // Admin can withdraw its tips from users
         pub fun withdrawTips(): @FungibleToken.Vault {
             return <- AsyncArtwork.tipVault.withdraw(amount: AsyncArtwork.tipVault.balance)
         }
 
-        // whitelist currency
+        // Admin can whitelist a new currency for use with royalties
         pub fun whitelistCurrency(
             currency: String,
             currencyPublicPath: PublicPath,
@@ -1103,7 +1155,8 @@ pub contract AsyncArtwork: NonFungibleToken {
             emit CurrencyWhitelisted(currency: currency)
         }
 
-        // unwhitelist currency safe (checks if claims vault being removed is empty)
+        // Admin can unwhitelist a currency for use with royalties
+        // @notice This is a safe removal (checks if claims vault being removed is empty)
         pub fun unwhitelistCurrencySafe(
             currency: String
         ) {
@@ -1127,6 +1180,7 @@ pub contract AsyncArtwork: NonFungibleToken {
             emit CurrencyUnwhitelisted(currency: currency)
         }
 
+        // Admin can unwhitelist a currency for use with royalties
         // unwhitelist currency unchecked (doesn't check if claims vault being removed is empty)
         pub fun unwhitelistCurrencyUnchecked(
             currency: String
@@ -1142,8 +1196,7 @@ pub contract AsyncArtwork: NonFungibleToken {
             AsyncArtwork.currencyPaths.remove(key: currency)
             AsyncArtwork.payoutClaims.remove(key: currency)
 
-            // Warning this could permanently remove funds from claims -- but claims is already quite accomodating so we won't block
-            // admin if the claims vault is non-empty
+            // @notice this might permanently remove funds from claims
             let vault <- AsyncArtwork.claimsVaults.remove(key: currency) ?? panic("Could not retrieve claims vault for currency")
 
             // if any remaining, pay out to asyncSaleFeesRecipient to potentially manually payout later
@@ -1152,6 +1205,7 @@ pub contract AsyncArtwork: NonFungibleToken {
             emit CurrencyUnwhitelisted(currency: currency)
         }
 
+        // Admin can update address to receive platform royalties
         pub fun setAsyncSaleFeesRecipient(newRecipient: Address) {
             AsyncArtwork.asyncSaleFeesRecipient = newRecipient
         }
@@ -1200,12 +1254,12 @@ pub contract AsyncArtwork: NonFungibleToken {
 
         self.tipVault <- FlowToken.createEmptyVault()
 
-        // currency whitelisting and claims
-        // whitelist flowToken and fusd to start
+        // To start, royalty "claims" are supported in FlowToken and FUSD
         self.claimsVaults <- {
             flowTokenCurrencyType: <- FlowToken.createEmptyVault(),
             fusdCurrencyType: <- FUSD.createEmptyVault()
         }
+        
         self.currencyPaths = {
             flowTokenCurrencyType: Paths(
                 /public/flowTokenReceiver,
