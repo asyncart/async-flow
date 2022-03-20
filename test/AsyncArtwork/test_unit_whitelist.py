@@ -39,7 +39,7 @@ def test_whitelist():
 
   # Check successful whitelist
   whitelist(
-    ["User1", "1", "1", "5.0", "1.0"],
+    ["User1", "1", "1", "0.05", "0.01"],
     "AsyncArtAccount",
     True,
     "{1: 1}"
@@ -47,7 +47,7 @@ def test_whitelist():
 
   # Check non-admin cannot whitelist
   whitelist(
-    ["User1", "1", "1", "5.0", "1.0"],
+    ["User1", "1", "1", "0.05", "0.01"],
     "User1",
     False,
     "{1: 1}"
@@ -55,7 +55,7 @@ def test_whitelist():
 
   # Check cannot whitelist with invalid masterTokenId
   whitelist(
-    ["User1", "2", "1", "5.0", "1.0"],
+    ["User1", "2", "1", "0.05", "0.01"],
     "AsyncArtAccount",
     False,
     "{1: 1}"
@@ -63,7 +63,7 @@ def test_whitelist():
 
   # Check cannot whitelist with > 500 layers
   whitelist(
-    ["User1", "1", "500", "5.0", "1.0"],
+    ["User1", "1", "500", "0.05", "0.01"],
     "AsyncArtAccount",
     False,
     "{1: 1}"
@@ -71,7 +71,7 @@ def test_whitelist():
 
   # Check cannot whitelist with invalid sales percentages
   whitelist(
-    ["User1", "1", "1", "102.0", "1.0"],
+    ["User1", "1", "1", "1.02", "0.01"],
     "AsyncArtAccount",
     False,
     "{1: 1}"

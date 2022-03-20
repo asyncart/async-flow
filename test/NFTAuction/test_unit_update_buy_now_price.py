@@ -43,7 +43,7 @@ def test_update_buy_now_price():
   setup_async_user("User1")
 
   whitelist(
-    ["User1", "1", "0", "5.0", "1.0"],
+    ["User1", "1", "0", "0.05", "0.01"],
     "AsyncArtAccount",
     True,
     "{1: 0}"

@@ -25,14 +25,15 @@ pub contract AsyncArtwork: NonFungibleToken {
     pub var expectedTokenSupply: UInt64
 
     // a default value for the first sales percentage assigned to an NFT when whitelisted
-    // set to 5.0 if Async wanted a 5% cut
+    // i.e. set to 0.05 to represent a 5% cut
     pub var defaultPlatformFirstSalePercentage: UFix64
 
     // a default value for the second sales percentage assigned to an NFT when whitelisted
-    // set to 5.0 if Async wanted a 5% cut
+    // i.e. set to 0.05 to represent a 5% cut
     pub var defaultPlatformSecondSalePercentage: UFix64
 
     // Second sale percentage for artists platform wide
+    // i.e. set to 0.05 to represent a 5% cut
     pub var artistSecondSalePercentage: UFix64
 
     // Recipient of platform royalties on AsyncArtwork sales
@@ -211,7 +212,7 @@ pub contract AsyncArtwork: NonFungibleToken {
         
         init(_ artists: [Address], _ platform: Address, _ artistsCut: UFix64, _ platformCut: UFix64) {
             pre {
-                artistsCut + platformCut <= 100.0 : "Royalty percentage allocations should not exceed 100%"
+                artistsCut + platformCut <= 1.0 : "Royalty percentage allocations should not exceed 100%"
             }
 
             self.percentages = []
@@ -233,7 +234,7 @@ pub contract AsyncArtwork: NonFungibleToken {
         // Calculate how much of the purchase price will be distributed as royalties
         pub fun calculateRoyalty(type: Type, amount:UFix64) : UFix64? {
             if AsyncArtwork.isCurrencySupported(currency: type.identifier) {
-                return (self.totalCut/100.0) * amount
+                return self.totalCut * amount
             } else {
                 return nil
             }
@@ -249,7 +250,7 @@ pub contract AsyncArtwork: NonFungibleToken {
             let totalPaymentAmount: UFix64 = vault.balance
             var i: Int = 0
             while i < self.recipients.length {
-                let amount: @FungibleToken.Vault <- vault.withdraw(amount: (self.percentages[i]/100.0) * (100.0/self.totalCut) * totalPaymentAmount)
+                let amount: @FungibleToken.Vault <- vault.withdraw(amount: self.percentages[i] * (1.0/self.totalCut) * totalPaymentAmount)
                 AsyncArtwork.payout(recipient: self.recipients[i], amount: <- amount, currency: currency)
                 i = i + 1
             }
@@ -263,7 +264,7 @@ pub contract AsyncArtwork: NonFungibleToken {
             var text = ""
             var i: Int = 0
             while i < self.recipients.length {
-                text.concat(self.recipients[i].toString()).concat(" ").concat(self.percentages[i].toString()).concat("%\n")
+                text.concat(self.recipients[i].toString()).concat(" ").concat((self.percentages[i]*100.0).toString()).concat("%\n")
                 i = i + 1
             }
             return text
@@ -677,7 +678,7 @@ pub contract AsyncArtwork: NonFungibleToken {
 
     // returns whether or not a given sales percentage is a legal value
     access(self) fun isSalesPercentageValid(_ percentage: UFix64): Bool {
-        return percentage < 100.0 && percentage >= 0.0
+        return percentage < 1.0 && percentage >= 0.0
     }
 
     access(self) fun isValidCurrencyFormat(_currency: String): Bool {
@@ -1249,9 +1250,9 @@ pub contract AsyncArtwork: NonFungibleToken {
         self.totalSupply = 0
         self.expectedTokenSupply = 0
         self.metadata = {}
-        self.defaultPlatformFirstSalePercentage = 10.0
-        self.defaultPlatformSecondSalePercentage = 5.0
-        self.artistSecondSalePercentage = 10.0
+        self.defaultPlatformFirstSalePercentage = 0.1
+        self.defaultPlatformSecondSalePercentage = 0.05
+        self.artistSecondSalePercentage = 0.1
         self.asyncSaleFeesRecipient = self.account.address
 
         self.tipVault <- FlowToken.createEmptyVault()

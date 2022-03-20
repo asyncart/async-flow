@@ -25,7 +25,7 @@ pub contract Blueprints: NonFungibleToken {
     // The default fee that the platform receives on secondary NFT sales
     pub var defaultPlatformSecondarySalePercentage: UFix64
 
-    // TODO: what is this
+    // The default secondary sale royalty percentage for Blueprint artists
     pub var defaultBlueprintSecondarySalePercentage: UFix64
 
     // An index the manages an upper-bound on the number of possible NFTs
@@ -163,7 +163,7 @@ pub contract Blueprints: NonFungibleToken {
         
         init(_ recipients: [Address], _ percentages: [UFix64]) {
             post {
-                self.totalCut <= 100.0 : "Royalty percentages cannot exceed 100%"
+                self.totalCut <= 1.0 : "Royalty percentages cannot exceed 100%"
             }
             self.recipients = recipients
             self.percentages = percentages
@@ -193,7 +193,7 @@ pub contract Blueprints: NonFungibleToken {
             let totalPaymentAmount: UFix64 = vault.balance
             var i: Int = 0
             while i < self.recipients.length {
-                let amount: @FungibleToken.Vault <- vault.withdraw(amount: (self.percentages[i]/100.0) * (100.0/self.totalCut) * totalPaymentAmount)
+                let amount: @FungibleToken.Vault <- vault.withdraw(amount: self.percentages[i] * (1.0/self.totalCut) * totalPaymentAmount)
                 Blueprints.payout(recipient: self.recipients[i], amount: <- amount, currency: currency)
 
                 i = i + 1
@@ -208,7 +208,7 @@ pub contract Blueprints: NonFungibleToken {
             var text = ""
             var i: Int = 0
             while i < self.recipients.length {
-                text.concat(self.recipients[i].toString()).concat(" ").concat(self.percentages[i].toString()).concat("%\n")
+                text.concat(self.recipients[i].toString()).concat(" ").concat((self.percentages[i]*100.0).toString()).concat("%\n")
                 i = i + 1
             }
             return text

@@ -50,8 +50,8 @@ def get_metadata_possibilities(str):
   return metadata_possibilities
 
 def result_equals_expected_metadata(result, expected_metadata):
-    equivallent_metadata_possibilities = get_metadata_possibilities(expected_metadata)
-    for p in equivallent_metadata_possibilities:
-        if result == p:
-            return True
-    return False
+  equivallent_metadata_possibilities = get_metadata_possibilities(expected_metadata)
+  for p in equivallent_metadata_possibilities:
+    if result == p:
+      return True
+  return False
