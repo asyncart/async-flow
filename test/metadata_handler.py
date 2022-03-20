@@ -4,9 +4,6 @@ def generate_possible_dictionary_strings(dict_tokens):
   possible_dict_token_lists = [list(possible_dict_token_tuples[i]) for i in range(len(possible_dict_token_tuples))]
   possible_dicts = []
   for ordered_list in possible_dict_token_lists:
-    #keys = [i for i in range(len(ordered_seq))]
-    #all_keys_permutations = list(itertools.permutations(keys))
-    #for key_set in all_keys_permutations:
     dict_str = "{"
     for kvp in ordered_list:
       dict_str += kvp + ", "
