@@ -25,13 +25,13 @@ def test_update_platform_default_sales_percentages():
   main()
   
   # Check success for Admin account
-  update_platform_default_sales_percentages(["2.0", "1.0"], "AsyncArtAccount", True)
+  update_platform_default_sales_percentages(["0.02", "0.01"], "AsyncArtAccount", True)
 
   # Check failure for non-Admin account
-  update_platform_default_sales_percentages(["2.0", "1.0"], "User1", False)
+  update_platform_default_sales_percentages(["0.03", "0.05"], "User1", False)
 
   # Check failure for invalid percentage
-  update_platform_default_sales_percentages(["110.0", "1.0"], "AsyncArtAccount", False)
+  update_platform_default_sales_percentages(["110.0", "0.04"], "AsyncArtAccount", False)
 
 if __name__ == '__main__':
   test_update_platform_default_sales_percentages()

@@ -39,7 +39,8 @@
         "MetadataViews": {
             "source": "./cadence/contracts/MetadataViews.cdc",
             "aliases": {
-                "mainnet": "0x1d7e57aa55817448"
+                "mainnet": "0x1d7e57aa55817448",
+                "testnet": "0x631e88ae7f1d7c20"
             }
         },
         "ExampleToken": "./cadence/contracts/ExampleToken.cdc",
@@ -56,31 +57,31 @@
     "accounts": {
         "emulator-account": {
             "address": "f8d6e0586b0a20c7",
-            "key": "6aa41d3d4056ad3d3666a52d2a246da548fecbd4c59749c9b0d7bcaea5fb0094"
+            "key": "17a0b79fd1ef3dd0a3427a53dab29eded4132b977a7b9fd03b0ce0d0a8a31ec9"
         },
         "AsyncArtAccount": {
             "address": "0x01cf0e2f2f715450",
-            "key": "d98dc6283a540b61f06d4c2155eb8cf04d8bf3a85a6d1791cf36ef93504984d2"
+            "key": "690dfd2c2e7fb005903c85ae57f932a92cf62341868eedcfb1ed3f6090ce54e7"
         },
         "User1": {
             "address": "0x179b6b1cb6755e31",
-            "key": "709f027e9f361001e3d40bbf2b20e418aa70f1341b4df580baf3521c127f2d39"
+            "key": "066e8499eed25a8f4ebce690f91eb3683657db8e33f61e1fc28ea7b9494424bf"
         },
         "User2": {
             "address": "0xf3fcd2c1a78f5eee",
-            "key": "95aef42ab416fc38869b0c6bd0c5d36938001f14318db63e7f225ad20f835904"
+            "key": "9d89088ab78e0d7af89546513e250481354dc95ec61b418380a8cd5959fe458a"
         },
         "User3": {
             "address": "0xe03daebed8ca0615",
-            "key": "d714ba27582440ffc8cf06b4e5b63aa7cc4eacc5ca5ac2a087f6e5856d94b91a"
+            "key": "43abe9588c96a5840ae654707bf26730ed7b258b140e316e5cc28a38a57a9f88"
         },
         "User4": {
             "address": "0x045a1763c93006ca",
-            "key": "43eb0091a90ae4ef6b26d5e3c11580fa18aee51a0f1dcfcf15d78cc0ce864a00"
+            "key": "6c39f621c6f89ea5c04cbdb54128042d1e6bd58d6707dd7ffb51bf2430155326"
         },
         "AsyncMarketplaceAccount": {
             "address": "0x120e725050340cab",
-            "key": "4d3808a9addd77a42c2186ed003db788b3dee220aea830f4bf4b94bff24038d7"
+            "key": "9381ce7d79d5af3c9ac0778bfbc6d2fb992c03ca216ee6b3cbbbda833f281c0b"
         }
     },
     "deployments": {

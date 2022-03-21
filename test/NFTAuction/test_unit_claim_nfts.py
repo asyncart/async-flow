@@ -39,7 +39,7 @@ def test_claim_nfts():
   setup_async_user("User2")
 
   whitelist(
-    ["User1", "1", "0", "5.0", "1.0"],
+    ["User1", "1", "0", "0.05", "0.01"],
     "AsyncArtAccount",
     True,
     "{1: 0}"

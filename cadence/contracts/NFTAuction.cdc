@@ -8,25 +8,35 @@ import Royalties from "./Royalties.cdc"
 import MetadataViews from "./MetadataViews.cdc"
 
 pub contract NFTAuction {
+
+    // The paths at which resources will be stored, and capabilities linked
     pub var marketplaceClientPublicPath: PublicPath
     pub var marketplaceClientPrivatePath: PrivatePath
     pub var marketplaceClientStoragePath: StoragePath
     pub var escrowCollectionStoragePath: StoragePath
     pub var escrowCollectionPrivatePath: PrivatePath
     pub var escrowCollectionPublicPath: PublicPath
-    access(self) var escrowCollectionCap: Capability<&escrowCollection>
 
+    // The type identifier of an AsyncArtwork NFT
     pub var asyncArtworkNFTType: String
+
+    // The type identifier of an Async Blueprints NFT
     pub var blueprintsNFTType: String
 
+    // The type identifier for FlowTokens
     pub var flowTokenCurrencyType: String
 
+    // The default minimum bind percentage increment for NFT Auctions
     pub var defaultBidIncreasePercentage: UFix64
+
+    // The minimum bid increase percentage that a user can specify for their NFT Auction
     pub var minimumSettableIncreasePercentage: UFix64
 
     // The maximum allowable value for the "minPrice" as a percentage of the buyNowPrice
     // i.e. if this is 80, then if a given NFT has a buyNowPrice of 200, it's minPrice <= 160
     pub var maximumMinPricePercentage: UFix64
+
+    // The bid period
     pub var defaultAuctionBidPeriod: UFix64
 
     // A mapping of NFT type identifiers (analog of NFT contract addresses on ETH) to {nftIds -> Auctions}
@@ -50,6 +60,9 @@ pub contract NFTAuction {
     // A mapping of currency type identifiers to {User Addresses -> Amounts of currency they are owed}
     access(self) let payoutClaims: {String: {Address: UFix64}}
 
+    access(self) var escrowCollectionCap: Capability<&escrowCollection>
+
+    // Emitted when a new NFT Auction (bidding on an NFT) is created
     pub event NftAuctionCreated(
         nftProjectIdentifier: String,
         tokenId: UInt64,
@@ -63,6 +76,7 @@ pub contract NFTAuction {
         feePercentages: [UFix64]
     );
 
+    // Emitted when a new direct NFT sale is created
     pub event SaleCreated(
         nftTypeIdentifier: String,
         tokenId: UInt64,
@@ -74,6 +88,7 @@ pub contract NFTAuction {
         feePercentages: [UFix64]
     );
 
+    // Emitted when a user makes a bid for a specific NFT
     pub event BidMade(
         nftTypeIdentifier: String,
         tokenId: UInt64,
@@ -82,12 +97,14 @@ pub contract NFTAuction {
         tokenAmount: UFix64
     );
 
+    // Emitted when the duraton of an auction is extended by a newly received bid
     pub event AuctionPeriodUpdated(
         nftTypeIdentifier: String,
         tokenId: UInt64,
         auctionEndPeriod: UFix64
     );
 
+    // Emitted when the sale/auctioning of an NFT closes and the recipient has been given their NFT and the seller has been paid
     pub event NFTTransferredAndSellerPaid(
         nftTypeIdentifier: String,
         tokenId: UInt64,
@@ -97,42 +114,49 @@ pub contract NFTAuction {
         nftRecipient: Address
     );
 
+    // Emitted when an auction is sucesfully closed (the highest bid is taken after the auction expires)
     pub event AuctionSettled(
         nftTypeIdentifier: String,
         tokenId: UInt64,
         auctionSettler: Address
     );
 
+    // Emitted when the creator of an auction chooses to withdraw it
     pub event AuctionWithdrawn(
         nftTypeIdentifier: String,
         tokenId: UInt64,
         nftOwner: Address
     );
 
+    // Emitted when a user withdraws their bid on a certain NFT
     pub event BidWithdrawn(
         nftTypeIdentifier: String,
         tokenId: UInt64,
         highestBidder: Address
     );
 
+    // Emitted when the (only) whitelisted buyer for a specific NFT is changed
     pub event WhitelistedBuyerUpdated(
         nftTypeIdentifier: String,
         tokenId: UInt64,
         newWhitelistedBuyer: Address
     );
 
+    // Emitted when the minimum price in the auctioning of a specific NFT has changed
     pub event MinimumPriceUpdated(
         nftTypeIdentifier: String,
         tokenId: UInt64,
         newMinPrice: UFix64
     );
 
+    // Emitted when the "buy now" price for a specific NFT has changed
     pub event BuyNowPriceUpdated(
         nftTypeIdentifier: String,
         tokenId: UInt64,
         newBuyNowPrice: UFix64
     );
 
+    // Emitted when the creator of an auction accepts the highest bid
     pub event HighestBidTaken(
         nftTypeIdentifier: String,
         tokenId: UInt64
@@ -402,7 +426,6 @@ pub contract NFTAuction {
         }
     }
 
-    // This method seems obscure, also not the biggest fan of returning a copy of the struct (make void?)
     access(self) fun _resolveAuctionForBid(
         nftTypeIdentifier: String,
         tokenId: UInt64,
@@ -510,7 +533,7 @@ pub contract NFTAuction {
         feeRecipients: [Address],
         feePercentages: [UFix64],
         nftProviderCapability: Capability<&{NonFungibleToken.Provider}>,
-        auctionBidPeriod: UFix64, // this is the time that the auction lasts until another bid occurs
+        auctionBidPeriod: UFix64,
         bidIncreasePercentage: UFix64
     ) {
         pre {
@@ -630,8 +653,6 @@ pub contract NFTAuction {
             )
 
             auction!.setNFTProviderCapability(nftProviderCapability: nftProviderCapability)
-
-            // assume feeRecipients and feePercentages remain the same since its set per nft
         }
     }
 
@@ -652,7 +673,10 @@ pub contract NFTAuction {
         self.auctions[nftTypeIdentifier]![tokenId]!.resetBids()
     }
 
+    // This is a client resource that every user is expected to have. It facilitates all major interactions with the auction contract like making auctions, placing bids and accepting bids.
     pub resource MarketplaceClient {
+
+        // Create an auction for a specific NFT with the default governance parameters set for some fields
         pub fun createDefaultNftAuction(
             nftTypeIdentifier: String,
             tokenId: UInt64,
@@ -687,14 +711,14 @@ pub contract NFTAuction {
             )
         }
 
-        // createNewNftAuction
+        // Create a new NFT Auction with as many custom options as possible
         pub fun createNewNftAuction(
             nftTypeIdentifier: String,
             tokenId: UInt64,
             currency: String,
             minPrice: UFix64,
             buyNowPrice: UFix64,
-            auctionBidPeriod: UFix64, // this is the time that the auction lasts until another bid occurs
+            auctionBidPeriod: UFix64,
             bidIncreasePercentage: UFix64,
             feeRecipients: [Address],
             feePercentages: [UFix64],
@@ -724,7 +748,7 @@ pub contract NFTAuction {
             )
         }   
 
-        // createSale
+        // Create a direct sale of an owned NFT asset to a particular buyer
         pub fun createSale(
             nftTypeIdentifier: String,
             tokenId: UInt64,
@@ -788,7 +812,7 @@ pub contract NFTAuction {
             }
         }
 
-        // makeBid
+        // Make a bid on a specific NFT asset
         pub fun makeBid(
             nftTypeIdentifier: String,
             tokenId: UInt64,
@@ -815,7 +839,7 @@ pub contract NFTAuction {
             )
         }
 
-        // makeCustomBid
+        // Make a bid on a specific NFT asset, and specify an address that the NFT should be transferred to if accepted
         pub fun makeCustomBid(
             nftTypeIdentifier: String,
             tokenId: UInt64,
@@ -828,7 +852,7 @@ pub contract NFTAuction {
                 NFTAuction.nftCollectionSetup(nftTypeIdentifier: nftTypeIdentifier, futureRecipient: self.owner!.address) : "Collection receiver not setup"
             }
 
-            // make sure nftRecipient can receive the nft being bidded on
+            // make sure nftRecipient can receive the nft being bid on
 
             var auction: Auction = NFTAuction._resolveAuctionForBid(
                 nftTypeIdentifier: nftTypeIdentifier,
@@ -847,7 +871,7 @@ pub contract NFTAuction {
             )
         }
 
-        // This is very similar to "takeHighestBid" but it can only be called after an auction ends, and is callable by anyone, not just the nftSeller
+        // This function can be called by anyone to "settle" a given auction after it has ended. The default behaviour is to accept the highest bid above the minimum price (if applicable).
         pub fun settleAuction(
             nftTypeIdentifier: String,
             tokenId: UInt64
@@ -876,7 +900,7 @@ pub contract NFTAuction {
             )
         }
 
-        // withdrawAuction
+        // The creator of an auction may withdraw the auction so long as they have not recieved any bids at or above the minimum price.
         pub fun withdrawAuction(
             nftTypeIdentifier: String,
             tokenId: UInt64
@@ -893,7 +917,7 @@ pub contract NFTAuction {
                 ?? panic("Could not borrow public reference to owner's collection")
 
             if collection.borrowNFT(id: tokenId).id != tokenId {
-                panic("User does not currently own NFT! If the NFT is in escrow, the auction cannot be withdrawn!") // this should fail if NFT is not in this resource's owner's collection
+                panic("User does not currently own NFT! If the NFT is in escrow, the auction cannot be withdrawn!")
             }
             
             NFTAuction.auctions[nftTypeIdentifier]![tokenId]!.reset()
@@ -905,7 +929,7 @@ pub contract NFTAuction {
             )
         }
 
-        // withdrawBid
+        // A user may withdraw a bid that they have made on a speicifc NFT (as long as it hasn't been accepted already).
         pub fun withdrawBid(
             nftTypeIdentifier: String,
             tokenId: UInt64
@@ -946,7 +970,7 @@ pub contract NFTAuction {
             )
         }
 
-        // updateWhitelistedBuyer
+        // Update the address of the user who is allowed to purchase the given NFT
         pub fun updateWhitelistedBuyer(
             nftTypeIdentifier: String,
             tokenId: UInt64,
@@ -966,7 +990,7 @@ pub contract NFTAuction {
           NFTAuction.auctions[nftTypeIdentifier]![tokenId]!.setWhitelistedBuyer(newWhitelistedBuyer: newWhitelistedBuyer)
 
           if auction.nftHighestBid != nil {
-            // if an underbid is by a non whitelisted buyer, reverse that bid
+            // If a bid exists from another user, then that bid should be returned to them since they are no longer whitelisted for this NFT
             if auction.nftHighestBidder! != newWhitelistedBuyer {
               let escrowVault <- NFTAuction.escrowVaults.remove(key: auction.biddingCurrency)!
               let previousBid <- escrowVault.withdraw(amount: auction.nftHighestBid!)
@@ -984,7 +1008,7 @@ pub contract NFTAuction {
           )
         }
 
-        // updateMinimumPrice
+        // Update the minimum price property for a specific NFT
         pub fun updateMinimumPrice(
             nftTypeIdentifier: String,
             tokenId: UInt64,
@@ -1042,7 +1066,7 @@ pub contract NFTAuction {
           }
         }
 
-        // updateBuyNowPrice
+        // Update the "buy now" price for a specific NFT
         pub fun updateBuyNowPrice(
             nftTypeIdentifier: String,
             tokenId: UInt64,
@@ -1063,7 +1087,6 @@ pub contract NFTAuction {
             panic("Only NFT seller")
           }
 
-          // I believe we can assume minPrice is set here because at this point, the auction must be one that was instantiated through auction creation or sale creation, NOT through an early bid
           if !NFTAuction.minPriceDoesNotExceedLimit(buyNowPrice: newBuyNowPrice, minPrice: auction.minPrice!) {
             panic("MinPrice > 80% of buyNowPrice")
           }
@@ -1086,7 +1109,7 @@ pub contract NFTAuction {
           }
         }
 
-        // Callable by only the nftSeller -> enables them to accept the highest bid for their auction
+        // The creator of an auction can accept the highest bid, closing out the auction
         pub fun takeHighestBid(
             nftTypeIdentifier: String,
             tokenId: UInt64
@@ -1121,7 +1144,9 @@ pub contract NFTAuction {
           )
         }
 
-
+        // If a user was successful in bidding to recieve a specific NFT, but at the time of payout did not have the correct collection/linked capabilities
+        // to be able to recieve the NFT we store it in "claims". The user can then "claim" the NFT at any time using this function. This function will return
+        // all NFTs that the user successfully purchased but was unable to receive.
         pub fun claimNFTs(nftTypeIdentifier: String): @[NonFungibleToken.NFT] {
             pre {
                 self.owner != nil : "Cannot perform operation while client in transit"
@@ -1143,6 +1168,8 @@ pub contract NFTAuction {
             return <- nfts
         }
 
+        // If an auction creator accepts a bid, or has their auction settled but does not have the correct vaults or capabilities linked to recieve their payment
+        // the payment is added to a "claims" vault.
         pub fun claimPayout(currency: String): @FungibleToken.Vault {
             pre {
                 self.owner != nil : "Cannot perform operation while client in transit"
@@ -1160,10 +1187,12 @@ pub contract NFTAuction {
         }
     }
 
+    // Function for anyone to create a marketplace client resource
     pub fun createMarketplaceClient(): @MarketplaceClient {
         return <- create MarketplaceClient()
     }
 
+    // Publicly visible properties of any auction
     pub struct interface AuctionPublic {
       pub var feeRecipients: [Address]
       pub var feePercentages: [UFix64]
@@ -1180,7 +1209,7 @@ pub contract NFTAuction {
       pub var bidIncreasePercentage: UFix64
     }
 
-    // Public getter for auction information
+    // Public getter for auction information, returns a copy of the public auction object (subsequent data maniuplation does not affect the source)
     pub fun getAuction(_ nftTypeIdentifier: String,_ tokenId: UInt64): Auction{AuctionPublic}? {
         if !self.auctions.containsKey(nftTypeIdentifier) {
             return nil
@@ -1188,6 +1217,7 @@ pub contract NFTAuction {
         return self.auctions[nftTypeIdentifier]![tokenId]
     }
 
+    // A generic auction structure that manages the auctioning and selling of NFT assets
     pub struct Auction: AuctionPublic {
         pub var feeRecipients: [Address]
         pub var feePercentages: [UFix64]
@@ -1347,7 +1377,6 @@ pub contract NFTAuction {
         }
     }
 
-    // skipped isAuctionNotStartedByOwner -> weird name seems obscure, hopefully we can do something better
     access(self) fun manageAuctionStarted(_ nftTypeIdentifier: String, _ tokenId: UInt64, _ sender: Address) {
         let auction: Auction? = self.auctions[nftTypeIdentifier]![tokenId]
         if auction != nil {
@@ -1373,10 +1402,9 @@ pub contract NFTAuction {
         return buyNowPrice == nil || buyNowPrice! * (self.maximumMinPricePercentage/100.0) >= minPrice
     }
 
-    // minPrice is minimum bid needed to inititate auction with end date
     access(self) fun doesBidMeetRequirements(auction: Auction, amount: UFix64): Bool {
         pre {
-            amount > 0.0 : "Cannot bid nothing"
+            amount > 0.0 : "Zero value bids are invalid"
         }
         
         if auction.buyNowPrice != nil && amount >= auction.buyNowPrice! {
@@ -1405,19 +1433,29 @@ pub contract NFTAuction {
         return getAccount(futureRecipient).getCapability<&{NonFungibleToken.CollectionPublic}>(path).check()
     }
 
-    // Getters (waiting to see on platformm default behaviour)
-
-    // Collection Escrow Resource
+    // The public interface into the NFT escrow collection. These are public methods that can be called to view the contents of which NFTs this contract is holding in escrow
     pub resource interface escrowCollectionPublic {
+
+        // The number of NFTs in escrow
         pub var totalSupply: UInt64
+
+        // Borrow a reference to an NFT that is in escrow
         pub fun borrowNFT(nftTypeIdentifier: String, tokenId: UInt64): &NonFungibleToken.NFT 
+
+        // Borrow a ViewResolver to fetch metadata for a specific NFT in escrow
         pub fun borrowViewResolver(nftTypeIdentifier: String, tokenId: UInt64): &{MetadataViews.Resolver}
+
+        // Check if an NFT is in escrow
         pub fun containsNFT(nftTypeIdentifier: String, tokenId: UInt64): Bool
+
+        // Get paths that the escrow collection uses to payout and withdraw NFTs
         pub fun getTypesToProviderPaths(): {String: PrivatePath}
         pub fun getTypesToStoragePaths(): {String: StoragePath}
         pub fun getTypesToReceiverPaths(): {String: PublicPath}
     }
     
+    // The resource that manages escrow of NFTs. NFTs are pulled into escrow when a minimum price bid is received for an auction they are associated with. Upon the conclusion of the auction, the NFTs are removed from escrow and given to
+    // the appropriate recipient.
     pub resource escrowCollection: escrowCollectionPublic {
         access(self) var ownedNFTs: {String: {UInt64: UInt64}}
 
