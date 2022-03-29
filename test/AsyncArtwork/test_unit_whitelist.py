@@ -12,7 +12,7 @@ from test_unit_setup_async_user import setup_async_user
 
 # expected args: [creator, masterTokenId, layerCount, platformFirstSalePercentage, platformSecondSalePercentage]
 
-def whitelist(args, signer, should_succeed, expected_master_mint_res):
+def whitelist(args, signer, should_succeed, expected_master_mint_res=None):
   creator_address = address(args[0])
   args = [["Address", creator_address], ["UInt64", args[1]], ["UInt64", args[2]], ["UFix64?", args[3]], ["UFix64?", args[4]]]
   if should_succeed:

@@ -1,5 +1,6 @@
 import AsyncArtwork from "../../contracts/AsyncArtwork.cdc"
 import NonFungibleToken from "../../contracts/NonFungibleToken.cdc"
+import MetadataViews from "../../contracts/MetadataViews.cdc"
 
 transaction() {
     prepare(acct: AuthAccount) {
@@ -12,7 +13,7 @@ transaction() {
                 target: AsyncArtwork.collectionStoragePath
             )
 
-            acct.link<&AsyncArtwork.Collection{NonFungibleToken.CollectionPublic, NonFungibleToken.Receiver, AsyncArtwork.AsyncCollectionPublic}>(
+            acct.link<&AsyncArtwork.Collection{NonFungibleToken.CollectionPublic, NonFungibleToken.Receiver, AsyncArtwork.AsyncCollectionPublic, MetadataViews.ResolverCollection}>(
                 AsyncArtwork.collectionPublicPath,
                 target: AsyncArtwork.collectionStoragePath
             )

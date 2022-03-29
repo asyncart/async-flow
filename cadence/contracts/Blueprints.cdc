@@ -208,9 +208,10 @@ pub contract Blueprints: NonFungibleToken {
             var text = ""
             var i: Int = 0
             while i < self.recipients.length {
-                text.concat(self.recipients[i].toString()).concat(" ").concat((self.percentages[i]*100.0).toString()).concat("%\n")
+                text = text.concat(self.recipients[i].toString()).concat(": ").concat((self.percentages[i]*100.0).toString()).concat("%,")
                 i = i + 1
             }
+            text = text.slice(from: 0, upTo: text.length-1)
             return text
         }
     }
