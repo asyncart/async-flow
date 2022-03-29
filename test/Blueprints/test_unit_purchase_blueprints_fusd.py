@@ -74,7 +74,7 @@ def test_purchase_blueprints_fusd():
     True
   )
 
-  # assert on User2's ownership of the NFTs
+  # assert on User3's ownership of the NFTs
   assert "id: 1" in send_blueprints_script_and_return_result("getNFT", args=[["Address", address("User3")], ["UInt64", "1"]])
   
   # assert on User3's balance
