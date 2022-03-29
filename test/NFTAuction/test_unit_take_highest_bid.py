@@ -64,7 +64,7 @@ def test_take_highest_bid():
   )
 
   create_new_nft_auction(
-    ["A.01cf0e2f2f715450.AsyncArtwork.NFT", "1", "A.0ae53cb6e3f42a79.FlowToken.Vault", "2.0", "5.0", "0.00000001", "5.0", [], []],
+    ["A.01cf0e2f2f715450.AsyncArtwork.NFT", "1", "A.0ae53cb6e3f42a79.FlowToken.Vault", "2.0", "5.0", "0.00000001", "5.0", ["AsyncArtAccount"], ["0.05"]],
     "User1",
     True
   )
@@ -99,6 +99,7 @@ def test_take_highest_bid():
   )
 
   assert "3.80000000" == send_script_and_return_result("getUsersFlowTokenBalance", args=[["Address", address("User1")]])
+  assert "0.20000000" == send_script_and_return_result("getUsersFlowTokenBalance", args=[["Address", address("AsyncArtAccount")]])
   assert "96.00000000" == send_script_and_return_result("getUsersFlowTokenBalance", args=[["Address", address("User2")]])
 
   assert "[]" == send_async_artwork_script_and_return_result("getNFTs", args=[["Address", address("User1")]])

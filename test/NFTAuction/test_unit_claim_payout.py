@@ -50,11 +50,12 @@ def test_make_bids():
   )
 
   assert send_transaction("initializeAccount", signer="User2")
-  assert send_transaction("mintFUSD", args=[["UFix64", "20.0"], ["Address", "0xf3fcd2c1a78f5eee"]])
+  assert send_transaction("initializeAccount", signer="AsyncArtAccount")
+  assert send_transaction("mintFUSD", args=[["UFix64", "20.0"], ["Address", address("User2")]])
 
   # Instantiate auction
   create_default_nft_auction(
-    ["A.01cf0e2f2f715450.AsyncArtwork.NFT", "1", "A.f8d6e0586b0a20c7.FUSD.Vault", "2.0", "5.0", [], []],
+    ["A.01cf0e2f2f715450.AsyncArtwork.NFT", "1", "A.f8d6e0586b0a20c7.FUSD.Vault", "2.0", "5.0", ["AsyncArtAccount"], ["0.05"]],
     "User1",
     True
   )
@@ -68,6 +69,9 @@ def test_make_bids():
 
   # Assert that User2 has payed for NFT and received it from User1
   assert "14.00000000" == send_script_and_return_result("getUsersFUSDBalance", args=[["Address", address("User2")]])
+
+  # Assert that Async received appropriate fee
+  assert "0.30000000" == send_script_and_return_result("getUsersFUSDBalance", args=[["Address", address("AsyncArtAccount")]])
 
   # Confirm user2 owns AsyncArtwork NFT 1
   user2_owned_nfts = send_async_artwork_script_and_return_result("getNFTs", args=[["Address", address("User2")]])

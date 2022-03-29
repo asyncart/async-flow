@@ -26,6 +26,7 @@ def mint_master_token(args, signer, should_succeed, expected_master_mint_res=Non
       assert expected_master_mint_res == send_async_artwork_script_and_return_result("getMasterMintReservation", args=[["Address", address(signer)]])
     metadata = send_async_artwork_script_and_return_result("getMetadata", args=[["UInt64", args[0]]])
     print(metadata)
+    print(expected_metadata)
     if assert_metadata:
       assert result_equals_expected_metadata(metadata, expected_metadata)
     # Maybe add an asertion about the on-contract metadata
@@ -49,7 +50,7 @@ def test_mint_master_token():
     "{1: 1}"
   )
 
-  expected_metadata = 'A.{contract}.AsyncArtwork.NFTMetadata(id: 1, isMaster: true, uri: "<uri>", isUriLocked: false, platformFirstSalePercentage: 0.05000000, platformSecondSalePercentage: 0.01000000, tokenSoldOnce: false, numControlLevers: nil, numRemainingUpdates: nil, owner: {owner}, levers: {levers}, uniqueTokenCreators: [{uniqueTokenCreator}])'.format(contract=address("AsyncArtwork")[2:], owner=address("User1"), levers="{}", uniqueTokenCreator=address("User2"))
+  expected_metadata = 'A.{contract}.AsyncArtwork.NFTMetadata(id: 1, isMaster: true, uri: "<uri>", isUriLocked: false, platformFirstSalePercentage: 0.05000000, platformSecondSalePercentage: 0.01000000, numControlLevers: nil, numRemainingUpdates: nil, owner: {owner}, levers: {levers}, uniqueTokenCreators: [{uniqueTokenCreator}])'.format(contract=address("AsyncArtwork")[2:], owner=address("User1"), levers="{}", uniqueTokenCreator=address("User2"))
 
   # Check user cannot mint master token not allocated for them
   mint_master_token(

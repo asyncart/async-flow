@@ -92,11 +92,6 @@ pub contract AsyncArtwork: NonFungibleToken {
     // Emitted when the uniform artist's second sale percentage is updated
     pub event ArtistSecondSalePercentUpdated(artistSecondPercentage: UFix64)
 
-    // Emitted when a specific AsyncArtwork NFT has sold
-    pub event TokenSoldOnce(
-        tokenId: UInt64
-    )
-
     // Emitted when a permissioned user updates the values of the levers of a control token
     pub event ControlLeverUpdated(
         tokenId: UInt64,
@@ -186,9 +181,9 @@ pub contract AsyncArtwork: NonFungibleToken {
             } else if type == Type<[Address]>() {
                 return metadata.getUniqueTokenCreators()
             } else if type == Type<{Royalties.Royalty}>() {
-                let artistsFee: UFix64 = metadata.tokenSoldOnce == true ? AsyncArtwork.artistSecondSalePercentage : 0.0
-                let platformFee: UFix64 = metadata.tokenSoldOnce == true ? metadata.platformSecondSalePercentage : metadata.platformFirstSalePercentage
-                return AsyncArtwork.Royalty(metadata.getUniqueTokenCreators(), AsyncArtwork.asyncSaleFeesRecipient, artistsFee, platformFee)
+                let artistsPercentage: UFix64 = AsyncArtwork.artistSecondSalePercentage
+                let platformPercentage: UFix64 = metadata.platformSecondSalePercentage
+                return AsyncArtwork.Royalty(metadata.getUniqueTokenCreators(), AsyncArtwork.asyncSaleFeesRecipient, artistsPercentage, platformPercentage)
             } else {
                 return nil
             }
@@ -825,7 +820,6 @@ pub contract AsyncArtwork: NonFungibleToken {
         pub var isUriLocked: Bool
         pub var platformFirstSalePercentage: UFix64
         pub var platformSecondSalePercentage: UFix64
-        pub var tokenSoldOnce: Bool
         pub var numControlLevers: Int?
         pub var numRemainingUpdates: Int64?
         pub var owner: Address?
@@ -854,9 +848,6 @@ pub contract AsyncArtwork: NonFungibleToken {
 
         // The percentage of the sale value of the NFT that should be given to the AsyncArt platform when this NFT is sold subsequently to the first time
         pub var platformSecondSalePercentage: UFix64
-
-        // Whether or not this NFT has been sold once on Async's marketplace
-        pub var tokenSoldOnce: Bool
 
         // The number of control levers that this control token has
         pub var numControlLevers: Int?
@@ -898,22 +889,6 @@ pub contract AsyncArtwork: NonFungibleToken {
                 platformFirstPercentage: platformFirstSalePercentage,
                 platformSecondPercentage: platformSecondSalePercentage
             )
-        }
-
-        pub fun setTokenSoldOnce() {
-            pre {
-                self.tokenSoldOnce == false : "tokenSoldOnce is already true"
-            }
-            self.tokenSoldOnce = true
-            emit TokenSoldOnce(tokenId: self.id)
-        }
-
-        // used for idempotent operation - currently unused, may use on sale
-        pub fun setTokenSoldOnceUnchecked() {
-            if !self.tokenSoldOnce {
-                self.tokenSoldOnce = true
-                emit TokenSoldOnce(tokenId: self.id)
-            } 
         }
 
         pub fun updateUri(_ uri: String) {
@@ -1025,7 +1000,6 @@ pub contract AsyncArtwork: NonFungibleToken {
             self.isUriLocked = false
             self.numControlLevers = leverStartValues == nil ? (nil as Int?) : leverStartValues!.length
             self.numRemainingUpdates = numAllowedUpdates
-            self.tokenSoldOnce = false
             self.uniqueTokenCreators = uniqueTokenCreators
             self.levers = {}
             self.owner = nil
@@ -1055,14 +1029,6 @@ pub contract AsyncArtwork: NonFungibleToken {
             }
 
             AsyncArtwork.metadata[tokenId]!.updatePlatformSalesPercentages(platformFirstSalePercentage, platformSecondSalePercentage)
-        }
-
-        // Admin can set the "tokenSoldOnce" flag on a piece of metadata manually
-        pub fun setTokenDidHaveFirstSaleForToken(tokenId: UInt64) {
-            pre {
-                AsyncArtwork.metadata[tokenId] != nil : "TokenId does not exist"
-            }
-            AsyncArtwork.metadata[tokenId]!.setTokenSoldOnce()
         }
 
         // Admin can update the expectedTokenSupply state variable
