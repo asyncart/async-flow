@@ -1,5 +1,6 @@
 import Blueprints from "../../contracts/Blueprints.cdc"
 import NonFungibleToken from "../../contracts/NonFungibleToken.cdc"
+import MetadataViews from "../../contracts/MetadataViews.cdc"
 
 transaction() {
     prepare(acct: AuthAccount) {
@@ -12,7 +13,7 @@ transaction() {
                 target: Blueprints.collectionStoragePath
             )
 
-            acct.link<&Blueprints.Collection{NonFungibleToken.CollectionPublic, NonFungibleToken.Receiver}>(
+            acct.link<&Blueprints.Collection{NonFungibleToken.CollectionPublic, NonFungibleToken.Receiver, MetadataViews.ResolverCollection}>(
                 Blueprints.collectionPublicPath,
                 target: Blueprints.collectionStoragePath
             )

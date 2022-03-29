@@ -1,6 +1,6 @@
 from initialize_testing_environment import main
 from transaction_handler import send_blueprints_transaction
-from script_handler import send_blueprints_script_and_return_result
+from script_handler import send_blueprints_script_and_return_result, send_script_and_return_result
 from event_handler import check_for_event, check_for_n_event_occurences_over_x_blocks
 from utils import address, transfer_flow_token
 import pytest
@@ -52,6 +52,15 @@ def test_purchase_blueprints():
 
   # assert on User2's ownership of the NFTs
   assert "id: 0" in send_blueprints_script_and_return_result("getNFT", args=[["Address", address("User2")], ["UInt64", "0"]])
+  
+  # assert on User2's balance
+  assert "90.00000000" == send_script_and_return_result("getUsersFlowTokenBalance", args=[["Address", address("User2")]])
+  
+  # assert on Async's balance
+  assert "2.00000000" == send_script_and_return_result("getUsersFlowTokenBalance", args=[["Address", address("AsyncArtAccount")]])
+
+  # assert on User1's balace
+  assert "8.00000000" == send_script_and_return_result("getUsersFlowTokenBalance", args=[["Address", address("User1")]])
 
   # User2 cannot purchase anymore as they were whitelisted, and have claimed their spot via the whitelist
   purchase_blueprints(
@@ -72,6 +81,18 @@ def test_purchase_blueprints():
     "User2",
     True
   )
+
+  # assert on User2's ownership of the NFTs
+  assert "id: 1" in send_blueprints_script_and_return_result("getNFT", args=[["Address", address("User2")], ["UInt64", "1"]])
+  
+  # assert on User2's balance
+  assert "80.00000000" == send_script_and_return_result("getUsersFlowTokenBalance", args=[["Address", address("User2")]])
+  
+  # assert on Async's balance
+  assert "4.00000000" == send_script_and_return_result("getUsersFlowTokenBalance", args=[["Address", address("AsyncArtAccount")]])
+
+  # assert on User1's balace
+  assert "16.00000000" == send_script_and_return_result("getUsersFlowTokenBalance", args=[["Address", address("User1")]])
 
   # User cannot purchase more than the max purchase amount
   purchase_blueprints(
