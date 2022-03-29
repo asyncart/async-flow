@@ -2,7 +2,7 @@ from initialize_testing_environment import main
 from transaction_handler import send_nft_auction_transaction
 from script_handler import send_nft_auction_script_and_return_result
 from event_handler import check_for_event
-from utils import address
+from utils import address, minimal_address
 import pytest
 
 from test_unit_setup_async_user import setup_async_user
@@ -22,7 +22,6 @@ def create_new_nft_auction(args, signer, should_succeed, expected_auction_result
     event = f'A.{address("NFTAuction")[2:]}.NFTAuction.NftAuctionCreated'
     assert check_for_event(event)
     auction_result = send_nft_auction_script_and_return_result("getAuction", args=[["String", args[0]], ["UInt64", args[1]]])
-    print(auction_result)
     if expected_auction_result != None:
       assert expected_auction_result == auction_result
     print("Successfuly Created NFT Auction")
@@ -117,9 +116,9 @@ def test_make_new_nft_auction():
   )
 
   # Successfully create auction
-  res = "A.120e725050340cab.NFTAuction.Auction(feeRecipients: [], feePercentages: [], nftHighestBid: nil, nftHighestBidder: nil, nftRecipient: nil, auctionBidPeriod: 50000.00000000, auctionEnd: nil, minPrice: 2.00000000, buyNowPrice: 5.00000000, biddingCurrency: \"A.0ae53cb6e3f42a79.FlowToken.Vault\", whitelistedBuyer: nil, nftSeller: 0x179b6b1cb6755e31, nftProviderCapability: Capability<&AnyResource{A.f8d6e0586b0a20c7.NonFungibleToken.Provider}>(address: 0x179b6b1cb6755e31, path: /private/AsyncArtworkCollection), bidIncreasePercentage: 5.00000000)"
+  res = f'A.120e725050340cab.NFTAuction.Auction(feeRecipients: [{minimal_address("AsyncArtAccount")}, {minimal_address("User1")}], feePercentages: [0.10000000, 0.02000000], nftHighestBid: nil, nftHighestBidder: nil, nftRecipient: nil, auctionBidPeriod: 50000.00000000, auctionEnd: nil, minPrice: 2.00000000, buyNowPrice: 5.00000000, biddingCurrency: \"A.0ae53cb6e3f42a79.FlowToken.Vault\", whitelistedBuyer: nil, nftSeller: 0x179b6b1cb6755e31, nftProviderCapability: Capability<&AnyResource{{A.f8d6e0586b0a20c7.NonFungibleToken.Provider}}>(address: 0x179b6b1cb6755e31, path: /private/AsyncArtworkCollection), bidIncreasePercentage: 0.10000000)'
   create_new_nft_auction(
-    ["A.01cf0e2f2f715450.AsyncArtwork.NFT", "1", "A.0ae53cb6e3f42a79.FlowToken.Vault", "2.0", "5.0", "50000.0", "5.0", [], []],
+    ["A.01cf0e2f2f715450.AsyncArtwork.NFT", "1", "A.0ae53cb6e3f42a79.FlowToken.Vault", "2.0", "5.0", "50000.0", "0.1", ["AsyncArtAccount", "User1"], ["0.1", "0.02"]],
     "User1",
     True,
     expected_auction_result = res
@@ -127,7 +126,7 @@ def test_make_new_nft_auction():
 
   # Attempt to re-create auction that was just started
   create_new_nft_auction(
-    ["A.01cf0e2f2f715450.AsyncArtwork.NFT", "1", "A.0ae53cb6e3f42a79.FlowToken.Vault", "2.0", "5.0", "50000.0", "5.0", [], []],
+    ["A.01cf0e2f2f715450.AsyncArtwork.NFT", "1", "A.0ae53cb6e3f42a79.FlowToken.Vault", "2.0", "5.0", "50000.0", "0.1", [], []],
     "User1",
     False
   )

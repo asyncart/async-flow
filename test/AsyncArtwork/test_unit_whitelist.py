@@ -18,8 +18,6 @@ def whitelist(args, signer, should_succeed, expected_master_mint_res):
   if should_succeed:
     assert send_async_artwork_transaction("whitelist", args=args, signer=signer)
     metadata = send_async_artwork_script_and_return_result("getMasterMintReservation", args=[["Address", creator_address]])
-    print(expected_master_mint_res)
-    print(metadata)
     if expected_master_mint_res != None:
       assert result_equals_expected_metadata(metadata, expected_master_mint_res)
     # Checks that the metadata entry here is non-empty

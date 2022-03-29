@@ -1,6 +1,15 @@
 import json
 from transaction_handler import send_transaction
 
+def remove_leading_zeros(addr):
+    while (addr[2] == '0' and 2 in range(len(addr))):
+        addr = addr[:2] + addr[2+1:]
+    return addr
+
+def minimal_address(entity):
+    full_addr = address(entity)
+    return remove_leading_zeros(full_addr)
+
 def address(entity):
     with open("flow.json", "r") as f:
         flow_json = json.load(f)
@@ -13,7 +22,6 @@ def address(entity):
                 for contract in emulator[account]:
                     if entity == contract or ("name" in contract and entity == contract["name"]):
                         return flow_json['accounts'][account]["address"]
-                    
         else:
             raise Exception("Entity not an account or contract")
 

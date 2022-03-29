@@ -33,7 +33,7 @@ pub contract NFTAuction {
     pub var minimumSettableIncreasePercentage: UFix64
 
     // The maximum allowable value for the "minPrice" as a percentage of the buyNowPrice
-    // i.e. if this is 80, then if a given NFT has a buyNowPrice of 200, it's minPrice <= 160
+    // i.e. if this is 0.8, then if a given NFT has a buyNowPrice of 200, it's minPrice <= 160
     pub var maximumMinPricePercentage: UFix64
 
     // The bid period
@@ -185,7 +185,7 @@ pub contract NFTAuction {
     }
 
     access(self) fun getPortionOfBid(totalBid: UFix64, percentage: UFix64): UFix64 {
-        return (totalBid * percentage) / 100.0
+        return (totalBid * percentage)
     }
 
     access(self) fun sumPercentages(percentages: [UFix64]): UFix64 {
@@ -224,34 +224,12 @@ pub contract NFTAuction {
         let receiverPath = self.nftTypePaths[nftTypeIdentifier]!.public
         let collection = getAccount(auction.getNFTRecipient()).getCapability<&{NonFungibleToken.CollectionPublic}>(receiverPath).borrow()
 
-        // for AsyncArtwork and Blueprints NFTs, ignore feeRecipients and feePercentages, for contract defined royalties
-        if nftTypeIdentifier == self.asyncArtworkNFTType || nftTypeIdentifier == self.blueprintsNFTType {
-            let readNFT = self.escrowCollectionCap.borrow()!.borrowViewResolver(nftTypeIdentifier: nftTypeIdentifier, tokenId: tokenId)
-
-            let views: [Type] = readNFT.getViews()
-            var royalty: {Royalties.Royalty}? = nil
-            for view in views {
-                if view == Type<{Royalties.Royalty}>() {
-                    royalty = readNFT.resolveView(view) as! {Royalties.Royalty}?
-                    break
-                }
-            }
-
-            self._payFeesAndSellerAsyncContracts(
-                nftTypeIdentifier: nftTypeIdentifier,
-                tokenId: tokenId,
-                seller: auction.nftSeller!, 
-                bid: <- bid,
-                royalty: royalty
-            )
-        } else {
-            self._payFeesAndSellerGeneral(
-                nftTypeIdentifier: nftTypeIdentifier,
-                tokenId: tokenId,
-                seller: auction.nftSeller!, 
-                bid: <- bid
-            )   
-        }
+        self._payFeesAndSeller(
+            nftTypeIdentifier: nftTypeIdentifier,
+            tokenId: tokenId,
+            seller: auction.nftSeller!, 
+            bid: <- bid
+        )
 
         let nft <- self.escrowCollectionCap.borrow()!.withdraw(nftTypeIdentifier: nftTypeIdentifier, tokenId: tokenId)
         let type: String = nft.getType().identifier
@@ -289,43 +267,7 @@ pub contract NFTAuction {
       self.escrowCollectionCap.borrow()!.deposit(token: <- nft)
     }
 
-    access(self) fun _payFeesAndSellerAsyncContracts(
-        nftTypeIdentifier: String,
-        tokenId: UInt64,
-        seller: Address, 
-        bid: @FungibleToken.Vault,
-        royalty: {Royalties.Royalty}?
-    ) {
-        if royalty == nil {
-            // didn't identify royalty view, try paying generally
-            self._payFeesAndSellerGeneral(
-                nftTypeIdentifier: nftTypeIdentifier,
-                tokenId: tokenId,
-                seller: seller, 
-                bid: <- bid
-            )
-        } else {
-            let royaltyAmount: UFix64? = royalty!.calculateRoyalty(type: bid.getType(), amount: bid.balance)
-            if royaltyAmount == nil {
-                // try paying fees via general
-                self._payFeesAndSellerGeneral(
-                    nftTypeIdentifier: nftTypeIdentifier,
-                    tokenId: tokenId,
-                    seller: seller, 
-                    bid: <- bid
-                )   
-            } else {
-                royalty!.distributeRoyalty(vault: <- bid.withdraw(amount: royaltyAmount!))
-
-                self._payout(
-                    recipient: seller, 
-                    amount: <- bid
-                )
-            }
-        }
-    }
-
-    access(self) fun _payFeesAndSellerGeneral(
+    access(self) fun _payFeesAndSeller(
         nftTypeIdentifier: String,
         tokenId: UInt64,
         seller: Address, 
@@ -539,7 +481,7 @@ pub contract NFTAuction {
         pre {
             self.minPriceDoesNotExceedLimit(buyNowPrice: buyNowPrice, minPrice: minPrice) : "MinPrice > 80% of buyNowPrice"
             feeRecipients.length == feeRecipients.length : "Recipients length != percentages length"
-            self.sumPercentages(percentages: feePercentages) <= 100.0 : "Fee percentages exceed maximum"
+            self.sumPercentages(percentages: feePercentages) <= 1.0 : "Fee percentages exceed maximum"
         }
 
         if self.auctions[nftTypeIdentifier]![tokenId] == nil {
@@ -618,7 +560,7 @@ pub contract NFTAuction {
     ) {
         pre {
             feeRecipients.length == feePercentages.length : "Recipients and percentages lengths not the same"
-            self.sumPercentages(percentages: feePercentages) <= 100.0 : "Fee percentages exceed maximum"
+            self.sumPercentages(percentages: feePercentages) <= 1.0 : "Fee percentages exceed maximum"
         }
         var auction: Auction? = nil
 
@@ -1399,7 +1341,7 @@ pub contract NFTAuction {
     }
 
     access(self) fun minPriceDoesNotExceedLimit(buyNowPrice: UFix64?, minPrice: UFix64): Bool {
-        return buyNowPrice == nil || buyNowPrice! * (self.maximumMinPricePercentage/100.0) >= minPrice
+        return buyNowPrice == nil || buyNowPrice! * self.maximumMinPricePercentage >= minPrice
     }
 
     access(self) fun doesBidMeetRequirements(auction: Auction, amount: UFix64): Bool {
@@ -1415,7 +1357,7 @@ pub contract NFTAuction {
             // allow bid of any amount greater than 0
             return true 
         } else {
-            return amount >= auction.nftHighestBid! * (1.0 + (auction.bidIncreasePercentage/100.0))
+            return amount >= auction.nftHighestBid! * (1.0 + auction.bidIncreasePercentage)
         }
     }
 
@@ -1572,7 +1514,7 @@ pub contract NFTAuction {
         self.defaultBidIncreasePercentage = 0.1
         self.defaultAuctionBidPeriod = 86400.0
         self.minimumSettableIncreasePercentage = 0.1
-        self.maximumMinPricePercentage = 80.0
+        self.maximumMinPricePercentage = 0.8
         self.marketplaceClientPublicPath = /public/MarketplaceClient
         self.marketplaceClientPrivatePath = /private/MarketplaceClient
         self.marketplaceClientStoragePath = /storage/MarketplaceClient
