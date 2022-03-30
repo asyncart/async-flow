@@ -1,8 +1,7 @@
 import AsyncArtwork from "../../contracts/AsyncArtwork.cdc"
 
 transaction(
-    platformFirstPercentage: UFix64, 
-    platformSecondPercentage: UFix64,
+    platformSecondPercentage: UFix64
 ) {
     var asyncAdminCap: Capability<&AsyncArtwork.Admin>
 
@@ -13,7 +12,6 @@ transaction(
     execute {
         let asyncAdmin = self.asyncAdminCap.borrow() ?? panic("Could not borrow reference to admin")
         asyncAdmin.updateDefaultPlatformSalesPercentage(
-            platformFirstSalePercentage: platformFirstPercentage,
             platformSecondSalePercentage: platformSecondPercentage
         )
     }

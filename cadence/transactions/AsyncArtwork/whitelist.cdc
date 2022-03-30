@@ -5,7 +5,6 @@ transaction(
     creatorAddress: Address,
     masterTokenId: UInt64,
     layerCount: UInt64,
-    platformFirstSalePercentage: UFix64?,
     platformSecondSalePercentage: UFix64?
 ) {
     let minter: &AsyncArtwork.Minter
@@ -19,7 +18,6 @@ transaction(
             creatorAddress: creatorAddress,
             masterTokenId: masterTokenId,
             layerCount: layerCount,
-            platformFirstSalePercentage: platformFirstSalePercentage,
             platformSecondSalePercentage: platformSecondSalePercentage
         )
     }
