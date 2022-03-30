@@ -32,7 +32,7 @@ def test_system_art_master_royalties():
 
   # Test royalties with default percentages on master token nfts
   whitelist(
-    ["User1", "1", "1", None, None],
+    ["User1", "1", "1", None],
     "AsyncArtAccount",
     True,
     "{1: 1}"

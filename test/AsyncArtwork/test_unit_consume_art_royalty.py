@@ -23,13 +23,13 @@ def test_consume_art_royalty():
   setup_async_user("User3")
 
   whitelist(
-    ["User1", "1", "2", "0.05", "0.01"],
+    ["User1", "1", "2", "0.01"],
     "AsyncArtAccount",
     True,
     "{1: 2}"
   )
 
-  expected_metadata = 'A.{contract}.AsyncArtwork.NFTMetadata(id: 1, isMaster: true, uri: "<uri>", isUriLocked: false, platformFirstSalePercentage: 0.05000000, platformSecondSalePercentage: 0.01000000, numControlLevers: nil, numRemainingUpdates: nil, owner: {owner}, levers: {levers}, uniqueTokenCreators: [{uniqueTokenCreator}])'.format(contract=address("AsyncArtwork")[2:], owner=address("User1"), levers="{}", uniqueTokenCreator=address("User2"))
+  expected_metadata = 'A.{contract}.AsyncArtwork.NFTMetadata(id: 1, isMaster: true, uri: "<uri>", isUriLocked: false, platformSecondSalePercentage: 0.01000000, numControlLevers: nil, numRemainingUpdates: nil, owner: {owner}, levers: {levers}, uniqueTokenCreators: [{uniqueTokenCreator}])'.format(contract=address("AsyncArtwork")[2:], owner=address("User1"), levers="{}", uniqueTokenCreator=address("User2"))
   mint_master_token(
     ["1", "<uri>", ["User2", "User3"], ["User2"]],
     "User1",
@@ -44,7 +44,7 @@ def test_consume_art_royalty():
   assert expected_royalty_result == royalty_result
 
   whitelist(
-    ["User1", "4", "1", None, None],
+    ["User1", "4", "1", None],
     "AsyncArtAccount",
     True,
     "{4: 1}"

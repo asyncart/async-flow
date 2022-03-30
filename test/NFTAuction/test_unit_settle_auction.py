@@ -44,7 +44,7 @@ def test_settle_auction():
   setup_async_user("User2")
 
   whitelist(
-    ["User1", "1", "0", "0.05", "0.01"],
+    ["User1", "1", "0", "0.01"],
     "AsyncArtAccount",
     True,
     "{1: 0}"

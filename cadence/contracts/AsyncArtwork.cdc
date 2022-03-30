@@ -24,10 +24,6 @@ pub contract AsyncArtwork: NonFungibleToken {
     // The number of tokens which have been allocated an id for minting
     pub var expectedTokenSupply: UInt64
 
-    // a default value for the first sales percentage assigned to an NFT when whitelisted
-    // i.e. set to 0.05 to represent a 5% cut
-    pub var defaultPlatformFirstSalePercentage: UFix64
-
     // a default value for the second sales percentage assigned to an NFT when whitelisted
     // i.e. set to 0.05 to represent a 5% cut
     pub var defaultPlatformSecondSalePercentage: UFix64
@@ -79,13 +75,11 @@ pub contract AsyncArtwork: NonFungibleToken {
     // Emitted when the platform's fee percentage for a specific token is changed
     pub event PlatformSalePercentageUpdated(
         tokenId: UInt64,
-        platformFirstPercentage: UFix64,
         platformSecondPercentage: UFix64
     )
 
     // Emitted when the default platform sale percentage changes
     pub event DefaultPlatformSalePercentageUpdated(
-        defaultPlatformFirstSalePercentage: UFix64,
         defaultPlatformSecondSalePercentage: UFix64
     )
 
@@ -756,13 +750,11 @@ pub contract AsyncArtwork: NonFungibleToken {
             creatorAddress: Address,
             masterTokenId: UInt64,
             layerCount: UInt64,
-            platformFirstSalePercentage: UFix64?,
             platformSecondSalePercentage: UFix64?
         ) {
             pre {
                 masterTokenId == AsyncArtwork.expectedTokenSupply + 1 : "Master token id must be the same as the expectedTokenSupply"
                 AsyncArtwork.metadata[masterTokenId] == nil : "NFT Metadata already exists at supplied masterTokenId"
-                platformFirstSalePercentage == nil || AsyncArtwork.isSalesPercentageValid(platformFirstSalePercentage!) : "Invalid platformFirstSalePercentage value"
                 platformSecondSalePercentage == nil || AsyncArtwork.isSalesPercentageValid(platformSecondSalePercentage!) : "Invalid platformSecondSalePercentage value"
             }
 
@@ -773,7 +765,6 @@ pub contract AsyncArtwork: NonFungibleToken {
             // establish basic metadata for master token
             AsyncArtwork.metadata[masterTokenId] = NFTMetadata(
                 id: masterTokenId,
-                platformFirstSalePercentage: platformFirstSalePercentage == nil ? AsyncArtwork.defaultPlatformFirstSalePercentage : platformFirstSalePercentage!,
                 platformSecondSalePercentage: platformSecondSalePercentage == nil ? AsyncArtwork.defaultPlatformSecondSalePercentage : platformSecondSalePercentage!,
                 isMaster: true,
                 tokenUri: nil, 
@@ -789,7 +780,6 @@ pub contract AsyncArtwork: NonFungibleToken {
             while layerIndex <= masterTokenId + layerCount {
                 AsyncArtwork.metadata[layerIndex] = NFTMetadata(
                     id: layerIndex,
-                    platformFirstSalePercentage: platformFirstSalePercentage == nil ? AsyncArtwork.defaultPlatformFirstSalePercentage : platformFirstSalePercentage!,
                     platformSecondSalePercentage: platformSecondSalePercentage == nil ? AsyncArtwork.defaultPlatformSecondSalePercentage : platformSecondSalePercentage!,
                     isMaster: false,
                     tokenUri: nil, 
@@ -819,7 +809,6 @@ pub contract AsyncArtwork: NonFungibleToken {
         pub let isMaster: Bool
         pub var uri: String?
         pub var isUriLocked: Bool
-        pub var platformFirstSalePercentage: UFix64
         pub var platformSecondSalePercentage: UFix64
         pub var numControlLevers: Int?
         pub var numRemainingUpdates: Int64?
@@ -843,9 +832,6 @@ pub contract AsyncArtwork: NonFungibleToken {
 
         // Whether or not the uri can still be updated
         pub var isUriLocked: Bool
-
-        // The percentage of the sale value of the NFT that should be given to the AsyncArt platform when this NFT is sold for the first time
-        pub var platformFirstSalePercentage: UFix64
 
         // The percentage of the sale value of the NFT that should be given to the AsyncArt platform when this NFT is sold subsequently to the first time
         pub var platformSecondSalePercentage: UFix64
@@ -881,13 +867,11 @@ pub contract AsyncArtwork: NonFungibleToken {
             return self.levers[id]!.currentValue
         }
 
-        pub fun updatePlatformSalesPercentages(_ platformFirstSalePercentage: UFix64,_ platformSecondSalePercentage: UFix64) {
-            self.platformFirstSalePercentage = platformFirstSalePercentage
+        pub fun updatePlatformSalesPercentage(_ platformSecondSalePercentage: UFix64) {
             self.platformSecondSalePercentage = platformSecondSalePercentage
 
             emit PlatformSalePercentageUpdated(
                 tokenId: self.id,
-                platformFirstPercentage: platformFirstSalePercentage,
                 platformSecondPercentage: platformSecondSalePercentage
             )
         }
@@ -983,7 +967,6 @@ pub contract AsyncArtwork: NonFungibleToken {
 
         init (
             id: UInt64,
-            platformFirstSalePercentage: UFix64,
             platformSecondSalePercentage: UFix64,
             isMaster: Bool,
             tokenUri: String?, 
@@ -994,7 +977,6 @@ pub contract AsyncArtwork: NonFungibleToken {
             uniqueTokenCreators: [Address]?
         ) {
             self.id = id
-            self.platformFirstSalePercentage = platformFirstSalePercentage
             self.platformSecondSalePercentage = platformSecondSalePercentage
             self.isMaster = isMaster
             self.uri = tokenUri
@@ -1020,16 +1002,14 @@ pub contract AsyncArtwork: NonFungibleToken {
         // Admin can update the platform sales percentages for a given token
         pub fun updatePlatformSalePercentageForToken(
             tokenId: UInt64,
-            platformFirstSalePercentage: UFix64,
             platformSecondSalePercentage: UFix64
         ) {
             pre {
-                AsyncArtwork.isSalesPercentageValid(platformFirstSalePercentage) : "Cannot update. Invalid platformFirstSalePercentage value"
                 AsyncArtwork.isSalesPercentageValid(platformSecondSalePercentage) : "Cannot update. Invalid platformSecondSalePercentage value"
                 AsyncArtwork.metadata.containsKey(tokenId) : "Metadata for token id doesn't exist"
             }
 
-            AsyncArtwork.metadata[tokenId]!.updatePlatformSalesPercentages(platformFirstSalePercentage, platformSecondSalePercentage)
+            AsyncArtwork.metadata[tokenId]!.updatePlatformSalesPercentage(platformSecondSalePercentage)
         }
 
         // Admin can update the expectedTokenSupply state variable
@@ -1042,18 +1022,14 @@ pub contract AsyncArtwork: NonFungibleToken {
 
         // Admin can update its default sales royalties
         pub fun updateDefaultPlatformSalesPercentage (
-            platformFirstSalePercentage: UFix64,
             platformSecondSalePercentage: UFix64
         ) {
             pre {
-                AsyncArtwork.isSalesPercentageValid(platformFirstSalePercentage) : "Invalid new default platformFirstSalePercentage"
                 AsyncArtwork.isSalesPercentageValid(platformSecondSalePercentage) : "Invalid new default platformSecondSalePercentage"
             }
-            AsyncArtwork.defaultPlatformFirstSalePercentage = platformFirstSalePercentage
             AsyncArtwork.defaultPlatformSecondSalePercentage = platformSecondSalePercentage
 
             emit DefaultPlatformSalePercentageUpdated(
-                defaultPlatformFirstSalePercentage: platformFirstSalePercentage,
                 defaultPlatformSecondSalePercentage: platformSecondSalePercentage
             )
         }
@@ -1217,7 +1193,6 @@ pub contract AsyncArtwork: NonFungibleToken {
         self.totalSupply = 0
         self.expectedTokenSupply = 0
         self.metadata = {}
-        self.defaultPlatformFirstSalePercentage = 0.1
         self.defaultPlatformSecondSalePercentage = 0.05
         self.artistSecondSalePercentage = 0.1
         self.asyncSaleFeesRecipient = self.account.address

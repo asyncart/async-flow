@@ -13,7 +13,7 @@ from test_unit_mint_control_token import mint_control_token
 from test_unit_grant_control_permission import grant_control_permission
 from test_unit_use_control_token import use_control_token
 from test_unit_withdraw_tips import withdraw_tips
-from test_unit_update_default_percentages import update_platform_default_sales_percentages
+from test_unit_update_default_secondary_percentage import update_platform_default_sales_percentage
 
 @pytest.mark.core
 def test_integration():
@@ -25,7 +25,7 @@ def test_integration():
 
   # admin successfully whitelists token for user1
   whitelist(
-    ["User1", "1", "1", "0.05", "0.01"],
+    ["User1", "1", "1", "0.01"],
     "AsyncArtAccount",
     True,
     "{1: 1}"
@@ -33,7 +33,7 @@ def test_integration():
 
   # admin tries to whitelist token for user without async collection -> fails
   whitelist(
-    ["User2", "3", "2", "0.05", "0.01"],
+    ["User2", "3", "2", "0.01"],
     "AsyncArtAccount",
     False,
     "{3: 2}"
@@ -44,17 +44,17 @@ def test_integration():
   setup_async_user("User3")
 
   # admin updates the default sales percentages
-  update_platform_default_sales_percentages(["0.15", "0.1"], "AsyncArtAccount", True)
+  update_platform_default_sales_percentage(["0.1"], "AsyncArtAccount", True)
 
   # admin successfuly whitelists a token for user2
   whitelist(
-    ["User2", "3", "2", None, None],
+    ["User2", "3", "2", None],
     "AsyncArtAccount",
     True,
     "{3: 2}"
   )
 
-  expected_metadata = 'A.{contract}.AsyncArtwork.NFTMetadata(id: 1, isMaster: true, uri: "<uri>", isUriLocked: false, platformFirstSalePercentage: 0.05000000, platformSecondSalePercentage: 0.01000000, numControlLevers: nil, numRemainingUpdates: nil, owner: {owner}, levers: {levers}, uniqueTokenCreators: [{uniqueTokenCreator}])'.format(contract=address("AsyncArtwork")[2:], owner=address("User1"), levers="{}", uniqueTokenCreator=address("User2"))
+  expected_metadata = 'A.{contract}.AsyncArtwork.NFTMetadata(id: 1, isMaster: true, uri: "<uri>", isUriLocked: false, platformSecondSalePercentage: 0.01000000, numControlLevers: nil, numRemainingUpdates: nil, owner: {owner}, levers: {levers}, uniqueTokenCreators: [{uniqueTokenCreator}])'.format(contract=address("AsyncArtwork")[2:], owner=address("User1"), levers="{}", uniqueTokenCreator=address("User2"))
 
   # User 1 mints their master token
   mint_master_token(
@@ -76,7 +76,7 @@ def test_integration():
 
   levers = "{{0: A.{contract}.AsyncArtwork.ControlLever(minValue: 1, maxValue: 10, currentValue: 3), 1: A.{contract}.AsyncArtwork.ControlLever(minValue: 1, maxValue: 20, currentValue: 18)}}".format(contract=address("AsyncArtwork")[2:])
   uniqueTokenCreators = f'{address("User1")}, {address("User3")}'
-  expected_metadata = 'A.{contract}.AsyncArtwork.NFTMetadata(id: 2, isMaster: false, uri: "<uri>", isUriLocked: false, platformFirstSalePercentage: 0.05000000, platformSecondSalePercentage: 0.01000000, numControlLevers: nil, numRemainingUpdates: 2, owner: {owner}, levers: {levers}, uniqueTokenCreators: [{uniqueTokenCreators}])'.format(contract=address("AsyncArtwork")[2:], owner=address("User2"), levers=levers, uniqueTokenCreators=uniqueTokenCreators)
+  expected_metadata = 'A.{contract}.AsyncArtwork.NFTMetadata(id: 2, isMaster: false, uri: "<uri>", isUriLocked: false, platformSecondSalePercentage: 0.01000000, numControlLevers: nil, numRemainingUpdates: 2, owner: {owner}, levers: {levers}, uniqueTokenCreators: [{uniqueTokenCreators}])'.format(contract=address("AsyncArtwork")[2:], owner=address("User2"), levers=levers, uniqueTokenCreators=uniqueTokenCreators)
 
   # User2 mints their control token NFT
   mint_control_token(
@@ -89,7 +89,7 @@ def test_integration():
   )
 
   levers = "{{0: A.{contract}.AsyncArtwork.ControlLever(minValue: 1, maxValue: 10, currentValue: 5), 1: A.{contract}.AsyncArtwork.ControlLever(minValue: 1, maxValue: 20, currentValue: 17)}}".format(contract=address("AsyncArtwork")[2:])
-  expected_metadata = 'A.{contract}.AsyncArtwork.NFTMetadata(id: 2, isMaster: false, uri: "<uri>", isUriLocked: false, platformFirstSalePercentage: 0.05000000, platformSecondSalePercentage: 0.01000000, numControlLevers: nil, numRemainingUpdates: 1, owner: {owner}, levers: {levers}, uniqueTokenCreators: [{uniqueTokenCreators}])'.format(contract=address("AsyncArtwork")[2:], owner=address("User2"), levers=levers, uniqueTokenCreators=uniqueTokenCreators)
+  expected_metadata = 'A.{contract}.AsyncArtwork.NFTMetadata(id: 2, isMaster: false, uri: "<uri>", isUriLocked: false, platformSecondSalePercentage: 0.01000000, numControlLevers: nil, numRemainingUpdates: 1, owner: {owner}, levers: {levers}, uniqueTokenCreators: [{uniqueTokenCreators}])'.format(contract=address("AsyncArtwork")[2:], owner=address("User2"), levers=levers, uniqueTokenCreators=uniqueTokenCreators)
 
   # User2 attempts to update their recently minted control token NFT with tip
   # but it fails because they have insufficient balance
@@ -108,7 +108,7 @@ def test_integration():
       assert_metadata=True
   )
 
-  expected_metadata = 'A.{contract}.AsyncArtwork.NFTMetadata(id: 3, isMaster: true, uri: "<uri>", isUriLocked: false, platformFirstSalePercentage: 0.15000000, platformSecondSalePercentage: 0.10000000, numControlLevers: nil, numRemainingUpdates: nil, owner: {owner}, levers: {levers}, uniqueTokenCreators: [])'.format(contract=address("AsyncArtwork")[2:], owner=address("User2"), levers="{}")
+  expected_metadata = 'A.{contract}.AsyncArtwork.NFTMetadata(id: 3, isMaster: true, uri: "<uri>", isUriLocked: false, platformSecondSalePercentage: 0.10000000, numControlLevers: nil, numRemainingUpdates: nil, owner: {owner}, levers: {levers}, uniqueTokenCreators: [])'.format(contract=address("AsyncArtwork")[2:], owner=address("User2"), levers="{}")
 
   # User2 mints their master token
   mint_master_token(
@@ -139,7 +139,7 @@ def test_integration():
 
   levers = "{{0: A.{contract}.AsyncArtwork.ControlLever(minValue: 1, maxValue: 10, currentValue: 3), 1: A.{contract}.AsyncArtwork.ControlLever(minValue: 1, maxValue: 20, currentValue: 18)}}".format(contract=address("AsyncArtwork")[2:])
   uniqueTokenCreators = f'{address("User1")}, {address("User3")}'
-  expected_metadata = 'A.{contract}.AsyncArtwork.NFTMetadata(id: 4, isMaster: false, uri: "<uri>", isUriLocked: false, platformFirstSalePercentage: 0.15000000, platformSecondSalePercentage: 0.10000000, numControlLevers: nil, numRemainingUpdates: 5, owner: {owner}, levers: {levers}, uniqueTokenCreators: [{uniqueTokenCreators}])'.format(contract=address("AsyncArtwork")[2:], owner=address("User1"), levers=levers, uniqueTokenCreators=uniqueTokenCreators)
+  expected_metadata = 'A.{contract}.AsyncArtwork.NFTMetadata(id: 4, isMaster: false, uri: "<uri>", isUriLocked: false, platformSecondSalePercentage: 0.10000000, numControlLevers: nil, numRemainingUpdates: 5, owner: {owner}, levers: {levers}, uniqueTokenCreators: [{uniqueTokenCreators}])'.format(contract=address("AsyncArtwork")[2:], owner=address("User1"), levers=levers, uniqueTokenCreators=uniqueTokenCreators)
 
   # User3 mints their control NFT allocated with User2's master token
   # fails because they are allocated id 5 not 4
@@ -163,7 +163,7 @@ def test_integration():
   transfer_flow_token("User1", "100.0", "emulator-account")
 
   levers = "{{0: A.{contract}.AsyncArtwork.ControlLever(minValue: 1, maxValue: 10, currentValue: 1), 1: A.{contract}.AsyncArtwork.ControlLever(minValue: 1, maxValue: 20, currentValue: 1)}}".format(contract=address("AsyncArtwork")[2:])
-  expected_metadata = 'A.{contract}.AsyncArtwork.NFTMetadata(id: 4, isMaster: false, uri: "<uri>", isUriLocked: false, platformFirstSalePercentage: 0.15000000, platformSecondSalePercentage: 0.10000000, numControlLevers: nil, numRemainingUpdates: 4, owner: {owner}, levers: {levers}, uniqueTokenCreators: [{uniqueTokenCreators}])'.format(contract=address("AsyncArtwork")[2:], owner=address("User1"), levers=levers, uniqueTokenCreators=uniqueTokenCreators)
+  expected_metadata = 'A.{contract}.AsyncArtwork.NFTMetadata(id: 4, isMaster: false, uri: "<uri>", isUriLocked: false, platformSecondSalePercentage: 0.10000000, numControlLevers: nil, numRemainingUpdates: 4, owner: {owner}, levers: {levers}, uniqueTokenCreators: [{uniqueTokenCreators}])'.format(contract=address("AsyncArtwork")[2:], owner=address("User1"), levers=levers, uniqueTokenCreators=uniqueTokenCreators)
 
   # User 1 attempts to update their control token with too much tip, fails
   use_control_token(
@@ -183,7 +183,7 @@ def test_integration():
 
   levers = "{{0: A.{contract}.AsyncArtwork.ControlLever(minValue: 1, maxValue: 10, currentValue: 3), 1: A.{contract}.AsyncArtwork.ControlLever(minValue: 1, maxValue: 20, currentValue: 18)}}".format(contract=address("AsyncArtwork")[2:])
   uniqueTokenCreators = f'{address("User1")}, {address("User3")}'
-  expected_metadata = 'A.{contract}.AsyncArtwork.NFTMetadata(id: 5, isMaster: false, uri: "<uri>", isUriLocked: false, platformFirstSalePercentage: 0.15000000, platformSecondSalePercentage: 0.10000000, numControlLevers: nil, numRemainingUpdates: 5, owner: {owner}, levers: {levers}, uniqueTokenCreators: [{uniqueTokenCreators}])'.format(contract=address("AsyncArtwork")[2:], owner=address("User3"), levers=levers, uniqueTokenCreators=uniqueTokenCreators)
+  expected_metadata = 'A.{contract}.AsyncArtwork.NFTMetadata(id: 5, isMaster: false, uri: "<uri>", isUriLocked: false, platformSecondSalePercentage: 0.10000000, numControlLevers: nil, numRemainingUpdates: 5, owner: {owner}, levers: {levers}, uniqueTokenCreators: [{uniqueTokenCreators}])'.format(contract=address("AsyncArtwork")[2:], owner=address("User3"), levers=levers, uniqueTokenCreators=uniqueTokenCreators)
 
   # User3 mints their control NFT allocated with User2's master token 
   # Note: user3 can specify themselves as a unqiueTokenCreator
@@ -212,7 +212,7 @@ def test_integration():
   )
 
   levers = "{{0: A.{contract}.AsyncArtwork.ControlLever(minValue: 1, maxValue: 10, currentValue: 5), 1: A.{contract}.AsyncArtwork.ControlLever(minValue: 1, maxValue: 20, currentValue: 17)}}".format(contract=address("AsyncArtwork")[2:])
-  expected_metadata = 'A.{contract}.AsyncArtwork.NFTMetadata(id: 2, isMaster: false, uri: "<uri>", isUriLocked: false, platformFirstSalePercentage: 0.05000000, platformSecondSalePercentage: 0.01000000, numControlLevers: nil, numRemainingUpdates: 0, owner: {owner}, levers: {levers}, uniqueTokenCreators: [{uniqueTokenCreators}])'.format(contract=address("AsyncArtwork")[2:], owner=address("User2"), levers=levers, uniqueTokenCreators=uniqueTokenCreators)
+  expected_metadata = 'A.{contract}.AsyncArtwork.NFTMetadata(id: 2, isMaster: false, uri: "<uri>", isUriLocked: false, platformSecondSalePercentage: 0.01000000, numControlLevers: nil, numRemainingUpdates: 0, owner: {owner}, levers: {levers}, uniqueTokenCreators: [{uniqueTokenCreators}])'.format(contract=address("AsyncArtwork")[2:], owner=address("User2"), levers=levers, uniqueTokenCreators=uniqueTokenCreators)
 
   transfer_flow_token("User2", "100.0", "emulator-account")
 

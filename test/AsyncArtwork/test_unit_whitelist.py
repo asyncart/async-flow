@@ -14,7 +14,7 @@ from test_unit_setup_async_user import setup_async_user
 
 def whitelist(args, signer, should_succeed, expected_master_mint_res=None):
   creator_address = address(args[0])
-  args = [["Address", creator_address], ["UInt64", args[1]], ["UInt64", args[2]], ["UFix64?", args[3]], ["UFix64?", args[4]]]
+  args = [["Address", creator_address], ["UInt64", args[1]], ["UInt64", args[2]], ["UFix64?", args[3]]]
   if should_succeed:
     assert send_async_artwork_transaction("whitelist", args=args, signer=signer)
     metadata = send_async_artwork_script_and_return_result("getMasterMintReservation", args=[["Address", creator_address]])
@@ -37,7 +37,7 @@ def test_whitelist():
 
   # Check successful whitelist
   whitelist(
-    ["User1", "1", "1", "0.05", "0.01"],
+    ["User1", "1", "1", "0.01"],
     "AsyncArtAccount",
     True,
     "{1: 1}"
@@ -45,7 +45,7 @@ def test_whitelist():
 
   # Check non-admin cannot whitelist
   whitelist(
-    ["User1", "1", "1", "0.05", "0.01"],
+    ["User1", "1", "1", "0.01"],
     "User1",
     False,
     "{1: 1}"
@@ -53,7 +53,7 @@ def test_whitelist():
 
   # Check cannot whitelist with invalid masterTokenId
   whitelist(
-    ["User1", "2", "1", "0.05", "0.01"],
+    ["User1", "2", "1", "0.01"],
     "AsyncArtAccount",
     False,
     "{1: 1}"
@@ -61,7 +61,7 @@ def test_whitelist():
 
   # Check cannot whitelist with > 500 layers
   whitelist(
-    ["User1", "1", "500", "0.05", "0.01"],
+    ["User1", "1", "500", "0.01"],
     "AsyncArtAccount",
     False,
     "{1: 1}"
@@ -69,7 +69,7 @@ def test_whitelist():
 
   # Check cannot whitelist with invalid sales percentages
   whitelist(
-    ["User1", "1", "1", "1.02", "0.01"],
+    ["User1", "1", "1", "0.01"],
     "AsyncArtAccount",
     False,
     "{1: 1}"
@@ -77,7 +77,7 @@ def test_whitelist():
 
   # Check whitelist with nil sales percentages
   whitelist(
-    ["User1", "3", "1", None, None],
+    ["User1", "3", "1", None],
     "AsyncArtAccount",
     True,
     "{1: 1, 3: 1}"

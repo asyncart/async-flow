@@ -43,7 +43,7 @@ def test_take_highest_bid():
   setup_async_user("User2")
 
   whitelist(
-    ["User1", "1", "0", "0.05", "0.01"],
+    ["User1", "1", "0", "0.01"],
     "AsyncArtAccount",
     True,
     "{1: 0}"
