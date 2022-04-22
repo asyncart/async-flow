@@ -57,31 +57,31 @@
     "accounts": {
         "emulator-account": {
             "address": "f8d6e0586b0a20c7",
-            "key": "d54a71b33e3bb5aa4b80fdb450fc48e538f27b12695f0944291c5156be607a7b"
+            "key": "bb8ecda26d2b4b35a6f08ce69ecd2c0417bf6733c2b30bdae95e82463ac1adb6"
         },
         "AsyncArtAccount": {
             "address": "0x01cf0e2f2f715450",
-            "key": "e6c0cf51a45043fd27547bb7179da8953a03f51853af3178f61f0741486e644b"
+            "key": "0943e14dc9e728623d7171cec9e251bffb36c315fcc5d4d458454414afdd2dfe"
         },
         "User1": {
             "address": "0x179b6b1cb6755e31",
-            "key": "b443f1f6d7d4d68da77c8b2db20201f2fe2c2a1da506d1b3637b93a092c8997a"
+            "key": "444fddbb572f3548612cc1e3c9b90a76e6f4330db4cccf255277c59d351737ac"
         },
         "User2": {
             "address": "0xf3fcd2c1a78f5eee",
-            "key": "c6c7eaa095efbe96f8cbbc9eef017a370e07ac992215e5fa4681d60cd32b7813"
+            "key": "2dcb747a3e20c8a2e6c5443365dd2f9b2a60ea5598aa5f564d9885eef5fdfb66"
         },
         "User3": {
             "address": "0xe03daebed8ca0615",
-            "key": "a8d9a8082ede7c0ee39156ed4d86d0e1715eb868b7690209b0c1c074338554ec"
+            "key": "684005d75045539ce9944931a531dabac60b73d478cff0e652257cf4db9c8f2a"
         },
         "User4": {
             "address": "0x045a1763c93006ca",
-            "key": "8af47b302d194eae97f3b9bdb0ae0a83c1dc5de4762e0c6560bfa6d4cc34d7ba"
+            "key": "f5c89cadeece9192b95a1d9312a290e3ca2547f28886ef49f241cf679c75114c"
         },
         "AsyncMarketplaceAccount": {
             "address": "0x120e725050340cab",
-            "key": "8c02c7cbb59ed442a1b5e565cf16604e2c4f2f1507af47d297bf4825033977c5"
+            "key": "87c6df48c96785eb3dbfc805e769b2c9812ff0cbbdc3bedbc8f5d6680483a6df"
         }
     },
     "deployments": {
