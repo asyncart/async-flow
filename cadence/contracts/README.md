@@ -1,6 +1,6 @@
 # Contracts
 
-There are seven Cadence smart contracts in this folder.
+There are ten Cadence smart contracts in this folder.
 
 `NonFungibleToken.cdc` is the NonFungibleToken standard Flow smart contract.
 
@@ -8,14 +8,21 @@ There are seven Cadence smart contracts in this folder.
 
 `FlowToken.cdc` is the FlowToken smart contract.
 
+`ExampleToken.cdc` is the Example smart contract.
+
 `FUSD.cdc` is the FUSD smart contract.
 
-`AsyncArtwork.cdc` implements the NonFungibleToken standard. It defines AsyncArtwork NFTs which can be either Master tokens or Control Tokens. This contract defines the minting of these tokens, updating control tokens, granting permissions to other users to update control tokens.
+`MetadataViews.cdc` holds the NFT metadata standard on Flow.
+
+`Royalties.cdc` is a proposal of a royalty standard that we're using. The royalty standard is currently in flux, currently we're using the proposal as it looked like in early 2022. We will likely exercise the ability to upgrade contracts, once the standard is finalized.
+
+`AsyncArtwork.cdc` implements the NonFungibleToken standard. It defines AsyncArtwork NFTs which can be either Master tokens or Control Tokens. This contract defines the minting of these tokens, updating control tokens, granting permissions to other users to update control tokens. 
 
 `Blueprints.cdc` implements the NonFungibleToken standard. It defines Blueprint NFTs which are minted through the Blueprint mechanism. 
 
+NFTs on AsyncArtwork.cdc and Blueprints.cdc adhere to the metadata standard from `MetadataViews.cdc`, and the royalty "standard" from `Royalties.cdc`. 
+
 `NFTAuction.cdc` is an NFT marketplace based off the `NFTAuction.sol` [contract](https://github.com/avolabs-io/nft-auction) created by AvoLabs. It currently facilitates selling of `AsyncArtwork` and `Blueprints` NFTs.
-``
 
 ## AsyncArtwork Design Decisions
 
