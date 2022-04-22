@@ -2,6 +2,7 @@ import FungibleToken from "./FungibleToken.cdc"
 
 // Use this contract as a placeholder until a royalty standard contract is deployed to mainnet
 
+// Authors: Ishan Ghimire, Sam Orend
 pub contract Royalties {
     /// A struct interface for Royalty agreed upon by @dete, @rheaplex, @bjartek 
 	pub struct interface Royalty {

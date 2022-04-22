@@ -5,6 +5,7 @@ import FUSD from "./FUSD.cdc"
 import MetadataViews from "./MetadataViews.cdc"
 import Royalties from "./Royalties.cdc"
 
+// Authors: Ishan Ghimire, Sam Orend
 // This contract manages AsyncArtwork NFTs. For more details see: https://github.com/asyncart/async-flow/tree/main/cadence/contracts and https://github.com/asyncart/async-contracts/blob/master/contracts/AsyncArtwork_v2.sol
 pub contract AsyncArtwork: NonFungibleToken {
 
@@ -49,6 +50,7 @@ pub contract AsyncArtwork: NonFungibleToken {
     // A mapping of currency type identifiers to {User Addresses -> Amounts of currency they are owed}
     access(self) let payoutClaims: {String: {Address: UFix64}}
 
+    // Emitted when contract is deployed
     pub event ContractInitialized()
 
     // Emitted when an NFT is withdrawn from a Collection
@@ -102,6 +104,7 @@ pub contract AsyncArtwork: NonFungibleToken {
     // Emitted when the Admin unwhitelists a currency for use with AsyncArtwork royalties
     pub event CurrencyUnwhitelisted(currency: String)
 
+    // A structure used to encompass the expected paths for a consistent entity / resource
     pub struct Paths {
         pub var public: PublicPath
         pub var private: PrivatePath
@@ -114,6 +117,7 @@ pub contract AsyncArtwork: NonFungibleToken {
         }
     }
 
+    // Gets the expected paths of the supported currencies
     pub fun getCurrencyPaths(): {String: Paths} {
         return self.currencyPaths
     }
@@ -125,6 +129,7 @@ pub contract AsyncArtwork: NonFungibleToken {
                self.payoutClaims.containsKey(currency)
     }
 
+    // A structure managing a value of an attribute of a control token. 
     pub struct ControlLever {
         pub var minValue: Int64
         pub var maxValue: Int64 
@@ -165,6 +170,7 @@ pub contract AsyncArtwork: NonFungibleToken {
             ]
         }
 
+        // Returns the expected data for each type, metadata standard implementation in conjunction with getViews
         pub fun resolveView(_ type: Type): AnyStruct {
             let metadata = AsyncArtwork.getNFTMetadata(tokenId: self.id)
 
@@ -372,6 +378,7 @@ pub contract AsyncArtwork: NonFungibleToken {
         // AsyncCollectionPrivate interface
         // =============================
 
+        // Mints a master token. Minter has to be whitelisted to mint the token along with the correct number of control tokens. 
         pub fun mintMasterToken(
             id: UInt64, 
             artworkUri: String, 
@@ -413,6 +420,8 @@ pub contract AsyncArtwork: NonFungibleToken {
             self.masterMintReservation.remove(key: id)
         }
 
+        // Mints a control token. Minter must have been granted ability by master token minter 
+        // (of the master token corresponding to the control token being minted).
         pub fun mintControlToken(
             id: UInt64,
             tokenUri: String, 
@@ -456,6 +465,7 @@ pub contract AsyncArtwork: NonFungibleToken {
             self.controlMintReservation.remove(key: id)
         }
 
+        // Modifies the value(s) of a control token. Modifier must have been granted control permission.
         pub fun useControlToken(
             id: UInt64, 
             leverIds: [UInt64], 
@@ -498,6 +508,7 @@ pub contract AsyncArtwork: NonFungibleToken {
             )
         }
 
+        // Grants an account the ability to modify control token values.
         pub fun grantControlPermission(id: UInt64, permissionedUser: Address, grant: Bool) {
             pre {
                 (self.ownedNFTs.containsKey(id) && self.borrowNFT(id: id).id == id) : "Not authorized to grant permissions for this token"
@@ -516,6 +527,7 @@ pub contract AsyncArtwork: NonFungibleToken {
             )
         }
 
+        // Updates the central record of NFT ownership, which is required due to FLOW's model. 
         pub fun updateOwnerForOwnedNFTs() {
             pre {
                 self.owner != nil : "Collection doesn't have owner"
@@ -536,6 +548,7 @@ pub contract AsyncArtwork: NonFungibleToken {
             }
         }
 
+        // Lets users who didn't have public capabilities configured at a time of a token purchase, to claim the money they are owed.
         pub fun claimPayout(currency: String): @FungibleToken.Vault {
             pre {
                 self.owner != nil : "Cannot perform operation while client in transit"
@@ -556,6 +569,7 @@ pub contract AsyncArtwork: NonFungibleToken {
         // AsyncCollectionPublic interface
         // =============================
 
+        // Updates who can modify control token values.
         pub fun updateControlPermission(id: UInt64, grant: Bool, auth: @AsyncArtwork.Auth) {
             pre {
                 AsyncArtwork.metadata.containsKey(id) : "Metadata for this token id does not exist"
@@ -570,6 +584,7 @@ pub contract AsyncArtwork: NonFungibleToken {
             destroy auth
         }
 
+        // Lets the smart contract grant resources held on user accounts, the ability to mint a master token.
         pub fun reserveMasterMint(id: UInt64, layerCount: UInt64, auth: @AsyncArtwork.Auth) {
             pre {
                 !self.masterMintReservation.containsKey(id) : "Reservation already added"
@@ -583,6 +598,7 @@ pub contract AsyncArtwork: NonFungibleToken {
             destroy auth
         }
 
+        // Lets the smart contract grant resources held on user accounts, the ability to mint a control token.
         pub fun reserveControlMint(id: UInt64, auth: @AsyncArtwork.Auth) {
             pre {
                 !self.controlMintReservation.containsKey(id) : "Reservation already added"
@@ -671,6 +687,7 @@ pub contract AsyncArtwork: NonFungibleToken {
         return percentage < 1.0 && percentage >= 0.0
     }
 
+    // Checks if string input is of a valid Flow currency format (implementing FungibleToken)
     access(self) fun isValidCurrencyFormat(_currency: String): Bool {
         // valid hex address, will abort otherwise
         _currency.slice(from: 2, upTo: 18).decodeHex()
@@ -707,6 +724,7 @@ pub contract AsyncArtwork: NonFungibleToken {
         return true 
     }
 
+    // generalized payout of an amount of currency, to a recipient
     access(self) fun payout(
         recipient: Address,
         amount: @FungibleToken.Vault,
@@ -722,6 +740,7 @@ pub contract AsyncArtwork: NonFungibleToken {
         }
     }
 
+    // on payment failures, store payments to be claimed later
     access(self) fun payClaims(
         recipient: Address, 
         amount: @FungibleToken.Vault,

@@ -5,6 +5,8 @@ import FUSD from "./FUSD.cdc"
 import MetadataViews from "./MetadataViews.cdc"
 import Royalties from "./Royalties.cdc"
 
+// Authors: Ishan Ghimire, Sam Orend
+// This contract manages Blueprint NFTs. For more details see: https://github.com/asyncart/async-flow/tree/main/cadence/contracts and https://github.com/asyncart/async-blueprint/blob/master/contracts/contracts/BlueprintV9.sol
 pub contract Blueprints: NonFungibleToken {
 
     // The paths at which resources will be stored, and capabilities linked
@@ -55,6 +57,7 @@ pub contract Blueprints: NonFungibleToken {
     // A mapping of currency type identifiers to {User Addresses -> Amounts of currency they are owed}
     access(self) let payoutClaims: {String: {Address: UFix64}}
 
+    // Emitted when the contract is deployed
     pub event ContractInitialized()
 
     // Emitted when a Blueprint NFT is withdrawn from its collection
@@ -127,6 +130,7 @@ pub contract Blueprints: NonFungibleToken {
     // Emitted when a new currency is unwhitelisted for royalties
     pub event CurrencyUnwhitelisted(currency: String)
 
+    // A structure used to encompass the expected paths for a consistent entity / resource
     pub struct Paths {
         pub var public: PublicPath
         pub var private: PrivatePath
@@ -139,10 +143,12 @@ pub contract Blueprints: NonFungibleToken {
         }
     }
 
+    // Gets the expected paths of the supported currencies
     pub fun getCurrencyPaths(): {String: Paths} {
         return self.currencyPaths
     }
 
+    // Returns true if a currency is supported for purchases
     pub fun isCurrencySupported(currency: String): Bool {
         return self.currencyPaths.containsKey(currency) &&
                self.claimsVaults.containsKey(currency) &&
@@ -281,6 +287,7 @@ pub contract Blueprints: NonFungibleToken {
             self.maxPurchaseAmount = _newMaxPurchaseAmount != nil ? _newMaxPurchaseAmount : self.maxPurchaseAmount
         }
 
+        // Add a set of addresses to the whitelist
         pub fun addToWhitelist(
             _whitelistAdditions: [Address]
         ) {
@@ -295,6 +302,7 @@ pub contract Blueprints: NonFungibleToken {
             }
         }
 
+        // Remove a set of addresses from the whitelist
         pub fun removeFromWhitelist(
             _whitelistRemovals: [Address]
         ) {
@@ -310,6 +318,7 @@ pub contract Blueprints: NonFungibleToken {
             }
         }
 
+        // Overwrite the whitelist with a new set of addresses
         pub fun overwriteWhitelist(
              _whitelistedAddresses: [Address]
         ) {
@@ -361,9 +370,9 @@ pub contract Blueprints: NonFungibleToken {
             self.saleState = state
         }
 
+        // Makes it so that a whitelisted user cannot reclaim a piece after the first usage
         pub fun claimWhitelistPiece(user: Address) {
             pre {
-                // good for audit but error message should be cleaned up later
                 self.whitelist.containsKey(user) : "User not in whitelist, code execution should have never reached here"
             }
 
@@ -444,8 +453,8 @@ pub contract Blueprints: NonFungibleToken {
             _maxPurchaseAmount: UInt64?
         ) {
             pre {
-                // Should we instead be asserting that the currency is supported not just a valid format
                 Blueprints.isValidCurrencyFormat(_currency: _currency) : "Currency type is invalid"
+                Blueprints.isCurrencySupported(currency: _currency) : "Currency not whitelisted"
             }
 
             self.tokenUriLocked = false
@@ -497,6 +506,7 @@ pub contract Blueprints: NonFungibleToken {
         }
     }
 
+    // Checks if string input is of a valid Flow currency format (implementing FungibleToken)
     access(self) fun isValidCurrencyFormat(_currency: String): Bool {
         // valid hex address, will abort otherwise
         _currency.slice(from: 2, upTo: 18).decodeHex()
@@ -537,6 +547,7 @@ pub contract Blueprints: NonFungibleToken {
     pub resource NFT: NonFungibleToken.INFT, MetadataViews.Resolver {
         pub let id: UInt64
 
+        // Gets the types for which meaningful data will be returned, about the token
         pub fun getViews() : [Type] {
             return [
                 Type<String>(),
@@ -544,6 +555,7 @@ pub contract Blueprints: NonFungibleToken {
             ]
         }
 
+        // Resolves the types retrieved from getViews into actual metadata
         pub fun resolveView(_ type: Type): AnyStruct {
             if type == Type<String>() {
                 return Blueprints.tokenURI(tokenId: self.id)
@@ -640,6 +652,7 @@ pub contract Blueprints: NonFungibleToken {
         return <- create Collection()
     }
 
+    // generalized payout of an amount of currency, to a recipient
     access(self) fun payout(
         recipient: Address,
         amount: @FungibleToken.Vault,
@@ -655,6 +668,7 @@ pub contract Blueprints: NonFungibleToken {
         }
     }
 
+    // on payment failures, store payments to be claimed later
     access(self) fun payClaims(
         recipient: Address, 
         amount: @FungibleToken.Vault,
@@ -688,6 +702,7 @@ pub contract Blueprints: NonFungibleToken {
                 (Blueprints.blueprints[blueprintID]!.saleState == SaleState.notStarted && Blueprints.blueprints[blueprintID]!.isUserWhitelisted(user: sender))
         }
 
+        // settle out payments to correct recipients after a token purchase
         access(self) fun confirmPaymentAmountAndSettleSale(
             blueprintID: UInt64,
             quantity: UInt64,
@@ -721,6 +736,7 @@ pub contract Blueprints: NonFungibleToken {
             }
         }
 
+        // mint an amount of tokens for a blueprint
         access(self) fun mintQuantity(
             blueprintID: UInt64,
             quantity: UInt64,
@@ -762,6 +778,7 @@ pub contract Blueprints: NonFungibleToken {
             Blueprints.blueprints[blueprintID]!.updateAfterMint(_nftIndex: newTokenId + quantity, _capacity: newCap)
         }
 
+        // mint token to a recipient
         access(self) fun mint(
             recipient: &{NonFungibleToken.CollectionPublic},
             tokenId: UInt64
@@ -1128,6 +1145,7 @@ pub contract Blueprints: NonFungibleToken {
             Blueprints.minterAddress = newMinter
         }
 
+        // lock the token url from ever changing
         pub fun lockBlueprintTokenUri(blueprintID: UInt64) {
             pre {
                 Blueprints.blueprints.containsKey(blueprintID) : "Blueprint doesn't exist"
@@ -1137,6 +1155,7 @@ pub contract Blueprints: NonFungibleToken {
             Blueprints.blueprints[blueprintID]!.lockTokenUri()
         }
 
+        // set the recipient of Async sale fees
         pub fun setAsyncFeeRecipient(_asyncSalesFeeRecipient: Address) {
             Blueprints.asyncSaleFeesRecipient = _asyncSalesFeeRecipient
         }
