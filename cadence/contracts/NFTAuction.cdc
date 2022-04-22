@@ -338,7 +338,7 @@ pub contract NFTAuction {
 
         if auction.nftHighestBid != nil {
             if auction.buyNowPrice != nil {
-                if auction.nftHighestBid! > auction.buyNowPrice! {
+                if auction.nftHighestBid! >= auction.buyNowPrice! {
                     // Only pull the NFT into escrow if it is not already there
                     if !self.escrowCollectionCap.borrow()!.containsNFT(nftTypeIdentifier: nftTypeIdentifier, tokenId: tokenId) {
                         self._transferNftToAuctionContract(nftTypeIdentifier: nftTypeIdentifier, tokenId: tokenId)
@@ -582,9 +582,7 @@ pub contract NFTAuction {
             )
             self.auctions[nftTypeIdentifier]!.insert(key: tokenId, auction!)
         } else {
-            auction = self.auctions[nftTypeIdentifier]![tokenId]!
-
-            auction!.setAuction(
+            self.auctions[nftTypeIdentifier]![tokenId]!.setAuction(
                 auctionBidPeriod: nil, 
                 minPrice: nil, 
                 buyNowPrice: buyNowPrice, 
@@ -594,7 +592,7 @@ pub contract NFTAuction {
                 bidIncreasePercentage: nil
             )
 
-            auction!.setNFTProviderCapability(nftProviderCapability: nftProviderCapability)
+            self.auctions[nftTypeIdentifier]![tokenId]!.setNFTProviderCapability(nftProviderCapability: nftProviderCapability)
         }
     }
 
@@ -706,6 +704,7 @@ pub contract NFTAuction {
                 NFTAuction.escrowVaults[currency] != nil : "Currency not supported"
                 self.owner != nil : "Cannot perform operation while client in transit"
             }
+
             NFTAuction.manageAuctionStarted(nftTypeIdentifier, tokenId, self.owner!.address)
             NFTAuction._setupSale(
                 sender: self.owner!.address,
