@@ -30,4 +30,10 @@ It is important to note that we have opted to store the Metadata for each NFT in
 
 ## NFTAuction Design Decisions
 
+NFTAuction is based off an EVM smart contract created by AvoLabs here: https://github.com/avolabs-io/nft-auction/blob/master/contracts/NFTAuction.sol. 
+
+Incoming...
+
 ## Blueprints Design Decisions
+
+Incoming...
