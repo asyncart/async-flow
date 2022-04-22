@@ -195,5 +195,71 @@ def test_integration_async_art_flipper():
   # assert on Async's balance
   assert "2.80000000" == send_script_and_return_result("getUsersFlowTokenBalance", args=[["Address", address("AsyncArtAccount")]])
 
+  create_new_nft_auction(
+    ["A.01cf0e2f2f715450.AsyncArtwork.NFT", "3", "A.0ae53cb6e3f42a79.FlowToken.Vault", "2.0", "5.0", "50000.0", "0.1", ["AsyncArtAccount", "User2"], ["0.1", "0.02"]],
+    "User3",
+    True
+  )
+
+  make_bid(
+    ["A.01cf0e2f2f715450.AsyncArtwork.NFT", "3", "A.0ae53cb6e3f42a79.FlowToken.Vault", "3.0"],
+    "User1",
+    True
+  )
+
+  make_bid(
+    ["A.01cf0e2f2f715450.AsyncArtwork.NFT", "3", "A.0ae53cb6e3f42a79.FlowToken.Vault", "4.0"],
+    "User2",
+    True
+  )
+
+  take_highest_bid(
+    ["A.01cf0e2f2f715450.AsyncArtwork.NFT", "3"],
+    "User3", 
+    True
+  )
+
+  # assert on User1's ownership of the NFTs
+  assert "id: 3" in send_async_artwork_script_and_return_result("getNFT", args=[["Address", address("User2")], ["UInt64", "3"]])
+  
+  # assert on User1's balance
+  assert "108.32000000" == send_script_and_return_result("getUsersFlowTokenBalance", args=[["Address", address("User1")]])
+
+  # assert on User2's balance
+  assert "90.16000000" == send_script_and_return_result("getUsersFlowTokenBalance", args=[["Address", address("User2")]])
+
+  # assert on User3's balance
+  assert "98.32000000" == send_script_and_return_result("getUsersFlowTokenBalance", args=[["Address", address("User3")]])
+  
+  # assert on Async's balance
+  assert "3.20000000" == send_script_and_return_result("getUsersFlowTokenBalance", args=[["Address", address("AsyncArtAccount")]])
+
+  create_new_sale(
+    ["A.01cf0e2f2f715450.AsyncArtwork.NFT", "3", "A.0ae53cb6e3f42a79.FlowToken.Vault", "10.0", address("User1"), [], []],
+    "User2",
+    True
+  )
+  
+  make_bid(
+    ["A.01cf0e2f2f715450.AsyncArtwork.NFT", "3", "A.0ae53cb6e3f42a79.FlowToken.Vault", "10.0"],
+    "User1",
+    True
+  )
+
+  # assert on User3's ownership of the NFTs
+  assert "id: 3" in send_async_artwork_script_and_return_result("getNFT", args=[["Address", address("User1")], ["UInt64", "3"]])
+  
+  # assert on User1's balance
+  assert "98.32000000" == send_script_and_return_result("getUsersFlowTokenBalance", args=[["Address", address("User1")]])
+
+  # assert on User2's balance
+  assert "99.16000000" == send_script_and_return_result("getUsersFlowTokenBalance", args=[["Address", address("User2")]])
+
+  # assert on User3's balance
+  assert "98.32000000" == send_script_and_return_result("getUsersFlowTokenBalance", args=[["Address", address("User3")]])
+  
+  # assert on Async's balance
+  assert "4.20000000" == send_script_and_return_result("getUsersFlowTokenBalance", args=[["Address", address("AsyncArtAccount")]])
+
 if __name__ == '__main__':
   test_integration_async_art_flipper()
