@@ -10,7 +10,7 @@ from test_unit_setup_marketplace_client import setup_marketplace_client
 from test_unit_whitelist import whitelist
 from test_unit_mint_master_token import mint_master_token 
 
-# expected args: currency, tokenId, minPrice, buyNowPrice, auctionBidPeriod, bidIncreasePercentage, feeRecipients, feePercentages
+# expected args: nftType, tokenId, currency, minPrice, buyNowPrice, auctionBidPeriod, bidIncreasePercentage, feeRecipients, feePercentages
 
 def create_new_nft_auction(args, signer, should_succeed, expected_auction_result=None):
   fee_recipients = [["Address", address(user)] for user in args[7]]
