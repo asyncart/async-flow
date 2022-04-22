@@ -11,7 +11,6 @@ transaction(
     let marketplaceClient: &NFTAuction.MarketplaceClient
 
     prepare(acct: AuthAccount) {
-        log("AAAA")
         let standardCurrencyVaultPaths = NFTAuction.getCurrencyPaths()[currency]
 
         if standardCurrencyVaultPaths == nil {

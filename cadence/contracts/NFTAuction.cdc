@@ -7,6 +7,10 @@ import Blueprints from "./Blueprints.cdc"
 import Royalties from "./Royalties.cdc"
 import MetadataViews from "./MetadataViews.cdc"
 
+// Authors: Ishan Ghimire, Sam Orend
+// This contract is a generalized NFT marketplace enabling auction and direct sale mechanisms.
+// It is a Flow implementation of an EVM-based NFTAuction implemented by AvoLabs: https://github.com/avolabs-io/nft-auction/blob/master/contracts/NFTAuction.sol
+// For more details see: https://github.com/asyncart/async-flow/tree/main/cadence/contracts 
 pub contract NFTAuction {
 
     // The paths at which resources will be stored, and capabilities linked
@@ -162,8 +166,10 @@ pub contract NFTAuction {
         tokenId: UInt64
     );
 
+    // Emitted when the contract is deployed
     pub event ContractInitialized()
 
+    // A structure used to encompass the expected paths for a consistent entity / resource
     pub struct Paths {
         pub var public: PublicPath
         pub var private: PrivatePath
@@ -180,6 +186,7 @@ pub contract NFTAuction {
         return self.nftTypePaths
     }
 
+    // Gets the expected paths of the supported currencies
     pub fun getCurrencyPaths(): {String: Paths} {
         return self.currencyPaths
     }
@@ -198,6 +205,7 @@ pub contract NFTAuction {
         return totalPercentage
     }
 
+    // transfer NFT to contract to be held in escrow, once large enough bid is made on NFT
     access(self) fun _transferNftToAuctionContract(
         nftTypeIdentifier: String,
         tokenId: UInt64
@@ -208,6 +216,7 @@ pub contract NFTAuction {
         self.escrowCollectionCap.borrow()!.deposit(token: <- nft)
     }
 
+    // transfer NFT out of escrow to recipient, and pay the seller
     access(self) fun _transferNftAndPaySeller(
         nftTypeIdentifier: String,
         tokenId: UInt64
@@ -252,6 +261,7 @@ pub contract NFTAuction {
         )
     }
 
+    // if NFT recipient doesn't have a public receiver capability configured properly, send the NFT to claims to be claimed later
     access(self) fun _sendToNftClaims(
       recipient: Address,
       nft: @NonFungibleToken.NFT,
@@ -267,6 +277,7 @@ pub contract NFTAuction {
       self.escrowCollectionCap.borrow()!.deposit(token: <- nft)
     }
 
+    // Pay royalties, fees to platform, and core to seller
     access(self) fun _payFeesAndSeller(
         nftTypeIdentifier: String,
         tokenId: UInt64,
@@ -296,6 +307,7 @@ pub contract NFTAuction {
         )
     }
 
+    // generalized payout of an amount of currency, to a recipient
     access(self) fun _payout(
         recipient: Address, 
         amount: @FungibleToken.Vault
@@ -311,6 +323,7 @@ pub contract NFTAuction {
         }
     }
 
+    // on payment failures, store payments to be claimed later
     access(self) fun _payClaims(
       recipient: Address, 
       amount: @FungibleToken.Vault,
@@ -330,6 +343,7 @@ pub contract NFTAuction {
       destroy <- self.escrowVaults.insert(key: currency, <- escrowVault)
     }
     
+    // if latest bid supercedes a buyNow price, or the minimum bid, update the auction details accordingly
     access(self) fun _updateAuctionBasedOnLatestBid(
         nftTypeIdentifier: String,
         tokenId: UInt64
@@ -338,7 +352,7 @@ pub contract NFTAuction {
 
         if auction.nftHighestBid != nil {
             if auction.buyNowPrice != nil {
-                if auction.nftHighestBid! > auction.buyNowPrice! {
+                if auction.nftHighestBid! >= auction.buyNowPrice! {
                     // Only pull the NFT into escrow if it is not already there
                     if !self.escrowCollectionCap.borrow()!.containsNFT(nftTypeIdentifier: nftTypeIdentifier, tokenId: tokenId) {
                         self._transferNftToAuctionContract(nftTypeIdentifier: nftTypeIdentifier, tokenId: tokenId)
@@ -414,6 +428,7 @@ pub contract NFTAuction {
         return auction!
     }
 
+    // places bid on auction
     access(self) fun _makeBid(
         nftTypeIdentifier: String,
         tokenId: UInt64,
@@ -465,6 +480,7 @@ pub contract NFTAuction {
         )
     }
 
+    // create new auction
     access(self) fun _createNewNftAuction(
         sender: Address,
         nftTypeIdentifier: String,
@@ -547,6 +563,7 @@ pub contract NFTAuction {
         self._updateAuctionBasedOnLatestBid(nftTypeIdentifier: nftTypeIdentifier, tokenId: tokenId)
     }
 
+    // create nft direct sale
     access(self) fun _setupSale(
         sender: Address,
         nftTypeIdentifier: String,
@@ -582,9 +599,7 @@ pub contract NFTAuction {
             )
             self.auctions[nftTypeIdentifier]!.insert(key: tokenId, auction!)
         } else {
-            auction = self.auctions[nftTypeIdentifier]![tokenId]!
-
-            auction!.setAuction(
+            self.auctions[nftTypeIdentifier]![tokenId]!.setAuction(
                 auctionBidPeriod: nil, 
                 minPrice: nil, 
                 buyNowPrice: buyNowPrice, 
@@ -594,10 +609,11 @@ pub contract NFTAuction {
                 bidIncreasePercentage: nil
             )
 
-            auction!.setNFTProviderCapability(nftProviderCapability: nftProviderCapability)
+            self.auctions[nftTypeIdentifier]![tokenId]!.setNFTProviderCapability(nftProviderCapability: nftProviderCapability)
         }
     }
 
+    // when a higher bid happens, pay out the amount stored in escrow for previous bid, back to the bidder
     access(self) fun _reverseAndResetPreviousBid(
         nftTypeIdentifier: String,
         tokenId: UInt64
@@ -706,6 +722,7 @@ pub contract NFTAuction {
                 NFTAuction.escrowVaults[currency] != nil : "Currency not supported"
                 self.owner != nil : "Cannot perform operation while client in transit"
             }
+
             NFTAuction.manageAuctionStarted(nftTypeIdentifier, tokenId, self.owner!.address)
             NFTAuction._setupSale(
                 sender: self.owner!.address,
@@ -1319,6 +1336,7 @@ pub contract NFTAuction {
         }
     }
 
+    // Manages if an auction can be started at time of call
     access(self) fun manageAuctionStarted(_ nftTypeIdentifier: String, _ tokenId: UInt64, _ sender: Address) {
         let auction: Auction? = self.auctions[nftTypeIdentifier]![tokenId]
         if auction != nil {

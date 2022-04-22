@@ -10,7 +10,7 @@ from test_unit_setup_marketplace_client import setup_marketplace_client
 from test_unit_whitelist import whitelist
 from test_unit_mint_master_token import mint_master_token 
 
-# expected args: tokenId, currency, minPrice, buyNowPrice, auctionBidPeriod, bidIncreasePercentage, feeRecipients, feePercentages
+# expected args: nftType, tokenId, currency, minPrice, buyNowPrice, auctionBidPeriod, bidIncreasePercentage, feeRecipients, feePercentages
 
 def create_new_nft_auction(args, signer, should_succeed, expected_auction_result=None):
   fee_recipients = [["Address", address(user)] for user in args[7]]
@@ -24,7 +24,7 @@ def create_new_nft_auction(args, signer, should_succeed, expected_auction_result
     auction_result = send_nft_auction_script_and_return_result("getAuction", args=[["String", args[0]], ["UInt64", args[1]]])
     if expected_auction_result != None:
       assert expected_auction_result == auction_result
-    print("Successfuly Created NFT Auction")
+    print("Successfully Created NFT Auction")
   else:
     assert not send_nft_auction_transaction("createNewArtAuction", args=auction_args, signer=signer)
     print("Failed to Create NFT Auction as expected")
