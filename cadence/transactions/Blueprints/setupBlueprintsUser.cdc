@@ -69,6 +69,11 @@ transaction() {
                     /public/flowTokenReceiver,
                     target: /storage/flowTokenVault
                 )
+
+                acct.link<&FlowToken.Vault{FungibleToken.Balance}>(
+                    /public/flowTokenBalance,
+                    target: /storage/flowTokenVault
+                )
                 
                 FlowTokenReceiver = acct.getCapability<&FlowToken.Vault{FungibleToken.Receiver}>(/public/flowTokenReceiver)
             } 
@@ -83,6 +88,11 @@ transaction() {
 
                 acct.link<&FUSD.Vault{FungibleToken.Receiver}>(
                     /public/fusdReceiver,
+                    target: /storage/fusdVault
+                )
+
+                acct.link<&FUSD.Vault{FungibleToken.Balance}>(
+                    /public/fusdBalance,
                     target: /storage/fusdVault
                 )
                 
