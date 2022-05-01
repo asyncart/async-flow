@@ -3,7 +3,6 @@ import FungibleToken from "./FungibleToken.cdc"
 import FlowToken from "./FlowToken.cdc"
 import FUSD from "./FUSD.cdc"
 import MetadataViews from "./MetadataViews.cdc"
-import Royalties from "./Royalties.cdc"
 
 // Authors: Ishan Ghimire, Sam Orend
 // This contract manages Blueprint NFTs. For more details see: https://github.com/asyncart/async-flow/tree/main/cadence/contracts and https://github.com/asyncart/async-blueprint/blob/master/contracts/contracts/BlueprintV9.sol
@@ -153,73 +152,6 @@ pub contract Blueprints: NonFungibleToken {
         return self.currencyPaths.containsKey(currency) &&
                self.claimsVaults.containsKey(currency) &&
                self.payoutClaims.containsKey(currency)
-    }
-
-    // A pre-royalty standard implementation of Royalties for Blueprint NFTs
-    pub struct Royalty : Royalties.Royalty {
-
-        // Recipients of royalty
-        access(self) var recipients: [Address]
-
-        // Percentages that each recipient will receive as royalty payment. This is a percentage of the total purchase price.
-        access(self) var percentages: [UFix64]
-
-        // The total percentage of purchase price that will be taken to payout the royalty described by this struct.
-        access(self) var totalCut: UFix64
-        
-        init(_ recipients: [Address], _ percentages: [UFix64]) {
-            post {
-                self.totalCut <= 1.0 : "Royalty percentages cannot exceed 100%"
-            }
-            self.recipients = recipients
-            self.percentages = percentages
-            self.totalCut = 0.0
-
-            for percentage in percentages {
-                self.totalCut = self.totalCut + percentage
-            }
-        }
-
-        // Calculate the number of tokens that would be taken for royalties given a purchase amount
-        pub fun calculateRoyalty(type: Type, amount:UFix64) : UFix64? {
-            if Blueprints.isCurrencySupported(currency: type.identifier) {
-                return self.totalCut * amount
-            } else {
-                return nil
-            }
-        }
-    
-        // Distribute a lump sum royalty amount appropriately to all of the recipients
-        pub fun distributeRoyalty(vault: @FungibleToken.Vault) {
-            pre {
-                Blueprints.isCurrencySupported(currency: vault.getType().identifier) : "Currency not supported"
-            }
-
-            let currency: String = vault.getType().identifier
-            let totalPaymentAmount: UFix64 = vault.balance
-            var i: Int = 0
-            while i < self.recipients.length {
-                let amount: @FungibleToken.Vault <- vault.withdraw(amount: self.percentages[i] * (1.0/self.totalCut) * totalPaymentAmount)
-                Blueprints.payout(recipient: self.recipients[i], amount: <- amount, currency: currency)
-
-                i = i + 1
-            }
-
-            // There should be zero tokens left, but purely to avoid loss of resource pay out anything remaining to platform
-            Blueprints.payout(recipient: self.recipients[self.recipients.length - 1], amount: <- vault, currency: currency)
-        }
-
-        // Visualize the royalty distribution (recipients and their percentage allocations)
-        pub fun displayRoyalty() : String? {
-            var text = ""
-            var i: Int = 0
-            while i < self.recipients.length {
-                text = text.concat(self.recipients[i].toString()).concat(": ").concat((self.percentages[i]*100.0).toString()).concat("%,")
-                i = i + 1
-            }
-            text = text.slice(from: 0, upTo: text.length-1)
-            return text
-        }
     }
 
     // An enum for the possible sale states for a Blueprint
@@ -551,7 +483,7 @@ pub contract Blueprints: NonFungibleToken {
         pub fun getViews() : [Type] {
             return [
                 Type<String>(),
-                Type<{Royalties.Royalty}>()
+                Type<MetadataViews.Royalties>()
             ]
         }
 
@@ -559,12 +491,59 @@ pub contract Blueprints: NonFungibleToken {
         pub fun resolveView(_ type: Type): AnyStruct {
             if type == Type<String>() {
                 return Blueprints.tokenURI(tokenId: self.id)
-            } else if type == Type<{Royalties.Royalty}>() {
+            } else if type == Type<MetadataViews.Royalties>() {
                 let metadata = Blueprints.getBlueprintByTokenId(tokenId: self.id)
                 if metadata == nil {
                     panic("Token id does not correspond to a Blueprint")
                 }
-                return Blueprints.Royalty(metadata!.getSecondaryFeeRecipients(), metadata!.getSecondaryFeePercentages())
+
+                let recipients: [Address] = metadata!.getSecondaryFeeRecipients()
+                let percentages: [UFix64] = metadata!.getSecondaryFeePercentages()
+
+                let royalties: [MetadataViews.Royalty] = []
+
+                let i: UInt64 = 0
+                while i < recipients.length {
+                    let recipientAcct = getAccount(recipients[i])
+                    let FTReceiverCapability <- recipientAcct.getCapability<&{FungibleToken.Receiver}>(MetadataViews.getRoyaltyReceiverPublicPath())
+                    if FTReceiverCapability == nil || !FTReceiverCapability.check() {
+                        log("Blueprints (Async): Could not retrieve recipient Generic FT receiver")
+
+                        // if this fails, try to add their expected flowTokenVault's receiver. 
+                        // even if payment isn't in flowtoken, marketplace may grab the address from the receiver and send to correct receiver
+                        FTReceiverCapability = recipientAcct.getCapability<&{FungibleToken.Receiver}>(/public/flowTokenReceiver)
+
+                        if FTReceiverCapability == nil || !FTReceiverCapability.check() {
+                            log("Blueprints (Async): Could not retrieve recipient FlowToken receiver")
+                            let platformAccount = getAccount(Blueprints.asyncSaleFeesRecipient)
+                            // failing silently! this recipient won't receive their royalty owed, send to platform so that platform can distribute to recipient later
+                            FTReceiverCapability = platformAccount.getCapability<&{FungibleToken.Receiver}>(MetadataViews.getRoyaltyReceiverPublicPath())
+                        
+                            if FTReceiverCapability == nil || !FTReceiverCapability.check() { 
+                                log("Blueprints (Async): Could not retrieve platform Generic FT receiver")
+                                FTReceiverCapability = platformAccount.getCapability<&{FungibleToken.Receiver}>(/public/flowTokenReceiver)
+
+                                if FTReceiverCapability == nil || !FTReceiverCapability.check() { 
+                                    log("Blueprints (Async): Could not retrieve platform FlowToken receiver")
+                                    // completely fails silently at this point, royalty for recipient not received
+                                }
+                            }
+                        }
+                    }
+                    let description: String = "Generic recipient / cut"
+                    
+                    if recipients[i] == Blueprints.asyncSaleFeesRecipient {
+                        description = "Platform cut"
+                    } else if recipients[i] == metadata!.artist {
+                        description = "Artist cut"
+                    }
+
+                    royalties.push(MetadataViews.Royalty(FTReceiverCapability, percentages[i], description))
+                    
+                    i = i + 1
+                }
+
+                return MetadataViews.Royalties(royalties)
             } else {
                 return nil
             }

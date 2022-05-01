@@ -4,7 +4,6 @@ import FlowToken from "./FlowToken.cdc"
 import FUSD from "./FUSD.cdc"
 import AsyncArtwork from "./AsyncArtwork.cdc"
 import Blueprints from "./Blueprints.cdc"
-import Royalties from "./Royalties.cdc"
 import MetadataViews from "./MetadataViews.cdc"
 
 // Authors: Ishan Ghimire, Sam Orend
