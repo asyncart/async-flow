@@ -495,7 +495,7 @@ pub contract NFTAuction {
     ) {
         pre {
             self.minPriceDoesNotExceedLimit(buyNowPrice: buyNowPrice, minPrice: minPrice) : "MinPrice > 80% of buyNowPrice"
-            feeRecipients.length == feeRecipients.length : "Recipients length != percentages length"
+            feeRecipients.length == feePercentages.length : "Recipients length != percentages length"
             self.sumPercentages(percentages: feePercentages) <= 1.0 : "Fee percentages exceed maximum"
         }
 
