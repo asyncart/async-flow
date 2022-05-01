@@ -502,10 +502,10 @@ pub contract Blueprints: NonFungibleToken {
 
                 let royalties: [MetadataViews.Royalty] = []
 
-                let i: UInt64 = 0
-                while i < recipients.length {
+                var i: UInt64 = 0
+                while i < UInt64(recipients.length) {
                     let recipientAcct = getAccount(recipients[i])
-                    let FTReceiverCapability <- recipientAcct.getCapability<&{FungibleToken.Receiver}>(MetadataViews.getRoyaltyReceiverPublicPath())
+                    var FTReceiverCapability = recipientAcct.getCapability<&{FungibleToken.Receiver}>(MetadataViews.getRoyaltyReceiverPublicPath())
                     if FTReceiverCapability == nil || !FTReceiverCapability.check() {
                         log("Blueprints (Async): Could not retrieve recipient Generic FT receiver")
 
@@ -530,7 +530,7 @@ pub contract Blueprints: NonFungibleToken {
                             }
                         }
                     }
-                    let description: String = "Generic recipient / cut"
+                    var description: String = "Generic recipient / cut"
                     
                     if recipients[i] == Blueprints.asyncSaleFeesRecipient {
                         description = "Platform cut"
@@ -538,7 +538,7 @@ pub contract Blueprints: NonFungibleToken {
                         description = "Artist cut"
                     }
 
-                    royalties.push(MetadataViews.Royalty(FTReceiverCapability, percentages[i], description))
+                    royalties.append(MetadataViews.Royalty(FTReceiverCapability, percentages[i], description))
                     
                     i = i + 1
                 }

@@ -184,14 +184,14 @@ pub contract AsyncArtwork: NonFungibleToken {
                 let platformPercentage: UFix64 = metadata.platformSecondSalePercentage
                 
                 let recipients: [Address] = metadata.getUniqueTokenCreators()
-                recipients.push(AsyncArtwork.asyncSaleFeesRecipient)
+                recipients.append(AsyncArtwork.asyncSaleFeesRecipient)
 
                 let royalties: [MetadataViews.Royalty] = []
 
-                let i: UInt64 = 0
-                while i < recipients.length {
+                var i: UInt64 = 0
+                while i < UInt64(recipients.length) {
                     let recipientAcct = getAccount(recipients[i])
-                    let FTReceiverCapability <- recipientAcct.getCapability<&{FungibleToken.Receiver}>(MetadataViews.getRoyaltyReceiverPublicPath())
+                    var FTReceiverCapability = recipientAcct.getCapability<&{FungibleToken.Receiver}>(MetadataViews.getRoyaltyReceiverPublicPath())
                     if FTReceiverCapability == nil || !FTReceiverCapability.check() {
                         log("AsyncArtwork: Could not retrieve recipient Generic FT receiver")
 
@@ -216,16 +216,16 @@ pub contract AsyncArtwork: NonFungibleToken {
                             }
                         }
                     }
-                    let cut: UFix64 = recipients.length > 0 ? artistsPercentage / (recipients.length - 1) : 0.0
-                    let description: String = "Unique token creator cut"
+                    var cut: UFix64 = recipients.length > 0 ? artistsPercentage / UFix64(recipients.length - 1) : 0.0
+                    var description: String = "Unique token creator cut"
 
-                    if i == recipients.length - 1 {
+                    if i == UInt64(recipients.length) - 1 {
                         // is platform
                         cut = platformPercentage
                         description = "Platform (asyncSaleFeesRecipient) cut"
                     }
 
-                    royalties.push(MetadataViews.Royalty(FTReceiverCapability, cut, description))
+                    royalties.append(MetadataViews.Royalty(FTReceiverCapability, cut, description))
                     
                     i = i + 1
                 }
