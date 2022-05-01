@@ -26,8 +26,10 @@ transaction() {
         // also setup generic FT receiver switchboard
         let switchboardReceiver = acct.getCapability<&{FungibleToken.Receiver, FungibleTokenSwitchboard.SwitchboardPublic}>(MetadataViews.getRoyaltyReceiverPublicPath())
         if switchboardReceiver == nil || !switchboardReceiver.check() {
-            var switchboard <- FungibleTokenSwitchboard.createNewSwitchboard()
-            acct.save(<- switchboard, to: FungibleTokenSwitchboard.SwitchboardStoragePath)
+            if acct.borrow<&FungibleTokenSwitchboard.Switchboard>(from: FungibleTokenSwitchboard.SwitchboardStoragePath) == nil {
+                let switchboard <- FungibleTokenSwitchboard.createNewSwitchboard()
+                acct.save(<- switchboard, to: FungibleTokenSwitchboard.SwitchboardStoragePath)
+            }
 
             // link public interface to switchboard at expected path
             acct.link<&{FungibleTokenSwitchboard.SwitchboardPublic}>(
