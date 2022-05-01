@@ -15,8 +15,7 @@ source run_tests.sh
 To run tests granulary, you have to first set up te testing environment. To do so, run from the root directory:
 
 ```
-chmod +x setup_testing_env.sh
-source setup_testing_env.sh
+chmod +x setup_testing_env.sh && source setup_testing_env.sh
 ```
 
 We have several test files, all of which use the pytest framework (and thus are prefixed with "test"). There are also some driver modules i.e. transaction_handler
