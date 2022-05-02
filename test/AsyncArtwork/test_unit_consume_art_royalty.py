@@ -39,9 +39,9 @@ def test_consume_art_royalty():
     assert_metadata=True
   )
 
-  expected_royalty_result = "\"0xf3fcd2c1a78f5eee: 10.00000000%,0x1cf0e2f2f715450: 1.00000000%\""
   royalty_result = send_async_artwork_script_and_return_result("getNFTRoyalty", args=[["Address", address("User1")], ["UInt64", "1"]])
-  assert expected_royalty_result == royalty_result
+  assert "A.f8d6e0586b0a20c7.MetadataViews.Royalty(receiver: Capability<&AnyResource{A.ee82856bf20e2aa6.FungibleToken.Receiver}>(address: 0xf3fcd2c1a78f5eee, path: /public/GenericFTReceiver), cut: 0.10000000, description: \"Unique token creator cut\")" in royalty_result
+  assert "A.f8d6e0586b0a20c7.MetadataViews.Royalty(receiver: Capability<&AnyResource{A.ee82856bf20e2aa6.FungibleToken.Receiver}>(address: 0x1cf0e2f2f715450, path: /public/flowTokenReceiver), cut: 0.01000000, description: \"Platform (asyncSaleFeesRecipient) cut\")" in royalty_result
 
   whitelist(
     ["User1", "4", "1", None],
@@ -56,9 +56,9 @@ def test_consume_art_royalty():
     True
   )
 
-  expected_royalty_result = "\"0xf3fcd2c1a78f5eee: 5.00000000%,0x179b6b1cb6755e31: 5.00000000%,0x1cf0e2f2f715450: 5.00000000%\""
   royalty_result = send_async_artwork_script_and_return_result("getNFTRoyalty", args=[["Address", address("User1")], ["UInt64", "4"]])
-  assert expected_royalty_result == royalty_result
+  assert "A.f8d6e0586b0a20c7.MetadataViews.Royalty(receiver: Capability<&AnyResource{A.ee82856bf20e2aa6.FungibleToken.Receiver}>(address: 0xf3fcd2c1a78f5eee, path: /public/GenericFTReceiver), cut: 0.05000000, description: \"Unique token creator cut\")" in royalty_result
+  assert "A.f8d6e0586b0a20c7.MetadataViews.Royalty(receiver: Capability<&AnyResource{A.ee82856bf20e2aa6.FungibleToken.Receiver}>(address: 0x1cf0e2f2f715450, path: /public/flowTokenReceiver), cut: 0.05000000, description: \"Platform (asyncSaleFeesRecipient) cut\")" in royalty_result
 
 if __name__ == '__main__':
     test_consume_art_royalty()

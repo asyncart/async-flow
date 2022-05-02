@@ -60,6 +60,9 @@ def test_make_bids():
     True
   )
 
+  # User1 blocks themselves from immediately receiving payment
+  assert send_transaction("unlinkFUSDReceiver", signer="User1")
+
   # Purchase NFT in FUSD, which the seller cannot yet receive
   make_bid(
     ["A.01cf0e2f2f715450.AsyncArtwork.NFT", "1", "A.f8d6e0586b0a20c7.FUSD.Vault", "6.0"],
@@ -80,10 +83,10 @@ def test_make_bids():
   # Confirm that user1 does not own any AsyncArtwork NFTs
   assert "[]" == send_async_artwork_script_and_return_result("getNFTs", args=[["Address", address("User1")]])
 
-  # Initialize User1 to receive standard non-default assets (i.e. FUSD)
-  assert send_transaction("initializeAccount", signer="User1")
+  # Relink User1's FUSD receiver so that they can claim their payment
+  assert send_transaction("relinkFUSDReceiver", signer="User1")
 
-  # User1 should not have received their payout for the purchase of the NFT because
+  # User1 should not have received their payout for the purchase of the NFT because they have not yet claimed their payment
   assert "0.00000000" == send_script_and_return_result("getUsersFUSDBalance", args=[["Address", address("User1")]])
 
   # Cannot claim payment for unvalid currency

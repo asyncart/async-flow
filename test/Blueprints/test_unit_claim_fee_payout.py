@@ -43,15 +43,15 @@ def test_claim_payout():
     "AsyncArtAccount",
     True
   )
-  
-  # User 3 deletes their receiver
-  assert send_transaction("unlinkFlowTokenReceiver", signer="User3")
 
   # User2 acquires tokens to purchase blueprints
   transfer_flow_token("User2", "100.0", "emulator-account")
 
   setup_blueprints_user("User2")
   setup_blueprints_user("User3")
+
+  # User 3 deletes their receiver
+  assert send_transaction("unlinkFlowTokenReceiver", signer="User3")
 
   # Purchase blueprint where user 3 cannot receive payout
   purchase_blueprints(
@@ -60,12 +60,16 @@ def test_claim_payout():
     True
   )
 
+  assert "0.00000000" == send_script_and_return_result("getUsersFlowTokenBalance", args=[["Address", address("User3")]])
+
   # User 3 claims payout
   claim_payout(
     ["A.0ae53cb6e3f42a79.FlowToken.Vault"],
     "User3",
     True 
   )
+
+  assert "0.50000000" == send_script_and_return_result("getUsersFlowTokenBalance", args=[["Address", address("User3")]])
 
   # should not be able to claim again
   claim_payout(
