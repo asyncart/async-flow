@@ -5,8 +5,7 @@ from event_handler import check_for_event
 from utils import address, transfer_flow_token
 import pytest
 
-from test_unit_setup_async_user import setup_async_user
-from test_unit_setup_marketplace_client import setup_marketplace_client
+from test_unit_setup_async_resources import setup_async_resources
 from test_unit_whitelist import whitelist
 from test_unit_mint_master_token import mint_master_token
 from test_unit_make_default_nft_auction import create_default_nft_auction
@@ -36,11 +35,8 @@ def test_withdraw_bid():
   # Deploy contracts
   main()
 
-  setup_marketplace_client("User1")
-  setup_marketplace_client("User2")
-
-  setup_async_user("User1")
-  setup_async_user("User2")
+  setup_async_resources("User1")
+  setup_async_resources("User2")
 
   whitelist(
     ["User1", "1", "0", "0.01"],

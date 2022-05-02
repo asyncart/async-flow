@@ -7,7 +7,7 @@ import json
 import pytest
 
 # Test specific setup functions
-from test_unit_setup_async_user import setup_async_user
+from test_unit_setup_async_resources import setup_async_resources
 from test_unit_whitelist import whitelist
 from test_unit_mint_master_token import mint_master_token 
 from test_unit_mint_control_token import mint_control_token
@@ -31,9 +31,9 @@ def test_grant_control_permission():
   # Deploy contracts
   main()
 
-  setup_async_user("User1")
-  setup_async_user("User2")
-  setup_async_user("User3")
+  setup_async_resources("User1")
+  setup_async_resources("User2")
+  setup_async_resources("User3")
 
   whitelist(
     ["User1", "1", "1", "0.01"],

@@ -6,7 +6,7 @@ import json
 import pytest
 
 # Test specific setup functions
-from test_unit_setup_async_user import setup_async_user
+from test_unit_setup_async_resources import setup_async_resources
 from test_unit_whitelist import whitelist
 from test_unit_mint_master_token import mint_master_token 
 from test_unit_mint_control_token import mint_control_token
@@ -21,7 +21,7 @@ def test_integration():
   main()
 
   # setup user1
-  setup_async_user("User1")
+  setup_async_resources("User1")
 
   # admin successfully whitelists token for user1
   whitelist(
@@ -40,8 +40,8 @@ def test_integration():
   )
 
   # give async collections to users 2 and 3
-  setup_async_user("User2")
-  setup_async_user("User3")
+  setup_async_resources("User2")
+  setup_async_resources("User3")
 
   # admin updates the default sales percentages
   update_platform_default_sales_percentage(["0.1"], "AsyncArtAccount", True)

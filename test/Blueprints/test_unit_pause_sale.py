@@ -5,7 +5,7 @@ from event_handler import check_for_event
 from utils import address, transfer_flow_token
 import pytest
 
-from test_unit_setup_blueprints_user import setup_blueprints_user
+from test_unit_setup_async_resources import setup_async_resources
 from test_unit_acquire_minter import acquire_minter
 from test_unit_prepare_blueprint import prepare_blueprint
 from test_unit_begin_sale import begin_sale
@@ -35,8 +35,8 @@ def test_pause_sale():
   transfer_flow_token("User4", "100.0", "emulator-account")
 
   # Setup blueprints users
-  setup_blueprints_user("User3")
-  setup_blueprints_user("User4")
+  setup_async_resources("User3")
+  setup_async_resources("User4")
   
   # Confirm that designated minter can prepare blueprint
   prepare_blueprint(
