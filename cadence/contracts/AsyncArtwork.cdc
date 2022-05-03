@@ -30,6 +30,7 @@ pub contract AsyncArtwork: NonFungibleToken {
 
     // Second sale percentage for artists platform wide
     // i.e. set to 0.05 to represent a 5% cut
+    // @notice this percentage is shared between all artists
     pub var artistSecondSalePercentage: UFix64
 
     // Recipient of platform royalties on AsyncArtwork sales
