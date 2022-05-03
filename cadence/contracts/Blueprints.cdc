@@ -511,24 +511,9 @@ pub contract Blueprints: NonFungibleToken {
 
                         // if this fails, try to add their expected flowTokenVault's receiver. 
                         // even if payment isn't in flowtoken, marketplace may grab the address from the receiver and send to correct receiver
+                        // @notice if this capability is invalid, the requester may still be able to find a valid receiverusing its associated address
+                        // but this contract will not further search for a valid capability for the recipient
                         FTReceiverCapability = recipientAcct.getCapability<&{FungibleToken.Receiver}>(/public/flowTokenReceiver)
-
-                        if FTReceiverCapability == nil || !FTReceiverCapability.check() {
-                            log("Blueprints (Async): Could not retrieve recipient FlowToken receiver")
-                            let platformAccount = getAccount(Blueprints.asyncSaleFeesRecipient)
-                            // failing silently! this recipient won't receive their royalty owed, send to platform so that platform can distribute to recipient later
-                            FTReceiverCapability = platformAccount.getCapability<&{FungibleToken.Receiver}>(MetadataViews.getRoyaltyReceiverPublicPath())
-                        
-                            if FTReceiverCapability == nil || !FTReceiverCapability.check() { 
-                                log("Blueprints (Async): Could not retrieve platform Generic FT receiver")
-                                FTReceiverCapability = platformAccount.getCapability<&{FungibleToken.Receiver}>(/public/flowTokenReceiver)
-
-                                if FTReceiverCapability == nil || !FTReceiverCapability.check() { 
-                                    log("Blueprints (Async): Could not retrieve platform FlowToken receiver")
-                                    // completely fails silently at this point, royalty for recipient not received
-                                }
-                            }
-                        }
                     }
                     var description: String = "Generic recipient / cut"
                     

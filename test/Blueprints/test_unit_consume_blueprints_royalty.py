@@ -1,5 +1,5 @@
 from initialize_testing_environment import main
-from transaction_handler import send_blueprints_transaction
+from transaction_handler import send_blueprints_transaction, send_transaction
 from script_handler import send_blueprints_script_and_return_result
 from event_handler import check_for_event, check_for_n_event_occurences_over_x_blocks
 from utils import address, transfer_flow_token
@@ -57,10 +57,25 @@ def test_consume_blueprint_royalties():
     True
   )
 
+  setup_async_resources("User1")
+  setup_async_resources("AsyncArtAccount")
+
   # asset that the royalty is as expected
   royalty_result = send_blueprints_script_and_return_result("getNFTRoyalty", args=[["Address", address("User3")], ["UInt64", "1"]])
-  assert "A.f8d6e0586b0a20c7.MetadataViews.Royalty(receiver: Capability<&AnyResource{A.ee82856bf20e2aa6.FungibleToken.Receiver}>(address: 0x1cf0e2f2f715450, path: /public/flowTokenReceiver), cut: 0.02500000, description: \"Platform cut\")" in royalty_result
+  assert "A.f8d6e0586b0a20c7.MetadataViews.Royalty(receiver: Capability<&AnyResource{A.ee82856bf20e2aa6.FungibleToken.Receiver}>(address: 0x1cf0e2f2f715450, path: /public/GenericFTReceiver), cut: 0.02500000, description: \"Platform cut\")" in royalty_result
+  assert "A.f8d6e0586b0a20c7.MetadataViews.Royalty(receiver: Capability<&AnyResource{A.ee82856bf20e2aa6.FungibleToken.Receiver}>(address: 0x179b6b1cb6755e31, path: /public/GenericFTReceiver), cut: 0.07500000, description: \"Artist cut\")" in royalty_result
+
+  # Assert on behaviour when user with cut does not have royalty receiver but does have FlowToken receiver
+  assert send_transaction("unlinkRoyaltyReceiver", signer="User1")
+  royalty_result = send_blueprints_script_and_return_result("getNFTRoyalty", args=[["Address", address("User3")], ["UInt64", "1"]])
+  assert "A.f8d6e0586b0a20c7.MetadataViews.Royalty(receiver: Capability<&AnyResource{A.ee82856bf20e2aa6.FungibleToken.Receiver}>(address: 0x1cf0e2f2f715450, path: /public/GenericFTReceiver), cut: 0.02500000, description: \"Platform cut\")" in royalty_result
   assert "A.f8d6e0586b0a20c7.MetadataViews.Royalty(receiver: Capability<&AnyResource{A.ee82856bf20e2aa6.FungibleToken.Receiver}>(address: 0x179b6b1cb6755e31, path: /public/flowTokenReceiver), cut: 0.07500000, description: \"Artist cut\")" in royalty_result
 
+  # Assert on behaviour when user with cut does not have royalty receiver or FlowToken receiver
+  assert send_transaction("unlinkFlowTokenReceiver", signer="User1")
+  royalty_result = send_blueprints_script_and_return_result("getNFTRoyalty", args=[["Address", address("User3")], ["UInt64", "1"]])
+  assert "A.f8d6e0586b0a20c7.MetadataViews.Royalty(receiver: Capability<&AnyResource{A.ee82856bf20e2aa6.FungibleToken.Receiver}>(address: 0x1cf0e2f2f715450, path: /public/GenericFTReceiver), cut: 0.02500000, description: \"Platform cut\")" in royalty_result
+  # this is still returned, but now it can't be used
+  assert "A.f8d6e0586b0a20c7.MetadataViews.Royalty(receiver: Capability<&AnyResource{A.ee82856bf20e2aa6.FungibleToken.Receiver}>(address: 0x179b6b1cb6755e31, path: /public/flowTokenReceiver), cut: 0.07500000, description: \"Artist cut\")" in royalty_result
 if __name__ == '__main__':
   test_consume_blueprint_royalties()
