@@ -5,7 +5,7 @@ from event_handler import check_for_event, check_for_n_event_occurences_over_x_b
 from utils import address, transfer_flow_token
 import pytest
 
-from test_unit_setup_blueprints_user import setup_blueprints_user
+from test_unit_setup_async_resources import setup_async_resources
 from test_unit_acquire_minter import acquire_minter
 from test_unit_prepare_blueprint import prepare_blueprint
 from test_unit_begin_sale import begin_sale
@@ -27,14 +27,14 @@ def test_purchase_blueprints_fusd():
   expected_blueprint = 'A.01cf0e2f2f715450.Blueprints.Blueprint(tokenUriLocked: false, mintAmountArtist: 1, mintAmountPlatform: 2, capacity: 5, nftIndex: 0, maxPurchaseAmount: 2, price: 10.00000000, artist: 0x179b6b1cb6755e31, currency: "A.f8d6e0586b0a20c7.FUSD.Vault", baseTokenUri: "https://token-uri.com", saleState: A.01cf0e2f2f715450.Blueprints.SaleState(rawValue: 0), primaryFeePercentages: [], secondaryFeePercentages: [], primaryFeeRecipients: [], secondaryFeeRecipients: [], whitelist: {0xf3fcd2c1a78f5eee: false}, blueprintMetadata: "metadata")'
   assert expected_blueprint == send_blueprints_script_and_return_result("getBlueprint", args=[["UInt64", "0"]])
 
-  assert send_transaction("initializeAccount", signer="User1")
-  assert send_transaction("initializeAccount", signer="User2")
-  assert send_transaction("initializeAccount", signer="User3")
-  assert send_transaction("initializeAccount", signer="AsyncArtAccount")
+  assert send_transaction("setupFUSDVault", signer="User1")
+  assert send_transaction("setupFUSDVault", signer="User2")
+  assert send_transaction("setupFUSDVault", signer="User3")
+  assert send_transaction("setupFUSDVault", signer="AsyncArtAccount")
   assert send_transaction("mintFUSD", args=[["UFix64", "100.0"], ["Address", address("User2")]])
   assert send_transaction("mintFUSD", args=[["UFix64", "100.0"], ["Address", address("User3")]])
-  setup_blueprints_user("User2")
-  setup_blueprints_user("User3")
+  setup_async_resources("User2")
+  setup_async_resources("User3")
 
   purchase_blueprints(
     ["0", "1", "User2"],

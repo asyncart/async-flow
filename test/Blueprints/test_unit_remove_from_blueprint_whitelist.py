@@ -5,7 +5,7 @@ from event_handler import check_for_event
 from utils import address, transfer_flow_token
 import pytest
 
-from test_unit_setup_blueprints_user import setup_blueprints_user
+from test_unit_setup_async_resources import setup_async_resources
 from test_unit_acquire_minter import acquire_minter
 from test_unit_prepare_blueprint import prepare_blueprint
 from test_unit_purchase_blueprints import purchase_blueprints
@@ -40,7 +40,7 @@ def test_remove_from_whitelist():
   )
 
   # Setup User2 to purchase tokens
-  setup_blueprints_user("User2")
+  setup_async_resources("User2")
   transfer_flow_token("User2", "100.0", "emulator-account")
 
   # TODO: optimize by extracting addresses based on flow.json etc.

@@ -5,7 +5,7 @@ from event_handler import check_for_event, check_for_n_event_occurences_over_x_b
 from utils import address
 import pytest
 
-from test_unit_setup_blueprints_user import setup_blueprints_user
+from test_unit_setup_async_resources import setup_async_resources
 from test_unit_acquire_minter import acquire_minter
 from test_unit_prepare_blueprint import prepare_blueprint
 from test_unit_begin_sale import begin_sale
@@ -30,8 +30,8 @@ def test_presale_mint():
   # Deploy contracts
   main()
 
-  setup_blueprints_user("User1")
-  setup_blueprints_user("User2")
+  setup_async_resources("User1")
+  setup_async_resources("User2")
   
   # Confirm that designated minter can prepare blueprint
   prepare_blueprint(

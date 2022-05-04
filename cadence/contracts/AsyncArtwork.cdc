@@ -30,6 +30,7 @@ pub contract AsyncArtwork: NonFungibleToken {
 
     // Second sale percentage for artists platform wide
     // i.e. set to 0.05 to represent a 5% cut
+    // @notice this percentage is shared between all artists
     pub var artistSecondSalePercentage: UFix64
 
     // Recipient of platform royalties on AsyncArtwork sales
@@ -197,24 +198,9 @@ pub contract AsyncArtwork: NonFungibleToken {
 
                         // if this fails, try to add their expected flowTokenVault's receiver. 
                         // even if payment isn't in flowtoken, marketplace may grab the address from the receiver and send to correct receiver
+                        // @notice if this capability is invalid, the requester may still be able to find a valid receiverusing its associated address
+                        // but this contract will not further search for a valid capability for the recipient
                         FTReceiverCapability = recipientAcct.getCapability<&{FungibleToken.Receiver}>(/public/flowTokenReceiver)
-
-                        if FTReceiverCapability == nil || !FTReceiverCapability.check() {
-                            log("AsyncArtwork: Could not retrieve recipient FlowToken receiver")
-                            let asyncAccount = getAccount(AsyncArtwork.asyncSaleFeesRecipient)
-                            // failing silently! this recipient won't receive their royalty owed, send to platform so that platform can distribute to recipient later
-                            FTReceiverCapability = asyncAccount.getCapability<&{FungibleToken.Receiver}>(MetadataViews.getRoyaltyReceiverPublicPath())
-                        
-                            if FTReceiverCapability == nil || !FTReceiverCapability.check() { 
-                                log("AsyncArtwork: Could not retrieve platform Generic FT receiver")
-                                FTReceiverCapability = asyncAccount.getCapability<&{FungibleToken.Receiver}>(/public/flowTokenReceiver)
-
-                                if FTReceiverCapability == nil || !FTReceiverCapability.check() { 
-                                    log("AsyncArtwork: Could not retrieve platform FlowToken receiver")
-                                    // completely fails silently at this point, royalty for recipient not received
-                                }
-                            }
-                        }
                     }
                     var cut: UFix64 = recipients.length > 0 ? artistsPercentage / UFix64(recipients.length - 1) : 0.0
                     var description: String = "Unique token creator cut"

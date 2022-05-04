@@ -5,7 +5,7 @@ from event_handler import check_for_event
 from utils import address
 import pytest
 
-from test_unit_setup_blueprints_user import setup_blueprints_user
+from test_unit_setup_async_resources import setup_async_resources
 from test_unit_acquire_minter import acquire_minter
 from test_unit_prepare_blueprint import prepare_blueprint
 from test_unit_presale_mint import presale_mint
@@ -30,7 +30,7 @@ def test_whitelist_example_token():
   # Randomuser should not be able to whitelist currency
   whitelist_example_token("User1", False)
 
-  setup_blueprints_user("User1")
+  setup_async_resources("User1")
 
   # Async user should not be able to whitelist currency
   whitelist_example_token("User1", False)
