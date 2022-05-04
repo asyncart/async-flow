@@ -5,8 +5,7 @@ from event_handler import check_for_event
 from utils import address, transfer_flow_token
 import pytest
 
-from test_unit_setup_async_user import setup_async_user
-from test_unit_setup_marketplace_client import setup_marketplace_client
+from test_unit_setup_async_resources import setup_async_resources
 from test_unit_whitelist import whitelist
 from test_unit_mint_master_token import mint_master_token
 from test_unit_make_default_nft_auction import create_default_nft_auction
@@ -29,11 +28,8 @@ def test_make_bids():
   # Deploy contracts
   main()
 
-  setup_marketplace_client("User1")
-  setup_marketplace_client("User2")
-
-  setup_async_user("User1")
-  setup_async_user("User2")
+  setup_async_resources("User1")
+  setup_async_resources("User2")
 
   whitelist(
     ["User1", "1", "0", "0.01"],
@@ -49,8 +45,8 @@ def test_make_bids():
     "{}"
   )
 
-  assert send_transaction("initializeAccount", signer="User2")
-  assert send_transaction("initializeAccount", signer="AsyncArtAccount")
+  assert send_transaction("setupFUSDVault", signer="User2")
+  assert send_transaction("setupFUSDVault", signer="AsyncArtAccount")
   assert send_transaction("mintFUSD", args=[["UFix64", "20.0"], ["Address", address("User2")]])
 
   # Instantiate auction
@@ -59,6 +55,9 @@ def test_make_bids():
     "User1",
     True
   )
+
+  # User1 blocks themselves from immediately receiving payment
+  assert send_transaction("unlinkFUSDReceiver", signer="User1")
 
   # Purchase NFT in FUSD, which the seller cannot yet receive
   make_bid(
@@ -80,10 +79,10 @@ def test_make_bids():
   # Confirm that user1 does not own any AsyncArtwork NFTs
   assert "[]" == send_async_artwork_script_and_return_result("getNFTs", args=[["Address", address("User1")]])
 
-  # Initialize User1 to receive standard non-default assets (i.e. FUSD)
-  assert send_transaction("initializeAccount", signer="User1")
+  # Relink User1's FUSD receiver so that they can claim their payment
+  assert send_transaction("relinkFUSDReceiver", signer="User1")
 
-  # User1 should not have received their payout for the purchase of the NFT because
+  # User1 should not have received their payout for the purchase of the NFT because they have not yet claimed their payment
   assert "0.00000000" == send_script_and_return_result("getUsersFUSDBalance", args=[["Address", address("User1")]])
 
   # Cannot claim payment for unvalid currency

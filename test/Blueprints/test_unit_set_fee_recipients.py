@@ -5,7 +5,7 @@ from event_handler import check_for_event
 from utils import address, transfer_flow_token
 import pytest
 
-from test_unit_setup_blueprints_user import setup_blueprints_user
+from test_unit_setup_async_resources import setup_async_resources
 from test_unit_acquire_minter import acquire_minter
 from test_unit_prepare_blueprint import prepare_blueprint
 from test_unit_purchase_blueprints import purchase_blueprints
@@ -33,7 +33,7 @@ def test_set_fee_recipients():
 
   # User2 acquires tokens to purchase blueprints
   transfer_flow_token("User2", "100.0", "emulator-account")
-  setup_blueprints_user("User2")
+  setup_async_resources("User2")
   
   prepare_blueprint(
     ["User1", "5", "10.0", "A.0ae53cb6e3f42a79.FlowToken.Vault", "metadata", "https://token-uri.com", ["User2"], "1", "2", "2"],

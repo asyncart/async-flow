@@ -5,7 +5,7 @@ from event_handler import check_for_event
 from utils import address, transfer_flow_token
 import pytest
 
-from test_unit_setup_blueprints_user import setup_blueprints_user
+from test_unit_setup_async_resources import setup_async_resources
 from test_unit_acquire_minter import acquire_minter
 from test_unit_prepare_blueprint import prepare_blueprint
 from test_unit_purchase_blueprints import purchase_blueprints
@@ -47,8 +47,8 @@ def test_override_whitelist():
   transfer_flow_token("User3", "100.0", "emulator-account")
 
   # Setup blueprints users
-  setup_blueprints_user("User2")
-  setup_blueprints_user("User3")
+  setup_async_resources("User2")
+  setup_async_resources("User3")
 
   # User 2 can purchase blueprints
   purchase_blueprints(

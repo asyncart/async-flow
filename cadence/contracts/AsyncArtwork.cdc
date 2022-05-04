@@ -3,7 +3,6 @@ import FungibleToken from "./FungibleToken.cdc"
 import FlowToken from "./FlowToken.cdc"
 import FUSD from "./FUSD.cdc"
 import MetadataViews from "./MetadataViews.cdc"
-import Royalties from "./Royalties.cdc"
 
 // Authors: Ishan Ghimire, Sam Orend
 // This contract manages AsyncArtwork NFTs. For more details see: https://github.com/asyncart/async-flow/tree/main/cadence/contracts and https://github.com/asyncart/async-contracts/blob/master/contracts/AsyncArtwork_v2.sol
@@ -31,6 +30,7 @@ pub contract AsyncArtwork: NonFungibleToken {
 
     // Second sale percentage for artists platform wide
     // i.e. set to 0.05 to represent a 5% cut
+    // @notice this percentage is shared between all artists
     pub var artistSecondSalePercentage: UFix64
 
     // Recipient of platform royalties on AsyncArtwork sales
@@ -166,7 +166,7 @@ pub contract AsyncArtwork: NonFungibleToken {
                 Type<String>(),
                 Type<{UInt64: ControlLever}>(),
                 Type<[Address]>(),
-                Type<{Royalties.Royalty}>()
+                Type<MetadataViews.Royalties>()
             ]
         }
 
@@ -180,10 +180,43 @@ pub contract AsyncArtwork: NonFungibleToken {
                 return metadata.getLevers()
             } else if type == Type<[Address]>() {
                 return metadata.getUniqueTokenCreators()
-            } else if type == Type<{Royalties.Royalty}>() {
+            } else if type == Type<MetadataViews.Royalties>() {
                 let artistsPercentage: UFix64 = AsyncArtwork.artistSecondSalePercentage
                 let platformPercentage: UFix64 = metadata.platformSecondSalePercentage
-                return AsyncArtwork.Royalty(metadata.getUniqueTokenCreators(), AsyncArtwork.asyncSaleFeesRecipient, artistsPercentage, platformPercentage)
+                
+                let recipients: [Address] = metadata.getUniqueTokenCreators()
+                recipients.append(AsyncArtwork.asyncSaleFeesRecipient)
+
+                let royalties: [MetadataViews.Royalty] = []
+
+                var i: UInt64 = 0
+                while i < UInt64(recipients.length) {
+                    let recipientAcct = getAccount(recipients[i])
+                    var FTReceiverCapability = recipientAcct.getCapability<&{FungibleToken.Receiver}>(MetadataViews.getRoyaltyReceiverPublicPath())
+                    if FTReceiverCapability == nil || !FTReceiverCapability.check() {
+                        log("AsyncArtwork: Could not retrieve recipient Generic FT receiver")
+
+                        // if this fails, try to add their expected flowTokenVault's receiver. 
+                        // even if payment isn't in flowtoken, marketplace may grab the address from the receiver and send to correct receiver
+                        // @notice if this capability is invalid, the requester may still be able to find a valid receiverusing its associated address
+                        // but this contract will not further search for a valid capability for the recipient
+                        FTReceiverCapability = recipientAcct.getCapability<&{FungibleToken.Receiver}>(/public/flowTokenReceiver)
+                    }
+                    var cut: UFix64 = recipients.length > 0 ? artistsPercentage / UFix64(recipients.length - 1) : 0.0
+                    var description: String = "Unique token creator cut"
+
+                    if i == UInt64(recipients.length) - 1 {
+                        // is platform
+                        cut = platformPercentage
+                        description = "Platform (asyncSaleFeesRecipient) cut"
+                    }
+
+                    royalties.append(MetadataViews.Royalty(FTReceiverCapability, cut, description))
+                    
+                    i = i + 1
+                }
+
+                return MetadataViews.Royalties(royalties)
             } else {
                 return nil
             }
@@ -191,79 +224,6 @@ pub contract AsyncArtwork: NonFungibleToken {
 
         init (id: UInt64) {
             self.id = id
-        }
-    }
-
-    // A pre-royalty standard implementation of Royalties for AsyncArt NFTs
-    pub struct Royalty : Royalties.Royalty {
-        // Recipients of royalty
-        access(self) var recipients: [Address]
-
-        // Percentages that each recipient will receive as royalty payment. This is a percentage of the total purchase price.
-        access(self) var percentages: [UFix64]
-
-        // The total percentage of purchase price that will be taken to payout the royalty described by this struct.
-        access(self) var totalCut: UFix64
-        
-        init(_ artists: [Address], _ platform: Address, _ artistsCut: UFix64, _ platformCut: UFix64) {
-            pre {
-                artistsCut + platformCut <= 1.0 : "Royalty percentage allocations should not exceed 100%"
-            }
-
-            self.percentages = []
-            self.recipients = artists
-
-            if artists.length > 0 {
-                let perArtistCut: UFix64 = artistsCut / UFix64(artists.length)
-                for artist in artists {
-                    self.percentages.append(perArtistCut)
-                }
-            }
-
-            self.recipients.append(platform)
-            self.percentages.append(platformCut)
-
-            self.totalCut = artistsCut + platformCut
-        }
-
-        // Calculate how much of the purchase price will be distributed as royalties
-        pub fun calculateRoyalty(type: Type, amount:UFix64) : UFix64? {
-            if AsyncArtwork.isCurrencySupported(currency: type.identifier) {
-                return self.totalCut * amount
-            } else {
-                return nil
-            }
-        }
-    
-        // Distribute royalties on sale of AsyncArt NFT
-        pub fun distributeRoyalty(vault: @FungibleToken.Vault) {
-            pre {
-                AsyncArtwork.isCurrencySupported(currency: vault.getType().identifier) : "Currency not supported"
-            }
-
-            let currency: String = vault.getType().identifier
-            let totalPaymentAmount: UFix64 = vault.balance
-            var i: Int = 0
-            while i < self.recipients.length {
-                let amount: @FungibleToken.Vault <- vault.withdraw(amount: self.percentages[i] * (1.0/self.totalCut) * totalPaymentAmount)
-                AsyncArtwork.payout(recipient: self.recipients[i], amount: <- amount, currency: currency)
-                i = i + 1
-            }
-
-            // There should be zero tokens left but purely to avoid loss of resource send anything remaining to the platform
-            AsyncArtwork.payout(recipient: self.recipients[self.recipients.length - 1], amount: <- vault, currency: currency)
-        }
-
-        // Display the royalty percentage each recipient is receiving in a string
-        pub fun displayRoyalty() : String? {
-            var text = ""
-            var i: Int = 0
-            while i < self.recipients.length {
-                text = text.concat(self.recipients[i].toString()).concat(": ").concat((self.percentages[i]*100.0).toString()).concat("%,")
-                i = i + 1
-            }
-            text = text.slice(from: 0, upTo: text.length-1)
-            return text
         }
     }
 

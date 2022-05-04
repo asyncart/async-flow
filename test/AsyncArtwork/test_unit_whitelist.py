@@ -8,7 +8,7 @@ import json
 import pytest
 
 # Test specific setup functions
-from test_unit_setup_async_user import setup_async_user
+from test_unit_setup_async_resources import setup_async_resources
 
 # expected args: [creator, masterTokenId, layerCount, platformFirstSalePercentage, platformSecondSalePercentage]
 
@@ -33,7 +33,7 @@ def test_whitelist():
   # Deploy contracts
   main()
 
-  setup_async_user("User1")
+  setup_async_resources("User1")
 
   # Check successful whitelist
   whitelist(

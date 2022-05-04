@@ -5,11 +5,10 @@ from event_handler import check_for_event, check_for_n_event_occurences_over_x_b
 from utils import address, transfer_flow_token
 import pytest
 
-from test_unit_setup_async_user import setup_async_user
+from test_unit_setup_async_resources import setup_async_resources
 from test_unit_acquire_minter import acquire_minter
 from test_unit_begin_sale import begin_sale
 from test_unit_make_nft_auction import create_new_nft_auction
-from test_unit_setup_marketplace_client import setup_marketplace_client
 from test_unit_make_bid import make_bid
 from test_unit_take_highest_bid import take_highest_bid
 from test_unit_create_sale import create_new_sale
@@ -22,12 +21,9 @@ def test_integration_async_art_flipper():
   # Deploy contracts
   main()
  
-  setup_marketplace_client("User1")
-  setup_marketplace_client("User2")
-  setup_marketplace_client("User3")
-  setup_async_user("User1")
-  setup_async_user("User2")
-  setup_async_user("User3")
+  setup_async_resources("User1")
+  setup_async_resources("User2")
+  setup_async_resources("User3")
   
   whitelist(
     ["User1", "1", "2", "0.01"],
