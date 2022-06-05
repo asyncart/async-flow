@@ -41,7 +41,7 @@ def test_consume_blueprint_royalties():
   # asset that the royalty is as expected
   # expected_royalty_result = "\"0x1cf0e2f2f715450: 2.50000000%,0x179b6b1cb6755e31: 7.50000000%\""
   royalty_result = send_blueprints_script_and_return_result("getNFTRoyalty", args=[["Address", address("User2")], ["UInt64", "0"]])
-  assert "A.f8d6e0586b0a20c7.MetadataViews.Royalty(receiver: Capability<&AnyResource{A.ee82856bf20e2aa6.FungibleToken.Receiver}>(address: 0x1cf0e2f2f715450, path: /public/flowTokenReceiver), cut: 0.02500000, description: \"Platform cut\")" in royalty_result
+  assert "A.f8d6e0586b0a20c7.MetadataViews.Royalty(receiver: Capability<&AnyResource{A.ee82856bf20e2aa6.FungibleToken.Receiver}>(address: 0x01cf0e2f2f715450, path: /public/flowTokenReceiver), cut: 0.02500000, description: \"Platform cut\")" in royalty_result
   assert "A.f8d6e0586b0a20c7.MetadataViews.Royalty(receiver: Capability<&AnyResource{A.ee82856bf20e2aa6.FungibleToken.Receiver}>(address: 0x179b6b1cb6755e31, path: /public/flowTokenReceiver), cut: 0.07500000, description: \"Artist cut\")" in royalty_result
 
   # After sale has started User2 can purchase again after having claimed
@@ -62,19 +62,19 @@ def test_consume_blueprint_royalties():
 
   # asset that the royalty is as expected
   royalty_result = send_blueprints_script_and_return_result("getNFTRoyalty", args=[["Address", address("User3")], ["UInt64", "1"]])
-  assert "A.f8d6e0586b0a20c7.MetadataViews.Royalty(receiver: Capability<&AnyResource{A.ee82856bf20e2aa6.FungibleToken.Receiver}>(address: 0x1cf0e2f2f715450, path: /public/GenericFTReceiver), cut: 0.02500000, description: \"Platform cut\")" in royalty_result
+  assert "A.f8d6e0586b0a20c7.MetadataViews.Royalty(receiver: Capability<&AnyResource{A.ee82856bf20e2aa6.FungibleToken.Receiver}>(address: 0x01cf0e2f2f715450, path: /public/GenericFTReceiver), cut: 0.02500000, description: \"Platform cut\")" in royalty_result
   assert "A.f8d6e0586b0a20c7.MetadataViews.Royalty(receiver: Capability<&AnyResource{A.ee82856bf20e2aa6.FungibleToken.Receiver}>(address: 0x179b6b1cb6755e31, path: /public/GenericFTReceiver), cut: 0.07500000, description: \"Artist cut\")" in royalty_result
 
   # Assert on behaviour when user with cut does not have royalty receiver but does have FlowToken receiver
   assert send_transaction("unlinkRoyaltyReceiver", signer="User1")
   royalty_result = send_blueprints_script_and_return_result("getNFTRoyalty", args=[["Address", address("User3")], ["UInt64", "1"]])
-  assert "A.f8d6e0586b0a20c7.MetadataViews.Royalty(receiver: Capability<&AnyResource{A.ee82856bf20e2aa6.FungibleToken.Receiver}>(address: 0x1cf0e2f2f715450, path: /public/GenericFTReceiver), cut: 0.02500000, description: \"Platform cut\")" in royalty_result
+  assert "A.f8d6e0586b0a20c7.MetadataViews.Royalty(receiver: Capability<&AnyResource{A.ee82856bf20e2aa6.FungibleToken.Receiver}>(address: 0x01cf0e2f2f715450, path: /public/GenericFTReceiver), cut: 0.02500000, description: \"Platform cut\")" in royalty_result
   assert "A.f8d6e0586b0a20c7.MetadataViews.Royalty(receiver: Capability<&AnyResource{A.ee82856bf20e2aa6.FungibleToken.Receiver}>(address: 0x179b6b1cb6755e31, path: /public/flowTokenReceiver), cut: 0.07500000, description: \"Artist cut\")" in royalty_result
 
   # Assert on behaviour when user with cut does not have royalty receiver or FlowToken receiver
   assert send_transaction("unlinkFlowTokenReceiver", signer="User1")
   royalty_result = send_blueprints_script_and_return_result("getNFTRoyalty", args=[["Address", address("User3")], ["UInt64", "1"]])
-  assert "A.f8d6e0586b0a20c7.MetadataViews.Royalty(receiver: Capability<&AnyResource{A.ee82856bf20e2aa6.FungibleToken.Receiver}>(address: 0x1cf0e2f2f715450, path: /public/GenericFTReceiver), cut: 0.02500000, description: \"Platform cut\")" in royalty_result
+  assert "A.f8d6e0586b0a20c7.MetadataViews.Royalty(receiver: Capability<&AnyResource{A.ee82856bf20e2aa6.FungibleToken.Receiver}>(address: 0x01cf0e2f2f715450, path: /public/GenericFTReceiver), cut: 0.02500000, description: \"Platform cut\")" in royalty_result
   # this is still returned, but now it can't be used
   assert "A.f8d6e0586b0a20c7.MetadataViews.Royalty(receiver: Capability<&AnyResource{A.ee82856bf20e2aa6.FungibleToken.Receiver}>(address: 0x179b6b1cb6755e31, path: /public/flowTokenReceiver), cut: 0.07500000, description: \"Artist cut\")" in royalty_result
 if __name__ == '__main__':

@@ -53,7 +53,7 @@ def test_switchboard_blueprint_royalty_single_artist():
 
   # assert that the royalty is as expected
   royalty_result = send_blueprints_script_and_return_result("getNFTRoyalty", args=[["Address", address("User2")], ["UInt64", "0"]])
-  assert "A.f8d6e0586b0a20c7.MetadataViews.Royalty(receiver: Capability<&AnyResource{A.ee82856bf20e2aa6.FungibleToken.Receiver}>(address: 0x1cf0e2f2f715450, path: /public/GenericFTReceiver), cut: 0.02500000, description: \"Platform cut\")" in royalty_result
+  assert "A.f8d6e0586b0a20c7.MetadataViews.Royalty(receiver: Capability<&AnyResource{A.ee82856bf20e2aa6.FungibleToken.Receiver}>(address: 0x01cf0e2f2f715450, path: /public/GenericFTReceiver), cut: 0.02500000, description: \"Platform cut\")" in royalty_result
   assert "A.f8d6e0586b0a20c7.MetadataViews.Royalty(receiver: Capability<&AnyResource{A.ee82856bf20e2aa6.FungibleToken.Receiver}>(address: 0x179b6b1cb6755e31, path: /public/GenericFTReceiver), cut: 0.07500000, description: \"Artist cut\")" in royalty_result
 
   # Do a Mock secondary sale of User2's NFT on external marketplace in FlowToken

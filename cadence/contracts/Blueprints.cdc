@@ -563,11 +563,14 @@ pub contract Blueprints: NonFungibleToken {
 
         // Borrow a metadata view resolver
         pub fun borrowViewResolver(id: UInt64): &{MetadataViews.Resolver} {
-            let nft = &self.ownedNFTs[id] as auth &NonFungibleToken.NFT
-            if nft.id != id {
+            let nft = &self.ownedNFTs[id] as auth &NonFungibleToken.NFT?
+            if nft == nil {
+                panic("NFT for id not found");
+            }
+            if nft!.id != id {
                 panic("NFT id does not match requested id")
             }
-            let blueprintNFT = nft as! &Blueprints.NFT 
+            let blueprintNFT = nft! as! &Blueprints.NFT 
             return blueprintNFT as &{MetadataViews.Resolver}
         }
 
@@ -603,7 +606,7 @@ pub contract Blueprints: NonFungibleToken {
         // borrowNFT gets a reference to an NFT in the collection
         // so that the caller can read its metadata and call its methods
         pub fun borrowNFT(id: UInt64): &NonFungibleToken.NFT {
-            return &self.ownedNFTs[id] as &NonFungibleToken.NFT
+            return (&self.ownedNFTs[id] as &NonFungibleToken.NFT?)!
         }
 
         destroy() {

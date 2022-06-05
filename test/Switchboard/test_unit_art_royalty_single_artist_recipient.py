@@ -45,7 +45,7 @@ def test_switchboard_art_royalty_single():
   # Assert on standard behaviour (user with cut has royalty receiver)
   royalty_result = send_async_artwork_script_and_return_result("getNFTRoyalty", args=[["Address", address("User1")], ["UInt64", "1"]])
   assert "A.f8d6e0586b0a20c7.MetadataViews.Royalty(receiver: Capability<&AnyResource{A.ee82856bf20e2aa6.FungibleToken.Receiver}>(address: 0xf3fcd2c1a78f5eee, path: /public/GenericFTReceiver), cut: 0.10000000, description: \"Unique token creator cut\")" in royalty_result
-  assert "A.f8d6e0586b0a20c7.MetadataViews.Royalty(receiver: Capability<&AnyResource{A.ee82856bf20e2aa6.FungibleToken.Receiver}>(address: 0x1cf0e2f2f715450, path: /public/GenericFTReceiver), cut: 0.01000000, description: \"Platform (asyncSaleFeesRecipient) cut\")" in royalty_result
+  assert "A.f8d6e0586b0a20c7.MetadataViews.Royalty(receiver: Capability<&AnyResource{A.ee82856bf20e2aa6.FungibleToken.Receiver}>(address: 0x01cf0e2f2f715450, path: /public/GenericFTReceiver), cut: 0.01000000, description: \"Platform (asyncSaleFeesRecipient) cut\")" in royalty_result
 
   # Attempt Mock Sale in FlowToken using the Switchboard to pay royalties
   # Assert on balances before mock sale with mock marketplace
@@ -66,7 +66,7 @@ def test_switchboard_art_royalty_single():
   assert "0.00000000" == send_script_and_return_result("getUsersFUSDBalance", args=[["Address", "0xf3fcd2c1a78f5eee"]])
   assert "0.00000000" == send_script_and_return_result("getUsersFUSDBalance", args=[["Address", "0x01cf0e2f2f715450"]])
   
-  assert send_transaction("mockMarketplaceTokenSale", args=[["Address", address("User1")], ["String", "A.01cf0e2f2f715450.AsyncArtwork.NFT"], ["UInt64", "1"], ["UFix64", "10.0"], ["String", "A.f8d6e0586b0a20c7.FUSD.Vault"]], show=True)
+  assert send_transaction("mockMarketplaceTokenSale", args=[["Address", address("User1")], ["String", "A.01cf0e2f2f715450.AsyncArtwork.NFT"], ["UInt64", "1"], ["UFix64", "10.0"], ["String", "A.f8d6e0586b0a20c7.FUSD.Vault"]])
 
   # Assert on balances after mock sale with mock marketplace
   assert "8.90000000" == send_script_and_return_result("getUsersFUSDBalance", args=[["Address", address("User1")]])

@@ -68,7 +68,7 @@ def test_set_fee_recipients():
 
   # TODO: optimize by extracting addresses based on flow.json etc.
   # Check that state has changed after update
-  expected_blueprint = 'A.01cf0e2f2f715450.Blueprints.Blueprint(tokenUriLocked: false, mintAmountArtist: 1, mintAmountPlatform: 2, capacity: 4, nftIndex: 1, maxPurchaseAmount: 2, price: 10.00000000, artist: 0x179b6b1cb6755e31, currency: "A.0ae53cb6e3f42a79.FlowToken.Vault", baseTokenUri: "https://token-uri.com", saleState: A.01cf0e2f2f715450.Blueprints.SaleState(rawValue: 0), primaryFeePercentages: [0.05000000], secondaryFeePercentages: [0.03000000], primaryFeeRecipients: [0xe03daebed8ca0615], secondaryFeeRecipients: [0x45a1763c93006ca], whitelist: {0xf3fcd2c1a78f5eee: true}, blueprintMetadata: "metadata")'
+  expected_blueprint = 'A.01cf0e2f2f715450.Blueprints.Blueprint(tokenUriLocked: false, mintAmountArtist: 1, mintAmountPlatform: 2, capacity: 4, nftIndex: 1, maxPurchaseAmount: 2, price: 10.00000000, artist: 0x179b6b1cb6755e31, currency: "A.0ae53cb6e3f42a79.FlowToken.Vault", baseTokenUri: "https://token-uri.com", saleState: A.01cf0e2f2f715450.Blueprints.SaleState(rawValue: 0), primaryFeePercentages: [0.05000000], secondaryFeePercentages: [0.03000000], primaryFeeRecipients: [0xe03daebed8ca0615], secondaryFeeRecipients: [0x045a1763c93006ca], whitelist: {0xf3fcd2c1a78f5eee: true}, blueprintMetadata: "metadata")'
   assert expected_blueprint == send_blueprints_script_and_return_result("getBlueprint", args=[["UInt64", "0"]])
 
 if __name__ == '__main__':

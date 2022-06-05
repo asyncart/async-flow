@@ -113,7 +113,7 @@ def test_make_new_nft_auction():
   )
 
   # Successfully create auction
-  res = f'A.120e725050340cab.NFTAuction.Auction(feeRecipients: [{minimal_address("AsyncArtAccount")}, {minimal_address("User1")}], feePercentages: [0.10000000, 0.02000000], nftHighestBid: nil, nftHighestBidder: nil, nftRecipient: nil, auctionBidPeriod: 50000.00000000, auctionEnd: nil, minPrice: 2.00000000, buyNowPrice: 5.00000000, biddingCurrency: \"A.0ae53cb6e3f42a79.FlowToken.Vault\", whitelistedBuyer: nil, nftSeller: 0x179b6b1cb6755e31, nftProviderCapability: Capability<&AnyResource{{A.f8d6e0586b0a20c7.NonFungibleToken.Provider}}>(address: 0x179b6b1cb6755e31, path: /private/AsyncArtworkCollection), bidIncreasePercentage: 0.10000000)'
+  res = f'A.120e725050340cab.NFTAuction.Auction(feeRecipients: [{address("AsyncArtAccount")}, {address("User1")}], feePercentages: [0.10000000, 0.02000000], nftHighestBid: nil, nftHighestBidder: nil, nftRecipient: nil, auctionBidPeriod: 50000.00000000, auctionEnd: nil, minPrice: 2.00000000, buyNowPrice: 5.00000000, biddingCurrency: \"A.0ae53cb6e3f42a79.FlowToken.Vault\", whitelistedBuyer: nil, nftSeller: 0x179b6b1cb6755e31, nftProviderCapability: Capability<&AnyResource{{A.f8d6e0586b0a20c7.NonFungibleToken.Provider}}>(address: 0x179b6b1cb6755e31, path: /private/AsyncArtworkCollection), bidIncreasePercentage: 0.10000000)'
   create_new_nft_auction(
     ["A.01cf0e2f2f715450.AsyncArtwork.NFT", "1", "A.0ae53cb6e3f42a79.FlowToken.Vault", "2.0", "5.0", "50000.0", "0.1", ["AsyncArtAccount", "User1"], ["0.1", "0.02"]],
     "User1",

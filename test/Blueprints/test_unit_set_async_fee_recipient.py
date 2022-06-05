@@ -24,7 +24,7 @@ def test_set_async_fee_recipient():
 
   # Assert that the initial async fee recipient is Async Art's account
   # TODO: write a custom .equals function to compare addresses factoring in leading 0's after the 0x(000)...
-  assert address("AsyncArtAccount")[3:] == send_blueprints_script_and_return_result("getAsyncFeeRecipient")[2:]
+  assert address("AsyncArtAccount") == send_blueprints_script_and_return_result("getAsyncFeeRecipient")
 
   # Set the fee recipient to be User1
   set_async_fee_recipient("User1", "AsyncArtAccount", True)

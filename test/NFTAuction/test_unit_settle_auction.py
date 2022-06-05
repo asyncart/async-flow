@@ -98,7 +98,7 @@ def test_settle_auction():
     False
   )
 
-  res = f'A.120e725050340cab.NFTAuction.Auction(feeRecipients: [{minimal_address("AsyncArtAccount")}], feePercentages: [0.05000000], nftHighestBid: nil, nftHighestBidder: nil, nftRecipient: nil, auctionBidPeriod: 86400.00000000, auctionEnd: nil, minPrice: nil, buyNowPrice: nil, biddingCurrency: \"A.0ae53cb6e3f42a79.FlowToken.Vault\", whitelistedBuyer: nil, nftSeller: nil, nftProviderCapability: nil, bidIncreasePercentage: 0.10000000)'
+  res = f'A.120e725050340cab.NFTAuction.Auction(feeRecipients: [{address("AsyncArtAccount")}], feePercentages: [0.05000000], nftHighestBid: nil, nftHighestBidder: nil, nftRecipient: nil, auctionBidPeriod: 86400.00000000, auctionEnd: nil, minPrice: nil, buyNowPrice: nil, biddingCurrency: \"A.0ae53cb6e3f42a79.FlowToken.Vault\", whitelistedBuyer: nil, nftSeller: nil, nftProviderCapability: nil, bidIncreasePercentage: 0.10000000)'
   settle_auction(
     ["A.01cf0e2f2f715450.AsyncArtwork.NFT", "1"],
     "User1",

@@ -3,6 +3,7 @@ test/__pycache__/**
 test/AsyncArtwork/__pycache__/**
 test/NFTAuction/__pycache__/**
 test/Blueprints/__pycache__/**
+test/Switchboard/__pycache__/**
 test/System/__pycache__/**
 *.fixed.cdc
 emulator.log
