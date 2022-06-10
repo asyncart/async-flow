@@ -43,7 +43,7 @@ def test_consume_art_royalty():
   # Assert on standard behaviour (user with cut has royalty receiver)
   royalty_result = send_async_artwork_script_and_return_result("getNFTRoyalty", args=[["Address", address("User1")], ["UInt64", "1"]])
   assert "A.f8d6e0586b0a20c7.MetadataViews.Royalty(receiver: Capability<&AnyResource{A.ee82856bf20e2aa6.FungibleToken.Receiver}>(address: 0xf3fcd2c1a78f5eee, path: /public/GenericFTReceiver), cut: 0.10000000, description: \"Unique token creator cut\")" in royalty_result
-  assert "A.f8d6e0586b0a20c7.MetadataViews.Royalty(receiver: Capability<&AnyResource{A.ee82856bf20e2aa6.FungibleToken.Receiver}>(address: 0x1cf0e2f2f715450, path: /public/GenericFTReceiver), cut: 0.01000000, description: \"Platform (asyncSaleFeesRecipient) cut\")" in royalty_result
+  assert "A.f8d6e0586b0a20c7.MetadataViews.Royalty(receiver: Capability<&AnyResource{A.ee82856bf20e2aa6.FungibleToken.Receiver}>(address: 0x01cf0e2f2f715450, path: /public/GenericFTReceiver), cut: 0.01000000, description: \"Platform (asyncSaleFeesRecipient) cut\")" in royalty_result
 
   whitelist(
     ["User1", "4", "1", None],
@@ -62,14 +62,14 @@ def test_consume_art_royalty():
   royalty_result = send_async_artwork_script_and_return_result("getNFTRoyalty", args=[["Address", address("User1")], ["UInt64", "4"]])
   assert "A.f8d6e0586b0a20c7.MetadataViews.Royalty(receiver: Capability<&AnyResource{A.ee82856bf20e2aa6.FungibleToken.Receiver}>(address: 0xf3fcd2c1a78f5eee, path: /public/GenericFTReceiver), cut: 0.05000000, description: \"Unique token creator cut\")" in royalty_result
   assert "A.f8d6e0586b0a20c7.MetadataViews.Royalty(receiver: Capability<&AnyResource{A.ee82856bf20e2aa6.FungibleToken.Receiver}>(address: 0x179b6b1cb6755e31, path: /public/GenericFTReceiver), cut: 0.05000000, description: \"Unique token creator cut\")" in royalty_result
-  assert "A.f8d6e0586b0a20c7.MetadataViews.Royalty(receiver: Capability<&AnyResource{A.ee82856bf20e2aa6.FungibleToken.Receiver}>(address: 0x1cf0e2f2f715450, path: /public/GenericFTReceiver), cut: 0.05000000, description: \"Platform (asyncSaleFeesRecipient) cut\")" in royalty_result
+  assert "A.f8d6e0586b0a20c7.MetadataViews.Royalty(receiver: Capability<&AnyResource{A.ee82856bf20e2aa6.FungibleToken.Receiver}>(address: 0x01cf0e2f2f715450, path: /public/GenericFTReceiver), cut: 0.05000000, description: \"Platform (asyncSaleFeesRecipient) cut\")" in royalty_result
 
   # Assert on behaviour when user with cut does not have royalty receiver but does have FlowToken receiver
   assert send_transaction("unlinkRoyaltyReceiver", signer="User2")
   royalty_result = send_async_artwork_script_and_return_result("getNFTRoyalty", args=[["Address", address("User1")], ["UInt64", "4"]])
   assert "A.f8d6e0586b0a20c7.MetadataViews.Royalty(receiver: Capability<&AnyResource{A.ee82856bf20e2aa6.FungibleToken.Receiver}>(address: 0xf3fcd2c1a78f5eee, path: /public/flowTokenReceiver), cut: 0.05000000, description: \"Unique token creator cut\")" in royalty_result
   assert "A.f8d6e0586b0a20c7.MetadataViews.Royalty(receiver: Capability<&AnyResource{A.ee82856bf20e2aa6.FungibleToken.Receiver}>(address: 0x179b6b1cb6755e31, path: /public/GenericFTReceiver), cut: 0.05000000, description: \"Unique token creator cut\")" in royalty_result
-  assert "A.f8d6e0586b0a20c7.MetadataViews.Royalty(receiver: Capability<&AnyResource{A.ee82856bf20e2aa6.FungibleToken.Receiver}>(address: 0x1cf0e2f2f715450, path: /public/GenericFTReceiver), cut: 0.05000000, description: \"Platform (asyncSaleFeesRecipient) cut\")" in royalty_result
+  assert "A.f8d6e0586b0a20c7.MetadataViews.Royalty(receiver: Capability<&AnyResource{A.ee82856bf20e2aa6.FungibleToken.Receiver}>(address: 0x01cf0e2f2f715450, path: /public/GenericFTReceiver), cut: 0.05000000, description: \"Platform (asyncSaleFeesRecipient) cut\")" in royalty_result
 
   # Assert on behaviour when user with cut does not have royalty receiver but does have FlowToken receiver
   assert send_transaction("unlinkFlowTokenReceiver", signer="User2")
@@ -77,7 +77,7 @@ def test_consume_art_royalty():
   # This capability is now invalid though, but it still is returned
   assert "A.f8d6e0586b0a20c7.MetadataViews.Royalty(receiver: Capability<&AnyResource{A.ee82856bf20e2aa6.FungibleToken.Receiver}>(address: 0xf3fcd2c1a78f5eee, path: /public/flowTokenReceiver), cut: 0.05000000, description: \"Unique token creator cut\")" in royalty_result
   assert "A.f8d6e0586b0a20c7.MetadataViews.Royalty(receiver: Capability<&AnyResource{A.ee82856bf20e2aa6.FungibleToken.Receiver}>(address: 0x179b6b1cb6755e31, path: /public/GenericFTReceiver), cut: 0.05000000, description: \"Unique token creator cut\")" in royalty_result
-  assert "A.f8d6e0586b0a20c7.MetadataViews.Royalty(receiver: Capability<&AnyResource{A.ee82856bf20e2aa6.FungibleToken.Receiver}>(address: 0x1cf0e2f2f715450, path: /public/GenericFTReceiver), cut: 0.05000000, description: \"Platform (asyncSaleFeesRecipient) cut\")" in royalty_result
+  assert "A.f8d6e0586b0a20c7.MetadataViews.Royalty(receiver: Capability<&AnyResource{A.ee82856bf20e2aa6.FungibleToken.Receiver}>(address: 0x01cf0e2f2f715450, path: /public/GenericFTReceiver), cut: 0.05000000, description: \"Platform (asyncSaleFeesRecipient) cut\")" in royalty_result
 
   # Assert on behaviour when AsyncArtAccount unlinks switchboard
   assert send_transaction("unlinkRoyaltyReceiver", signer="AsyncArtAccount")
@@ -85,7 +85,7 @@ def test_consume_art_royalty():
   # This capability is now invalid though, but it still is returned
   assert "A.f8d6e0586b0a20c7.MetadataViews.Royalty(receiver: Capability<&AnyResource{A.ee82856bf20e2aa6.FungibleToken.Receiver}>(address: 0xf3fcd2c1a78f5eee, path: /public/flowTokenReceiver), cut: 0.05000000, description: \"Unique token creator cut\")" in royalty_result
   assert "A.f8d6e0586b0a20c7.MetadataViews.Royalty(receiver: Capability<&AnyResource{A.ee82856bf20e2aa6.FungibleToken.Receiver}>(address: 0x179b6b1cb6755e31, path: /public/GenericFTReceiver), cut: 0.05000000, description: \"Unique token creator cut\")" in royalty_result
-  assert "A.f8d6e0586b0a20c7.MetadataViews.Royalty(receiver: Capability<&AnyResource{A.ee82856bf20e2aa6.FungibleToken.Receiver}>(address: 0x1cf0e2f2f715450, path: /public/flowTokenReceiver), cut: 0.05000000, description: \"Platform (asyncSaleFeesRecipient) cut\")" in royalty_result
+  assert "A.f8d6e0586b0a20c7.MetadataViews.Royalty(receiver: Capability<&AnyResource{A.ee82856bf20e2aa6.FungibleToken.Receiver}>(address: 0x01cf0e2f2f715450, path: /public/flowTokenReceiver), cut: 0.05000000, description: \"Platform (asyncSaleFeesRecipient) cut\")" in royalty_result
 
 if __name__ == '__main__':
     test_consume_art_royalty()
