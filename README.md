@@ -5,6 +5,14 @@ This repository manages AsyncArt's on-chain system onFlow. The Flow-specific cod
 There is also a `test` directory which contains unit and integrations tests. Details
 on the test suite, including how to run it are found in its README.
 
+# Deployments
+
+The latest contracts have been deployed to testnet. They can be viewed here:
+
+AsyncArtwork: https://flow-view-source.com/testnet/account/0xf35d543e62b62806/contract/AsyncArtwork
+Blueprints: https://flow-view-source.com/testnet/account/0xf35d543e62b62806/contract/Blueprints
+NFTAuction: https://flow-view-source.com/testnet/account/0xf6c84d7284f77a9c/contract/NFTAuction
+
 # Setup
 
 - Clone the repository
@@ -12,7 +20,7 @@ on the test suite, including how to run it are found in its README.
 - Ensure Flow CLI is installed: https://docs.onflow.org/flow-cli/install/
 - Ensure that you have Pytest installed: (pip3 install -U pytest)
 
-# Deploy
+# How To Deploy
 
 ## Automatic Deploy (Recommended)
 
