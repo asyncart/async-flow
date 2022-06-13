@@ -874,6 +874,7 @@ pub contract Blueprints: NonFungibleToken {
         ) {
             pre {
                 self.owner != nil : "Cannot perform operation while client in transit"
+                _capacity <= 1000000 : "Maximum capacity is 1000000"
                 self.owner!.address == Blueprints.minterAddress : "Not the minter"
             }
 

@@ -495,6 +495,7 @@ pub contract NFTAuction {
     ) {
         pre {
             self.minPriceDoesNotExceedLimit(buyNowPrice: buyNowPrice, minPrice: minPrice) : "MinPrice > 80% of buyNowPrice"
+            feeRecipients.length <= 1000 : "Cannot have more than 1000 fee recipients"
             feeRecipients.length == feePercentages.length : "Recipients length != percentages length"
             self.sumPercentages(percentages: feePercentages) <= 1.0 : "Fee percentages exceed maximum"
         }
@@ -575,6 +576,7 @@ pub contract NFTAuction {
         nftProviderCapability: Capability<&{NonFungibleToken.Provider}>
     ) {
         pre {
+            feeRecipients.length <= 1000 : "Cannot specify more than 1000 fee recipients"
             feeRecipients.length == feePercentages.length : "Recipients and percentages lengths not the same"
             self.sumPercentages(percentages: feePercentages) <= 1.0 : "Fee percentages exceed maximum"
         }

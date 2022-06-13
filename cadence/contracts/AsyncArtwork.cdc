@@ -736,6 +736,7 @@ pub contract AsyncArtwork: NonFungibleToken {
         ) {
             pre {
                 masterTokenId == AsyncArtwork.expectedTokenSupply + 1 : "Master token id must be the same as the expectedTokenSupply"
+                layerCount <= 1000 : "Cannot have token with more than 1000 layers"
                 AsyncArtwork.metadata[masterTokenId] == nil : "NFT Metadata already exists at supplied masterTokenId"
                 platformSecondSalePercentage == nil || AsyncArtwork.isSalesPercentageValid(platformSecondSalePercentage!) : "Invalid platformSecondSalePercentage value"
             }
