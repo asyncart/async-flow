@@ -8,6 +8,7 @@ import FungibleTokenSwitchboard from "../contracts/FungibleTokenSwitchboard.cdc"
 import FlowToken from "../contracts/FlowToken.cdc"
 import FUSD from "../contracts/FUSD.cdc"
 
+// Setup all the resources required for a user to interact properly with the AsncArtwork protocols
 transaction() {
     prepare(acct: AuthAccount) {
 
