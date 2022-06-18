@@ -1,5 +1,6 @@
 import AsyncArtwork from "../../contracts/AsyncArtwork.cdc"
 
+// Update the default second sale percentage going to artists on AsyncArtwork
 transaction(
     newArtistSecondSalePercentage: UFix64, 
 ) {

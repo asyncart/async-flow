@@ -1,5 +1,6 @@
 import NFTAuction from "../../contracts/NFTAuction.cdc"
 
+// Withdraw a created auction that hasn't received any bids
 transaction(
     nftTypeIdentifier: String,
     tokenId: UInt64,

@@ -8,6 +8,7 @@ import FungibleTokenSwitchboard from "../contracts/FungibleTokenSwitchboard.cdc"
 import FlowToken from "../contracts/FlowToken.cdc"
 import FUSD from "../contracts/FUSD.cdc"
 
+// This transaction validates if a user has all the capabilities required to facilitate interaction with the AsyncArtwork protocols
 transaction() {
     prepare(acct: AuthAccount) {
         if !acct.getCapability<&AsyncArtwork.Collection{NonFungibleToken.Provider}>(AsyncArtwork.collectionPrivatePath).check() {

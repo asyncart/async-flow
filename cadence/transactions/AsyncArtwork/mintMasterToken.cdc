@@ -1,5 +1,6 @@
 import AsyncArtwork from "../../contracts/AsyncArtwork.cdc"
 
+// Mint an AsyncArtwork master token to the caller's address
 transaction(
     id: UInt64, 
     artworkUri: String, 

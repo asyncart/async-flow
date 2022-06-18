@@ -1,6 +1,7 @@
 import AsyncArtwork from "../../contracts/AsyncArtwork.cdc"
 import FungibleToken from "../../contracts/FungibleToken.cdc"
 
+// Update the values on a control token 
 transaction(
     id: UInt64, 
     leverIds: [UInt64], 

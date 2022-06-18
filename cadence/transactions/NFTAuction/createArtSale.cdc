@@ -1,6 +1,7 @@
 import NonFungibleToken from "../../contracts/NonFungibleToken.cdc"
 import NFTAuction from "../../contracts/NFTAuction.cdc"
 
+// Create a direct NFT sale on NFTAuction
 transaction(
     nftTypeIdentifier: String,
     tokenId: UInt64,

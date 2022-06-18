@@ -1,6 +1,7 @@
 import FungibleToken from "../contracts/FungibleToken.cdc"
 import FUSD from "../contracts/FUSD.cdc"
 
+// Setup FUSD vault on the caller's account
 transaction() {
     prepare(acct: AuthAccount) {
         if acct.borrow<&FUSD.Vault>(from: /storage/fusdVault) == nil {

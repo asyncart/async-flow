@@ -1,5 +1,6 @@
 import AsyncArtwork from "../../contracts/AsyncArtwork.cdc"
 
+// Move an AsyncArtwork admin resource off the caller's account to another account
 transaction() {
     prepare(mover: AuthAccount, receiver: AuthAccount) {
         let admin <- mover.load<@AsyncArtwork.Admin>(from: AsyncArtwork.adminStoragePath) ?? panic("Could not find Admin")

@@ -1,5 +1,6 @@
 import NFTAuction from "../../contracts/NFTAuction.cdc"
 
+// Update the buy now price on a listing. If the buy now price is updated such that the highest bid supercedes the buy now price, the nft will be sold
 transaction(
     nftTypeIdentifier: String,
     tokenId: UInt64,

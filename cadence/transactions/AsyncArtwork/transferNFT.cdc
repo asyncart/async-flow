@@ -1,6 +1,7 @@
 import AsyncArtwork from "../../contracts/AsyncArtwork.cdc"
 import NonFungibleToken from "../../contracts/NonFungibleToken.cdc"
 
+// Transfer a caller's NFT to a recipient
 transaction(
     id: UInt64,
     recipient: Address

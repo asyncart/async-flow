@@ -1,5 +1,6 @@
 import NFTAuction from "../../contracts/NFTAuction.cdc"
 
+// update the minimum price on a listing required to start holding bidder amounts on the contract
 transaction(
     nftTypeIdentifier: String,
     tokenId: UInt64,

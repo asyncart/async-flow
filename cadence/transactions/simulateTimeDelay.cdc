@@ -1,3 +1,4 @@
+// Simulate a time delay on the network for testing purposes
 transaction() {
     prepare(acct: AuthAccount) {}
 

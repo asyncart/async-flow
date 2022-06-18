@@ -1,6 +1,7 @@
 import Blueprints from "../contracts/Blueprints.cdc"
 import AsyncArtwork from "../contracts/AsyncArtwork.cdc"
 
+// The platform can call this to safely unwhitelist a currency on the Blueprints and AsyncArtwork contract. See contract for safe vs. unsafe unwhitelisting
 transaction(currency: String) {
 
     prepare(acct: AuthAccount) {

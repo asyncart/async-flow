@@ -3,6 +3,7 @@ import ExampleToken from "../contracts/ExampleToken.cdc"
 import Blueprints from "../contracts/Blueprints.cdc"
 import AsyncArtwork from "../contracts/AsyncArtwork.cdc"
 
+// The platform can call this to whitelist ExampleToken on Blueprints and AsyncArtwork
 transaction() {
     prepare(acct: AuthAccount) {
         let exampleTokenVault1 <- ExampleToken.createEmptyVault()

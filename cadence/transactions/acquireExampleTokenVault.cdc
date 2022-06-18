@@ -1,6 +1,7 @@
 import FungibleToken from "../contracts/FungibleToken.cdc"
 import ExampleToken from "../contracts/ExampleToken.cdc"
 
+// The caller acquires an ExampleToken vault
 transaction() {
 
     prepare(acct: AuthAccount) {

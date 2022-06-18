@@ -1,7 +1,7 @@
 import FungibleToken from "../contracts/FungibleToken.cdc"
 import FUSD from "../contracts/FUSD.cdc"
 
-
+// Lets the holder of the FUSD minter resource mint more FUSD
 transaction(amount: UFix64, receiver: Address) {
     let fusdAdmin: &FUSD.Administrator
     let fusdReceiver: &{FungibleToken.Receiver}

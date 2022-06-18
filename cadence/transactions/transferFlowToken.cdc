@@ -1,5 +1,6 @@
 import FungibleToken from "../contracts/FungibleToken.cdc"
 
+// Transfers FlowToken from the caller to a recipient
 transaction(
     recipient: Address,
     amount: UFix64

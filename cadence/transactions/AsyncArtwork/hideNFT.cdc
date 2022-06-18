@@ -1,5 +1,6 @@
 import AsyncArtwork from "../../contracts/AsyncArtwork.cdc"
 
+// Test mucking around with how an NFT is indexed on a collection
 transaction(
     id: UInt64
 ) {
