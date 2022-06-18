@@ -1,6 +1,7 @@
 import FungibleToken from "../../contracts/FungibleToken.cdc"
 import NFTAuction from "../../contracts/NFTAuction.cdc"
 
+// make a bid on an auction or sale on NFTAuction, if the bid succeeds, the caller will receive the NFT
 transaction(
     nftTypeIdentifier: String,
     tokenId: UInt64,

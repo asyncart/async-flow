@@ -1,5 +1,6 @@
 import NFTAuction from "../../contracts/NFTAuction.cdc"
 
+// The auction creator can use this tx to settle an auction, and give the NFT listed to the highest bidder
 transaction(
     nftTypeIdentifier: String,
     tokenId: UInt64,

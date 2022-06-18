@@ -1,5 +1,6 @@
 import NFTAuction from "../../contracts/NFTAuction.cdc"
 
+// Take the highest bid on an NFT listing 
 transaction(
     nftTypeIdentifier: String,
     tokenId: UInt64,

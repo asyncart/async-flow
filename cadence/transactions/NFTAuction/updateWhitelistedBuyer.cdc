@@ -1,5 +1,6 @@
 import NFTAuction from "../../contracts/NFTAuction.cdc"
 
+// Update the whitelisted buyer that is the only buyer able to purchase a direct sale
 transaction(
     nftTypeIdentifier: String,
     tokenId: UInt64,

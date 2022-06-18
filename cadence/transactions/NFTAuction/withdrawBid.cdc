@@ -1,5 +1,6 @@
 import NFTAuction from "../../contracts/NFTAuction.cdc"
 
+// Withdraw a bid on an NFT
 transaction(
     nftTypeIdentifier: String,
     tokenId: UInt64,

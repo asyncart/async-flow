@@ -1,6 +1,7 @@
 import NFTAuction from "../../contracts/NFTAuction.cdc"
 import NonFungibleToken from "../../contracts/NonFungibleToken.cdc"
 
+// If an account is owed NFTs but did not have the receiver capability set up to receive it, they can use this transaction to claim it later
 transaction(
     nftTypeIdentifier: String
 ) {

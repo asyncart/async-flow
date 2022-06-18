@@ -2,6 +2,7 @@ import AsyncArtwork from "../../contracts/AsyncArtwork.cdc"
 import NonFungibleToken from "../../contracts/NonFungibleToken.cdc"
 import MetadataViews from "../../contracts/MetadataViews.cdc"
 
+// Get an AsyncArtwork NFT's royalty data
 pub fun main(user: Address, id: UInt64): MetadataViews.Royalties? {
     let account = getAccount(user)
     let collection = account.getCapability<&{MetadataViews.ResolverCollection}>(AsyncArtwork.collectionPublicPath).borrow() ?? panic("Could not borrow reference to user's collection")

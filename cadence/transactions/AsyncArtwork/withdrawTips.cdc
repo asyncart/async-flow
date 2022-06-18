@@ -1,6 +1,7 @@
 import AsyncArtwork from "../../contracts/AsyncArtwork.cdc"
 import FungibleToken from "../../contracts/FungibleToken.cdc"
 
+// The platform can withdraw tips accumulated by the AsyncArtwork contract
 transaction(recipient: Address) {
     let admin: &AsyncArtwork.Admin
     let vault: &{FungibleToken.Receiver}

@@ -1,6 +1,7 @@
 import AsyncArtwork from "../../contracts/AsyncArtwork.cdc"
 import NonFungibleToken from "../../contracts/NonFungibleToken.cdc"
 
+// This is the transaction the platform (AsyncArtwork) runs to let creators mint a master token and reserve layers for control tokens
 transaction(
     creatorAddress: Address,
     masterTokenId: UInt64,

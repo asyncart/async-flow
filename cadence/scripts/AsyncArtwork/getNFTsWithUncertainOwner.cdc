@@ -1,10 +1,9 @@
 import AsyncArtwork from "../../contracts/AsyncArtwork.cdc"
 import NonFungibleToken from "../../contracts/NonFungibleToken.cdc"
 
+// Get AsyncArtwork nfts held by a user
 pub fun main(): [UInt64] {
   let allNFTs = AsyncArtwork.getAllNFTs()
-  log("all nftsss")
-  log(allNFTs)
   let nftIdsWithUncertainOwner: [UInt64] = []
   for nft in allNFTs {
     if nft.owner != nil {
